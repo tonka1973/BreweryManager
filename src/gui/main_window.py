@@ -30,14 +30,20 @@ class BreweryMainWindow:
         
         # Initialize data access layer
         self.cache_manager = SQLiteCacheManager()
+
+        # Initialize database (create tables on first run)
+        self.cache_manager.connect()
+        self.cache_manager.initialize_database()
+        self.cache_manager.close()
+
         self.sheets_client = GoogleSheetsClient()
-        
+
         # Initialize sync manager
         self.sync_manager = SyncManager(self.sheets_client, self.cache_manager)
-        
+
         # Initialize authentication
         self.auth = AuthManager(self.cache_manager)
-        
+
         # Create default admin user if no users exist
         self.auth.create_default_admin()
         
