@@ -170,7 +170,8 @@ class AuthManager:
             self.cache.update_record(
                 'users',
                 user_data['user_id'],
-                {'last_login': datetime.now().strftime(DATETIME_FORMAT)}
+                {'last_login': datetime.now().strftime(DATETIME_FORMAT)},
+                id_column='user_id'
             )
             
             self.session_start = datetime.now()
@@ -234,7 +235,8 @@ class AuthManager:
                     {
                         'password_hash': new_password_hash,
                         'sync_status': 'pending'
-                    }
+                    },
+                    id_column='user_id'
                 )
                 self.cache.close()
                 logger.info(f"Password changed for user: {username}")
@@ -286,7 +288,8 @@ class AuthManager:
                 {
                     'is_active': 0,
                     'sync_status': 'pending'
-                }
+                },
+                id_column='user_id'
             )
             self.cache.close()
             logger.info(f"User deactivated: {user_id}")

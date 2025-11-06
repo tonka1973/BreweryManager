@@ -166,7 +166,7 @@ class BreweryMainWindow:
         # Info text
         info_label = tk.Label(
             center_frame,
-            text="Default credentials: admin / admin123",
+            text="Default credentials: admin / admin",
             font=('Arial', 9, 'italic'),
             bg='#f0f0f0',
             fg='#666666'
@@ -190,9 +190,9 @@ class BreweryMainWindow:
             return
         
         # Attempt login
-        success, user = self.auth.login(username, password)
-        
-        if success:
+        user = self.auth.login(username, password)
+
+        if user:
             self.current_user = user
             self.create_main_interface()
         else:
