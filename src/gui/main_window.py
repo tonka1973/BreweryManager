@@ -424,7 +424,8 @@ class BreweryMainWindow:
             dashboard = DashboardModule(
                 self.content_area,
                 self.cache_manager,
-                self.current_user
+                self.current_user,
+                navigate_callback=self.switch_module
             )
             dashboard.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 

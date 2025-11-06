@@ -12,7 +12,7 @@ from typing import Optional
 class DashboardModule(tk.Frame):
     """Dashboard module showing overview and quick stats"""
 
-    def __init__(self, parent, cache_manager, current_user):
+    def __init__(self, parent, cache_manager, current_user, navigate_callback=None):
         """
         Initialize the Dashboard module.
 
@@ -20,10 +20,12 @@ class DashboardModule(tk.Frame):
             parent: Parent widget
             cache_manager: SQLiteCacheManager instance
             current_user: Current logged-in user
+            navigate_callback: Function to call for navigation to other modules
         """
         super().__init__(parent, bg='white')
         self.cache = cache_manager
         self.current_user = current_user
+        self.navigate = navigate_callback
 
         # Create dashboard layout
         self.create_widgets()
@@ -48,7 +50,7 @@ class DashboardModule(tk.Frame):
 
         date_label = tk.Label(
             welcome_frame,
-            text=datetime.now().strftime("%A, %B %d, %Y"),
+            text=datetime.now().strftime("%A, %d/%m/%Y"),
             font=('Arial', 11),
             bg='white',
             fg='#7f8c8d'
@@ -106,37 +108,49 @@ class DashboardModule(tk.Frame):
 
         self.cache.close()
 
-        # Create cards
-        self.create_stat_card(stats_frame, "Total Batches", str(total_batches), "#3498db", 0)
-        self.create_stat_card(stats_frame, "In Production", str(active_count), "#f39c12", 1)
-        self.create_stat_card(stats_frame, "Customers", str(total_customers), "#2ecc71", 2)
-        self.create_stat_card(stats_frame, "Sales (Month)", str(monthly_sales), "#9b59b6", 3)
+        # Create cards (now clickable)
+        self.create_stat_card(stats_frame, "Total Batches", str(total_batches), "#3498db", 0, "Batches")
+        self.create_stat_card(stats_frame, "In Production", str(active_count), "#f39c12", 1, "Batches")
+        self.create_stat_card(stats_frame, "Customers", str(total_customers), "#2ecc71", 2, "Customers")
+        self.create_stat_card(stats_frame, "Sales (Month)", str(monthly_sales), "#9b59b6", 3, "Sales")
 
-    def create_stat_card(self, parent, title, value, color, column):
-        """Create a single stat card"""
-        card = tk.Frame(parent, bg=color, relief=tk.RAISED, borderwidth=1)
-        card.grid(row=0, column=column, padx=10, sticky='ew')
+    def create_stat_card(self, parent, title, value, color, column, destination=None):
+        """Create a single stat card as a clickable button"""
+        # Button wrapper
+        card = tk.Button(
+            parent,
+            bg=color,
+            relief=tk.RAISED,
+            borderwidth=1,
+            cursor='hand2' if destination and self.navigate else 'arrow',
+            command=lambda: self.navigate(destination) if destination and self.navigate else None
+        )
+        card.grid(row=0, column=column, padx=8, sticky='ew')
         parent.grid_columnconfigure(column, weight=1)
 
-        # Value
-        value_label = tk.Label(
-            card,
-            text=value,
-            font=('Arial', 28, 'bold'),
-            bg=color,
-            fg='white'
-        )
-        value_label.pack(pady=(15, 5))
+        # Inner frame for layout
+        inner_frame = tk.Frame(card, bg=color)
+        inner_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Title
-        title_label = tk.Label(
-            card,
-            text=title,
-            font=('Arial', 11),
+        # Value (smaller font)
+        value_label = tk.Label(
+            inner_frame,
+            text=value,
+            font=('Arial', 20, 'bold'),
             bg=color,
             fg='white'
         )
-        title_label.pack(pady=(0, 15))
+        value_label.pack(pady=(10, 3))
+
+        # Title (smaller font)
+        title_label = tk.Label(
+            inner_frame,
+            text=title,
+            font=('Arial', 9),
+            bg=color,
+            fg='white'
+        )
+        title_label.pack(pady=(0, 10))
 
     def create_recent_batches(self, parent):
         """Create recent batches section"""
@@ -146,7 +160,7 @@ class DashboardModule(tk.Frame):
 
         header_label = tk.Label(
             header_frame,
-            text="Recent Batches",
+            text="Production Flow",
             font=('Arial', 13, 'bold'),
             bg='white',
             fg='#2c3e50'
@@ -214,7 +228,17 @@ class DashboardModule(tk.Frame):
                 if recipes:
                     beer_name = recipes[0].get('recipe_name', 'Unknown')
 
-            brew_date = batch.get('brew_date', 'N/A')
+            brew_date_raw = batch.get('brew_date', 'N/A')
+            # Convert date format from YYYY-MM-DD to DD/MM/YYYY
+            if brew_date_raw != 'N/A':
+                try:
+                    date_obj = datetime.strptime(brew_date_raw, '%Y-%m-%d')
+                    brew_date = date_obj.strftime('%d/%m/%Y')
+                except:
+                    brew_date = brew_date_raw
+            else:
+                brew_date = 'N/A'
+
             status = batch.get('status', 'N/A').capitalize()
 
             # Color code by status
@@ -386,10 +410,20 @@ class DashboardModule(tk.Frame):
         item_frame = tk.Frame(parent, bg='#ecf0f1', relief=tk.FLAT)
         item_frame.pack(fill=tk.X, padx=5, pady=3)
 
-        # Date
+        # Date (convert to DD/MM/YYYY)
+        delivery_date_raw = delivery.get('delivery_date', 'N/A')
+        if delivery_date_raw != 'N/A':
+            try:
+                date_obj = datetime.strptime(delivery_date_raw, '%Y-%m-%d')
+                delivery_date_formatted = date_obj.strftime('%d/%m/%Y')
+            except:
+                delivery_date_formatted = delivery_date_raw
+        else:
+            delivery_date_formatted = 'N/A'
+
         date_label = tk.Label(
             item_frame,
-            text=delivery.get('delivery_date', 'N/A'),
+            text=delivery_date_formatted,
             font=('Arial', 9, 'bold'),
             bg='#ecf0f1',
             fg='#2c3e50',
