@@ -33,8 +33,10 @@ python main.py
 ### Step 5: Login
 ```
 Username: admin
-Password: admin123
+Password: admin
 ```
+
+**IMPORTANT:** Change the password after first login!
 
 ---
 

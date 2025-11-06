@@ -10,6 +10,8 @@
 
 **→ [LOCAL_SETUP_GUIDE.md](LOCAL_SETUP_GUIDE.md)** ← Detailed setup instructions
 
+**Default Login:** admin / admin (change after first login!)
+
 ---
 
 ## 📚 DOCUMENTATION INDEX

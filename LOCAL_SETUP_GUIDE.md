@@ -63,7 +63,9 @@ The application should launch immediately with a login screen!
 ### Step 4: Login
 **Default credentials:**
 - Username: `admin`
-- Password: `admin123`
+- Password: `admin`
+
+**IMPORTANT:** You should change this password immediately after first login for security!
 
 ---
 
