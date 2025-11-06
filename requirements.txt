@@ -1,0 +1,34 @@
+# Brewery Management System - Python Dependencies
+# Phase 1: Core Foundation
+
+# Google API
+google-api-python-client==2.108.0
+google-auth==2.25.2
+google-auth-oauthlib==1.2.0
+google-auth-httplib2==0.2.0
+
+# Database
+# sqlite3 is built-in to Python
+
+# GUI
+# tkinter is built-in to Python
+
+# PDF Generation (for later phases)
+reportlab>=4.0.7
+
+# Image Processing (for label printing)
+Pillow>=10.3.0
+
+# Utilities
+python-dateutil==2.8.2
+pytz==2023.3
+
+# Data manipulation (for reports)
+pandas>=2.1.4
+openpyxl>=3.1.2
+
+# HTTP requests
+requests==2.31.0
+
+# Packaging
+pyinstaller>=6.3.0

@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+venv/
+env/
+ENV/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# PDFs (keep local, don't commit - too large)
+*.pdf
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Google Sheets credentials
+credentials.json
+token.json
+
+# Temporary files
+*.tmp
+*.bak
+~*
+
+# Build artifacts
+*.exe
+*.spec
