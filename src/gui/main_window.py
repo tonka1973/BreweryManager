@@ -17,6 +17,9 @@ from src.data_access.sqlite_cache import SQLiteCacheManager
 from src.data_access.google_sheets_client import GoogleSheetsClient
 from src.gui.dashboard import DashboardModule
 from src.gui.recipes import RecipesModule
+from src.gui.inventory import InventoryModule
+from src.gui.batches import BatchesModule
+from src.gui.duty import DutyModule
 from datetime import datetime
 
 
@@ -429,6 +432,33 @@ class BreweryMainWindow:
                 self.current_user
             )
             recipes.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        elif module_name == 'Inventory':
+            # Load Inventory module
+            inventory = InventoryModule(
+                self.content_area,
+                self.cache_manager,
+                self.current_user
+            )
+            inventory.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        elif module_name == 'Batches':
+            # Load Batches module
+            batches = BatchesModule(
+                self.content_area,
+                self.cache_manager,
+                self.current_user
+            )
+            batches.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        elif module_name == 'Duty Calculator':
+            # Load Duty Calculator module
+            duty = DutyModule(
+                self.content_area,
+                self.cache_manager,
+                self.current_user
+            )
+            duty.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
         else:
             # Other modules placeholder (will be implemented in Phase 2)
