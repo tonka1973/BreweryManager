@@ -115,42 +115,51 @@ class DashboardModule(tk.Frame):
         self.create_stat_card(stats_frame, "Sales (Month)", str(monthly_sales), "#9b59b6", 3, "Sales")
 
     def create_stat_card(self, parent, title, value, color, column, destination=None):
-        """Create a single stat card as a clickable button"""
-        # Button wrapper
-        card = tk.Button(
+        """Create a single stat card as a clickable frame"""
+        # Frame wrapper (not Button to avoid glitching)
+        card = tk.Frame(
             parent,
             bg=color,
             relief=tk.RAISED,
             borderwidth=1,
-            cursor='hand2' if destination and self.navigate else 'arrow',
-            command=lambda: self.navigate(destination) if destination and self.navigate else None
+            cursor='hand2' if destination and self.navigate else 'arrow'
         )
-        card.grid(row=0, column=column, padx=8, sticky='ew')
+        card.grid(row=0, column=column, padx=5, sticky='ew')
         parent.grid_columnconfigure(column, weight=1)
 
-        # Inner frame for layout
-        inner_frame = tk.Frame(card, bg=color)
-        inner_frame.pack(fill=tk.BOTH, expand=True)
+        # Make clickable if navigate callback exists
+        if destination and self.navigate:
+            card.bind('<Button-1>', lambda e: self.navigate(destination))
 
         # Value (smaller font)
         value_label = tk.Label(
-            inner_frame,
+            card,
             text=value,
-            font=('Arial', 20, 'bold'),
+            font=('Arial', 16, 'bold'),
             bg=color,
             fg='white'
         )
-        value_label.pack(pady=(10, 3))
+        value_label.pack(pady=(8, 2))
+
+        # Make label clickable too
+        if destination and self.navigate:
+            value_label.bind('<Button-1>', lambda e: self.navigate(destination))
+            value_label.config(cursor='hand2')
 
         # Title (smaller font)
         title_label = tk.Label(
-            inner_frame,
+            card,
             text=title,
-            font=('Arial', 9),
+            font=('Arial', 8),
             bg=color,
             fg='white'
         )
-        title_label.pack(pady=(0, 10))
+        title_label.pack(pady=(0, 8))
+
+        # Make label clickable too
+        if destination and self.navigate:
+            title_label.bind('<Button-1>', lambda e: self.navigate(destination))
+            title_label.config(cursor='hand2')
 
     def create_recent_batches(self, parent):
         """Create recent batches section"""
