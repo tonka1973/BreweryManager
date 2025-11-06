@@ -396,24 +396,20 @@ class BreweryMainWindow:
         # Clear content area
         for widget in self.content_area.winfo_children():
             widget.destroy()
-        
-        # Create module header
+
+        # Create module header (smaller, top-right, no separator)
         header_frame = tk.Frame(self.content_area, bg='white')
-        header_frame.pack(fill=tk.X, padx=20, pady=(20, 10))
-        
+        header_frame.pack(fill=tk.X, padx=20, pady=(5, 0))
+
         module_title = tk.Label(
             header_frame,
             text=module_name,
-            font=('Arial', 20, 'bold'),
+            font=('Arial', 11),
             bg='white',
-            fg='#2c3e50'
+            fg='#7f8c8d'
         )
-        module_title.pack(anchor=tk.W)
-        
-        # Separator
-        separator = ttk.Separator(self.content_area, orient='horizontal')
-        separator.pack(fill=tk.X, padx=20, pady=10)
-        
+        module_title.pack(anchor=tk.E)
+
         # Module content (placeholder for now - Phase 2 will implement actual modules)
         self.load_module_content(module_name)
     
@@ -427,7 +423,7 @@ class BreweryMainWindow:
                 self.current_user,
                 navigate_callback=self.switch_module
             )
-            dashboard.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+            dashboard.pack(fill=tk.BOTH, expand=True, padx=20, pady=0)
 
         elif module_name == 'Recipes':
             # Load Recipes module
