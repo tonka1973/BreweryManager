@@ -16,6 +16,7 @@ from src.data_access.sync_manager import SyncManager
 from src.data_access.sqlite_cache import SQLiteCacheManager
 from src.data_access.google_sheets_client import GoogleSheetsClient
 from src.gui.dashboard import DashboardModule
+from src.gui.recipes import RecipesModule
 from datetime import datetime
 
 
@@ -419,6 +420,15 @@ class BreweryMainWindow:
                 self.current_user
             )
             dashboard.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        elif module_name == 'Recipes':
+            # Load Recipes module
+            recipes = RecipesModule(
+                self.content_area,
+                self.cache_manager,
+                self.current_user
+            )
+            recipes.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
         else:
             # Other modules placeholder (will be implemented in Phase 2)
