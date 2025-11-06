@@ -20,6 +20,10 @@ from src.gui.recipes import RecipesModule
 from src.gui.inventory import InventoryModule
 from src.gui.batches import BatchesModule
 from src.gui.duty import DutyModule
+from src.gui.customers import CustomersModule
+from src.gui.sales import SalesModule
+from src.gui.invoicing import InvoicingModule
+from src.gui.labels import LabelsModule
 from datetime import datetime
 
 
@@ -460,17 +464,53 @@ class BreweryMainWindow:
             )
             duty.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
+        elif module_name == 'Customers':
+            # Load Customers module
+            customers = CustomersModule(
+                self.content_area,
+                self.cache_manager,
+                self.current_user
+            )
+            customers.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        elif module_name == 'Sales':
+            # Load Sales module
+            sales = SalesModule(
+                self.content_area,
+                self.cache_manager,
+                self.current_user
+            )
+            sales.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        elif module_name == 'Invoicing':
+            # Load Invoicing module
+            invoicing = InvoicingModule(
+                self.content_area,
+                self.cache_manager,
+                self.current_user
+            )
+            invoicing.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+        elif module_name == 'Label Printing':
+            # Load Label Printing module
+            labels = LabelsModule(
+                self.content_area,
+                self.cache_manager,
+                self.current_user
+            )
+            labels.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
         else:
-            # Other modules placeholder (will be implemented in Phase 2)
+            # Unknown module placeholder
             content_frame = tk.Frame(self.content_area, bg='white')
             content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
             placeholder_label = tk.Label(
                 content_frame,
-                text=f"{module_name} module coming soon!",
+                text=f"{module_name} module not found!",
                 font=('Arial', 14),
                 bg='white',
-                fg='#7f8c8d'
+                fg='#f44336'
             )
             placeholder_label.pack(pady=50)
     
