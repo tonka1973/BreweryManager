@@ -15,6 +15,7 @@ from src.utilities.auth import AuthManager
 from src.data_access.sync_manager import SyncManager
 from src.data_access.sqlite_cache import SQLiteCacheManager
 from src.data_access.google_sheets_client import GoogleSheetsClient
+from src.gui.dashboard import DashboardModule
 from datetime import datetime
 
 
@@ -409,43 +410,24 @@ class BreweryMainWindow:
         self.load_module_content(module_name)
     
     def load_module_content(self, module_name):
-        """Load the content for a specific module (placeholder for Phase 2)."""
-        content_frame = tk.Frame(self.content_area, bg='white')
-        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-        
+        """Load the content for a specific module."""
         if module_name == 'Dashboard':
-            # Dashboard placeholder
-            welcome_label = tk.Label(
-                content_frame,
-                text=f"Welcome, {self.current_user.username}!",
-                font=('Arial', 16),
-                bg='white',
-                fg='#2c3e50'
+            # Load Dashboard module
+            dashboard = DashboardModule(
+                self.content_area,
+                self.cache_manager,
+                self.current_user
             )
-            welcome_label.pack(pady=20)
-            
-            info_label = tk.Label(
-                content_frame,
-                text="Phase 1 Complete! 🎉\n\n"
-                     "The core infrastructure is ready:\n"
-                     "• User Authentication ✅\n"
-                     "• Google Sheets Sync ✅\n"
-                     "• Local Database ✅\n"
-                     "• GUI Framework ✅\n\n"
-                     "Phase 2 will implement all 9 modules.\n"
-                     "Select a module from the sidebar to continue.",
-                font=('Arial', 12),
-                bg='white',
-                fg='#34495e',
-                justify=tk.LEFT
-            )
-            info_label.pack(pady=20)
-        
+            dashboard.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
         else:
-            # Other modules placeholder
+            # Other modules placeholder (will be implemented in Phase 2)
+            content_frame = tk.Frame(self.content_area, bg='white')
+            content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
             placeholder_label = tk.Label(
                 content_frame,
-                text=f"{module_name} module coming in Phase 2!",
+                text=f"{module_name} module coming soon!",
                 font=('Arial', 14),
                 bg='white',
                 fg='#7f8c8d'
