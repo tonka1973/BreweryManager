@@ -466,11 +466,44 @@ When starting a new session:
 - All 9 modules fully functional
 
 **Packaging (Final Phase):**
-- Use PyInstaller to create .exe
-- Include all dependencies
-- Bundle assets (logo, etc.)
-- Create installer with Inno Setup
+
+**Prerequisites:**
+1. Obtain Google Cloud credentials (see TECHNICAL_SPECIFICATION.md "Google Account Setup" section)
+2. Place `credentials.json` in `data/` folder
+3. Verify all assets are in place (logo, icons, etc.)
+
+**Build Command:**
+```bash
+pyinstaller --onefile --windowed --name="Brewery Manager" \
+    --icon=assets/icon.ico \
+    --add-data="assets:assets" \
+    --add-data="data/credentials.json:data" \
+    --add-data="config/settings.json:config" \
+    --hidden-import=PIL \
+    --hidden-import=reportlab \
+    --hidden-import=google.auth \
+    --hidden-import=google_auth_oauthlib \
+    main.py
+```
+
+**What Gets Bundled:**
+- ✅ All Python code
+- ✅ All dependencies (tkinter, Google API libraries, PIL, ReportLab)
+- ✅ credentials.json (Google Cloud OAuth credentials)
+- ✅ Assets (logo, icons)
+- ✅ Default config files
+- ❌ token.pickle (generated locally on each computer during first run)
+
+**Create Installer:**
+- Use Inno Setup or NSIS to create installer
+- Include .exe and any additional runtime files
 - Test on clean Windows machine
+
+**For Android App:**
+- Build with Flutter: `flutter build apk --release`
+- Credentials are bundled into APK during build
+- Upload to Google Play Store (£20 one-time fee)
+- OR sideload APK directly to devices (free)
 
 ---
 

@@ -3241,21 +3241,52 @@ def generate_invoice_pdf(invoice, filename):
 
 ### Packaging with PyInstaller
 
+**Prerequisites:**
+Before building the .exe, you must obtain Google Cloud API credentials (see "Google Account Setup" section below for detailed instructions).
+
 **Build Command:**
 ```bash
 pyinstaller --onefile --windowed --name="Brewery Manager" \
     --icon=assets/icon.ico \
     --add-data="assets:assets" \
+    --add-data="data/credentials.json:data" \
+    --add-data="config/settings.json:config" \
     --hidden-import=PIL \
     --hidden-import=reportlab \
+    --hidden-import=google.auth \
+    --hidden-import=google_auth_oauthlib \
     main.py
+```
+
+**Important:** The `--add-data="data/credentials.json:data"` flag bundles your Google Cloud credentials into the .exe. This allows the application to authenticate with Google Sheets API without users needing to manually provide credentials.
+
+**Handling Bundled Resources in Code:**
+```python
+import os
+import sys
+
+def get_resource_path(relative_path):
+    """Get absolute path to resource - works for dev and for PyInstaller"""
+    if getattr(sys, 'frozen', False):
+        # Running as compiled .exe
+        base_path = sys._MEIPASS
+    else:
+        # Running as normal Python script
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
+
+# Usage:
+CREDENTIALS_PATH = get_resource_path('data/credentials.json')
 ```
 
 **Output:**
 - Single `.exe` file (Windows)
-- Self-contained (includes Python interpreter, all dependencies)
+- Self-contained (includes Python interpreter, all dependencies, credentials)
 - Size: ~50-80 MB (typical)
 - Installer: Created with Inno Setup or NSIS
+
+**Security Note:**
+Bundling `credentials.json` into the .exe is safe and standard practice. This file contains OAuth2 client credentials designed for installed applications. The actual user authorization (token.pickle) is generated locally on each computer during first run and is never bundled.
 
 ### Error Logging
 
@@ -3652,10 +3683,88 @@ Duty is calculated at the **duty point** (packaging time). Phase 3 packages batc
   - Internet connection (for Google Sheets sync)
 
 **3. Google Account Setup**
-- Create dedicated Google account for brewery (if not exists)
-- Enable Google Sheets API
-- Generate API credentials
-- Share with development team for initial setup
+
+**CRITICAL:** These steps must be completed BEFORE building the .exe installer.
+
+**Step 1: Create/Use Google Account**
+- Use existing Google account OR create dedicated brewery account
+- Recommended: Create dedicated account (e.g., yourbrewery@gmail.com)
+- This account will own the "BreweryManager_Data" spreadsheet
+
+**Step 2: Create Google Cloud Project**
+1. Go to: https://console.cloud.google.com/
+2. Click "Select a project" → "New Project"
+3. Project name: "Brewery Manager" (or your brewery name)
+4. Click "Create"
+5. Wait for project to be created (~30 seconds)
+
+**Step 3: Enable Required APIs**
+1. In Google Cloud Console, go to "APIs & Services" → "Library"
+2. Search for "Google Sheets API"
+   - Click on it
+   - Click "Enable"
+3. Search for "Google Drive API"
+   - Click on it
+   - Click "Enable"
+
+**Step 4: Configure OAuth Consent Screen** ⚠️ IMPORTANT
+1. Go to "APIs & Services" → "OAuth consent screen"
+2. Select "External" user type (unless you have Google Workspace)
+3. Click "Create"
+4. Fill in required fields:
+   - **App name:** "Brewery Manager" (or your brewery name)
+   - **User support email:** Your email address
+   - **Developer contact email:** Your email address
+5. Click "Save and Continue"
+6. **Scopes:** Skip this section (click "Save and Continue")
+7. **Test users:** Add your Google account email
+   - Click "Add Users"
+   - Enter your email
+   - Click "Save and Continue"
+8. Click "Back to Dashboard"
+
+**Step 5: Create OAuth Credentials**
+1. Go to "APIs & Services" → "Credentials"
+2. Click "Create Credentials" → "OAuth client ID"
+3. Application type: Select **"Desktop app"**
+4. Name: "BreweryManager Desktop"
+5. Click "Create"
+6. Click "Download JSON" (or click the download icon)
+7. **IMPORTANT:** Rename the downloaded file to `credentials.json`
+8. **Place in:** `BreweryManager/data/credentials.json` (in your project folder)
+
+**Step 6: Verify credentials.json Location**
+```
+BreweryManager/
+├── main.py
+├── data/
+│   └── credentials.json  ← Must be here before building .exe
+└── ...
+```
+
+**Step 7: Ready to Build**
+- Once `credentials.json` is in place, proceed with PyInstaller build
+- The credentials will be bundled into the .exe automatically
+- Users will NOT need to repeat this process - they just install and authorize
+
+**What Happens on First User Launch:**
+1. User installs BreweryManager.exe
+2. User launches app
+3. Browser opens with Google OAuth authorization screen
+4. User signs in to their Google account
+5. User clicks "Allow" to grant permissions
+6. App saves authorization token locally (token.pickle)
+7. App is now fully functional
+8. Future launches work automatically (no browser popup)
+
+**Security Warning During OAuth:**
+Users will see "This app isn't verified" - this is normal for personal/internal apps. Click "Advanced" → "Go to Brewery Manager (unsafe)" to proceed. This warning appears because the app is not published publicly (which you don't need).
+
+**Costs:**
+- Google Cloud Project: FREE
+- Google Sheets API: FREE (up to reasonable usage limits)
+- OAuth for installed apps: FREE
+- Total: £0 for Google services ✅
 
 **4. Data Migration Plan**
 - Export all data from Excel
