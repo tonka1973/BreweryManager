@@ -16,9 +16,12 @@
 
 ## 🤖 FOR CLAUDE SESSIONS
 
-**→ [CLAUDE_SESSION_WORKFLOW.md](CLAUDE_SESSION_WORKFLOW.md)** ← Complete workflow guide
+**To start a new session, just say:** `"start session"` or `"read files"`
 
-**→ [SESSION_START.md](SESSION_START.md)** ← User commands for starting sessions
+Claude will read these files and guide you through setup:
+- **[START_OF_SESSION_PROTOCOL.md](START_OF_SESSION_PROTOCOL.md)** ← Claude reads this first
+- **[SESSION_START.md](SESSION_START.md)** ← User commands (Claude will provide these)
+- **[CLAUDE_SESSION_WORKFLOW.md](CLAUDE_SESSION_WORKFLOW.md)** ← Complete workflow guide
 
 ---
 

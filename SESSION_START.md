@@ -4,6 +4,24 @@
 
 ---
 
+## 🎯 HOW TO START A NEW SESSION
+
+**Just say to Claude:**
+> "start session"
+
+or
+
+> "read files"
+
+Claude will then:
+1. ✅ Read the necessary project files
+2. ✅ Give you these exact commands to run
+3. ✅ Create a session log
+4. ✅ Check your git status
+5. ✅ Ask what you want to work on
+
+---
+
 ## Step 1: Fetch All Branches from GitHub
 
 ```bash
