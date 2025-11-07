@@ -14,6 +14,14 @@
 
 ---
 
+## 🤖 FOR CLAUDE SESSIONS
+
+**→ [CLAUDE_SESSION_WORKFLOW.md](CLAUDE_SESSION_WORKFLOW.md)** ← Complete workflow guide
+
+**→ [SESSION_START.md](SESSION_START.md)** ← User commands for starting sessions
+
+---
+
 ## 📚 DOCUMENTATION INDEX
 
 **New to this project? Start here:**

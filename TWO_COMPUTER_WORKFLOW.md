@@ -1,4 +1,14 @@
-# 🔄 TWO COMPUTER WORKFLOW GUIDE
+# ⚠️ OUTDATED - DO NOT USE
+
+**This file contains outdated git commands!**
+
+## 📌 USE THESE INSTEAD:
+- **For Users:** `SESSION_START.md`
+- **For Claude:** `CLAUDE_SESSION_WORKFLOW.md`
+
+---
+
+# 🔄 TWO COMPUTER WORKFLOW GUIDE (OUTDATED)
 
 Working on BreweryManager from both your **Brewery Computer** and **Home Computer**
 
