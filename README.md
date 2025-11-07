@@ -16,12 +16,16 @@
 
 ## 🤖 FOR CLAUDE SESSIONS
 
-**To start a new session, just say:** `"start session"` or `"read files"`
+**To start a new session, just say to Claude:** `"read start.md"`
 
-Claude will read these files and guide you through setup:
-- **[START_OF_SESSION_PROTOCOL.md](START_OF_SESSION_PROTOCOL.md)** ← Claude reads this first
-- **[SESSION_START.md](SESSION_START.md)** ← User commands (Claude will provide these)
-- **[CLAUDE_SESSION_WORKFLOW.md](CLAUDE_SESSION_WORKFLOW.md)** ← Complete workflow guide
+That's it! Claude will:
+- ✅ Read the necessary project files
+- ✅ Check for previous session branches
+- ✅ Give you the exact merge commands to run
+- ✅ Create a session log
+- ✅ Ask what you want to work on
+
+**Simple!** Just remember: `"read start.md"` at the start of every new session.
 
 ---
 
