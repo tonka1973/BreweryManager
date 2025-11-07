@@ -3,7 +3,7 @@
 ## 🎯 USE THIS BRANCH FOR ALL WORK:
 
 ```
-claude/work-in-progress-011CUrnRK9wxKPu695Qap243
+master
 ```
 
 **This is your MAIN development branch!** It has:
@@ -16,11 +16,14 @@ claude/work-in-progress-011CUrnRK9wxKPu695Qap243
 
 ## ❌ DO NOT USE THESE BRANCHES:
 
+### `claude/work-in-progress-011CUrnRK9wxKPu695Qap243`
+- **What it is:** Previous development branch
+- **Status:** Merged into master, no longer needed
+
 ### `claude/setup-local-testing-011CUsJqZ9Ui8ZrMTPn6jQnx`
 - **What it is:** Documentation-only branch from home PC setup
 - **What it has:** Git guides, setup scripts, documentation
-- **What it's missing:** All your Phase 2 code!
-- **Status:** Merged into work-in-progress, no longer needed
+- **Status:** Merged, no longer needed
 
 ### `claude/implement-cmd-commands-011CUsC4oq5JagebZSgigwEu`
 - **What it is:** Old session from different time
@@ -30,10 +33,6 @@ claude/work-in-progress-011CUrnRK9wxKPu695Qap243
 - **What it is:** Old session from different time
 - **Status:** Outdated, ignore this
 
-### `master`
-- **What it is:** Default GitHub branch (usually empty or very old)
-- **Status:** Not using this for development
-
 ---
 
 ## 📋 DAILY WORKFLOW
@@ -41,8 +40,8 @@ claude/work-in-progress-011CUrnRK9wxKPu695Qap243
 ### AT BREWERY - START OF DAY:
 ```cmd
 cd C:\Users\darre\Desktop\BreweryManager
-git checkout claude/work-in-progress-011CUrnRK9wxKPu695Qap243
-git pull origin claude/work-in-progress-011CUrnRK9wxKPu695Qap243
+git checkout master
+git pull origin master
 python main.py
 ```
 
@@ -50,14 +49,14 @@ python main.py
 ```cmd
 git add .
 git commit -m "What I worked on today"
-git push origin claude/work-in-progress-011CUrnRK9wxKPu695Qap243
+git push origin master
 ```
 
 ### AT HOME - EVENING:
 ```cmd
 cd C:\Users\Tonk\OneDrive\Desktop\BreweryManager
-git checkout claude/work-in-progress-011CUrnRK9wxKPu695Qap243
-git pull origin claude/work-in-progress-011CUrnRK9wxKPu695Qap243
+git checkout master
+git pull origin master
 python main.py
 ```
 
@@ -65,7 +64,7 @@ python main.py
 ```cmd
 git add .
 git commit -m "What I worked on tonight"
-git push origin claude/work-in-progress-011CUrnRK9wxKPu695Qap243
+git push origin master
 ```
 
 ---
@@ -77,11 +76,11 @@ git push origin claude/work-in-progress-011CUrnRK9wxKPu695Qap243
 git branch
 ```
 
-**Should show:** `* claude/work-in-progress-011CUrnRK9wxKPu695Qap243` (with the asterisk)
+**Should show:** `* master` (with the asterisk)
 
 ### If you're on the wrong branch:
 ```cmd
-git checkout claude/work-in-progress-011CUrnRK9wxKPu695Qap243
+git checkout master
 ```
 
 ---
@@ -130,17 +129,17 @@ git checkout claude/work-in-progress-011CUrnRK9wxKPu695Qap243
 
 ### How to fix:
 ```cmd
-git checkout claude/work-in-progress-011CUrnRK9wxKPu695Qap243
-git pull origin claude/work-in-progress-011CUrnRK9wxKPu695Qap243
+git checkout master
+git pull origin master
 ```
 
 ---
 
 ## 🎯 SIMPLE RULE
 
-**ALWAYS use:** `claude/work-in-progress-011CUrnRK9wxKPu695Qap243`
+**ALWAYS use:** `master`
 
-**NEVER use:** Any other branch (unless Claude specifically tells you to)
+**NEVER use:** Any other branch (unless you have a specific reason)
 
 ---
 
@@ -150,7 +149,7 @@ git pull origin claude/work-in-progress-011CUrnRK9wxKPu695Qap243
 ```cmd
 git branch
 ```
-Look for `*` next to `claude/work-in-progress-011CUrnRK9wxKPu695Qap243`
+Look for `*` next to `master`
 
 ### Do I have the latest code?
 ```cmd
@@ -171,15 +170,15 @@ Should see: dashboard.py, batches.py, customers.py, etc.
 **Before starting work:**
 - [ ] Open Command Prompt
 - [ ] Navigate to BreweryManager folder
-- [ ] Run: `git branch` (check you're on work-in-progress)
-- [ ] Run: `git pull origin claude/work-in-progress-011CUrnRK9wxKPu695Qap243`
+- [ ] Run: `git branch` (check you're on master)
+- [ ] Run: `git pull origin master`
 - [ ] Launch: `python main.py`
 
 **Before ending work:**
 - [ ] Run: `git status` (see what changed)
 - [ ] Run: `git add .`
 - [ ] Run: `git commit -m "What I did"`
-- [ ] Run: `git push origin claude/work-in-progress-011CUrnRK9wxKPu695Qap243`
+- [ ] Run: `git push origin master`
 - [ ] Wait for "Done" message
 
 ---
@@ -188,7 +187,7 @@ Should see: dashboard.py, batches.py, customers.py, etc.
 
 **One branch to rule them all:**
 ```
-claude/work-in-progress-011CUrnRK9wxKPu695Qap243
+master
 ```
 
 **Use it everywhere:**
@@ -200,6 +199,6 @@ claude/work-in-progress-011CUrnRK9wxKPu695Qap243
 
 ---
 
-*Created: November 7, 2025*
-*Reason: Branch confusion between setup-local-testing and work-in-progress*
-*Solution: Always use work-in-progress for ALL development*
+*Updated: November 7, 2025*
+*All development branches merged into master*
+*Solution: Always use master for ALL development*
