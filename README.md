@@ -4,11 +4,23 @@
 
 ---
 
+## 🚀 WANT TO TEST THE APP? START HERE!
+
+**→ [START_HERE.md](START_HERE.md)** ← Quick setup for local testing (2 minutes!)
+
+**→ [LOCAL_SETUP_GUIDE.md](LOCAL_SETUP_GUIDE.md)** ← Detailed setup instructions
+
+**Default Login:** admin / admin (change after first login!)
+
+---
+
 ## 📚 DOCUMENTATION INDEX
 
 **New to this project? Start here:**
 
-1. **QUICK_START.md** ← Read this FIRST!
+1. **START_HERE.md** ← Local testing setup (NEW!)
+2. **LOCAL_SETUP_GUIDE.md** ← Detailed setup guide (NEW!)
+3. **QUICK_START.md** ← Project quick reference
    - One-page summary
    - Current status at a glance
    - What to do next

@@ -15,15 +15,6 @@ from src.utilities.auth import AuthManager
 from src.data_access.sync_manager import SyncManager
 from src.data_access.sqlite_cache import SQLiteCacheManager
 from src.data_access.google_sheets_client import GoogleSheetsClient
-from src.gui.dashboard import DashboardModule
-from src.gui.recipes import RecipesModule
-from src.gui.inventory import InventoryModule
-from src.gui.batches import BatchesModule
-from src.gui.duty import DutyModule
-from src.gui.customers import CustomersModule
-from src.gui.sales import SalesModule
-from src.gui.invoicing import InvoicingModule
-from src.gui.labels import LabelsModule
 from datetime import datetime
 
 
@@ -39,8 +30,6 @@ class BreweryMainWindow:
         
         # Initialize data access layer
         self.cache_manager = SQLiteCacheManager()
-
-        # Initialize database (create tables on first run)
         self.cache_manager.connect()
         self.cache_manager.initialize_database()
         self.cache_manager.close()
@@ -396,118 +385,68 @@ class BreweryMainWindow:
         # Clear content area
         for widget in self.content_area.winfo_children():
             widget.destroy()
-
-        # Create module header (smaller, top-right, no separator)
+        
+        # Create module header
         header_frame = tk.Frame(self.content_area, bg='white')
-        header_frame.pack(fill=tk.X, padx=20, pady=(5, 0))
-
+        header_frame.pack(fill=tk.X, padx=20, pady=(20, 10))
+        
         module_title = tk.Label(
             header_frame,
             text=module_name,
-            font=('Arial', 11),
+            font=('Arial', 20, 'bold'),
             bg='white',
-            fg='#7f8c8d'
+            fg='#2c3e50'
         )
-        module_title.pack(anchor=tk.E)
-
+        module_title.pack(anchor=tk.W)
+        
+        # Separator
+        separator = ttk.Separator(self.content_area, orient='horizontal')
+        separator.pack(fill=tk.X, padx=20, pady=10)
+        
         # Module content (placeholder for now - Phase 2 will implement actual modules)
         self.load_module_content(module_name)
     
     def load_module_content(self, module_name):
-        """Load the content for a specific module."""
+        """Load the content for a specific module (placeholder for Phase 2)."""
+        content_frame = tk.Frame(self.content_area, bg='white')
+        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
         if module_name == 'Dashboard':
-            # Load Dashboard module
-            dashboard = DashboardModule(
-                self.content_area,
-                self.cache_manager,
-                self.current_user,
-                navigate_callback=self.switch_module
+            # Dashboard placeholder
+            welcome_label = tk.Label(
+                content_frame,
+                text=f"Welcome, {self.current_user.username}!",
+                font=('Arial', 16),
+                bg='white',
+                fg='#2c3e50'
             )
-            dashboard.pack(fill=tk.BOTH, expand=True, padx=20, pady=0)
-
-        elif module_name == 'Recipes':
-            # Load Recipes module
-            recipes = RecipesModule(
-                self.content_area,
-                self.cache_manager,
-                self.current_user
+            welcome_label.pack(pady=20)
+            
+            info_label = tk.Label(
+                content_frame,
+                text="Phase 1 Complete! 🎉\n\n"
+                     "The core infrastructure is ready:\n"
+                     "• User Authentication ✅\n"
+                     "• Google Sheets Sync ✅\n"
+                     "• Local Database ✅\n"
+                     "• GUI Framework ✅\n\n"
+                     "Phase 2 will implement all 9 modules.\n"
+                     "Select a module from the sidebar to continue.",
+                font=('Arial', 12),
+                bg='white',
+                fg='#34495e',
+                justify=tk.LEFT
             )
-            recipes.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-
-        elif module_name == 'Inventory':
-            # Load Inventory module
-            inventory = InventoryModule(
-                self.content_area,
-                self.cache_manager,
-                self.current_user
-            )
-            inventory.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-
-        elif module_name == 'Batches':
-            # Load Batches module
-            batches = BatchesModule(
-                self.content_area,
-                self.cache_manager,
-                self.current_user
-            )
-            batches.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-
-        elif module_name == 'Duty Calculator':
-            # Load Duty Calculator module
-            duty = DutyModule(
-                self.content_area,
-                self.cache_manager,
-                self.current_user
-            )
-            duty.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-
-        elif module_name == 'Customers':
-            # Load Customers module
-            customers = CustomersModule(
-                self.content_area,
-                self.cache_manager,
-                self.current_user
-            )
-            customers.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-
-        elif module_name == 'Sales':
-            # Load Sales module
-            sales = SalesModule(
-                self.content_area,
-                self.cache_manager,
-                self.current_user
-            )
-            sales.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-
-        elif module_name == 'Invoicing':
-            # Load Invoicing module
-            invoicing = InvoicingModule(
-                self.content_area,
-                self.cache_manager,
-                self.current_user
-            )
-            invoicing.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-
-        elif module_name == 'Label Printing':
-            # Load Label Printing module
-            labels = LabelsModule(
-                self.content_area,
-                self.cache_manager,
-                self.current_user
-            )
-            labels.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-
+            info_label.pack(pady=20)
+        
         else:
-            # Unknown module placeholder
-            content_frame = tk.Frame(self.content_area, bg='white')
-            content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-
+            # Other modules placeholder
             placeholder_label = tk.Label(
                 content_frame,
-                text=f"{module_name} module not found!",
+                text=f"{module_name} module coming in Phase 2!",
                 font=('Arial', 14),
                 bg='white',
-                fg='#f44336'
+                fg='#7f8c8d'
             )
             placeholder_label.pack(pady=50)
     
