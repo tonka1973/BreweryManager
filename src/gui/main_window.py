@@ -17,6 +17,17 @@ from src.data_access.sqlite_cache import SQLiteCacheManager
 from src.data_access.google_sheets_client import GoogleSheetsClient
 from datetime import datetime
 
+# Import all Phase 2 modules
+from src.gui.dashboard import DashboardModule
+from src.gui.recipes import RecipesModule
+from src.gui.inventory import InventoryModule
+from src.gui.batches import BatchesModule
+from src.gui.customers import CustomersModule
+from src.gui.sales import SalesModule
+from src.gui.invoicing import InvoicingModule
+from src.gui.duty import DutyModule
+from src.gui.labels import LabelsModule
+
 
 class BreweryMainWindow:
     """Main application window with login and navigation."""
@@ -402,53 +413,50 @@ class BreweryMainWindow:
         # Separator
         separator = ttk.Separator(self.content_area, orient='horizontal')
         separator.pack(fill=tk.X, padx=20, pady=10)
-        
-        # Module content (placeholder for now - Phase 2 will implement actual modules)
+
+        # Load the actual module content
         self.load_module_content(module_name)
     
     def load_module_content(self, module_name):
-        """Load the content for a specific module (placeholder for Phase 2)."""
-        content_frame = tk.Frame(self.content_area, bg='white')
-        content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
-        
-        if module_name == 'Dashboard':
-            # Dashboard placeholder
-            welcome_label = tk.Label(
-                content_frame,
-                text=f"Welcome, {self.current_user.username}!",
-                font=('Arial', 16),
-                bg='white',
-                fg='#2c3e50'
+        """Load the content for a specific module."""
+        # Map module names to their classes
+        module_map = {
+            'Dashboard': DashboardModule,
+            'Recipes': RecipesModule,
+            'Inventory': InventoryModule,
+            'Batches': BatchesModule,
+            'Customers': CustomersModule,
+            'Sales': SalesModule,
+            'Invoicing': InvoicingModule,
+            'Duty Calculator': DutyModule,
+            'Label Printing': LabelsModule
+        }
+
+        # Get the module class
+        module_class = module_map.get(module_name)
+
+        if module_class:
+            # Create module instance with required parameters
+            module = module_class(
+                parent=self.content_area,
+                cache_manager=self.cache_manager,
+                current_user=self.current_user,
+                navigate_callback=self.switch_module if module_name == 'Dashboard' else None
             )
-            welcome_label.pack(pady=20)
-            
-            info_label = tk.Label(
-                content_frame,
-                text="Phase 1 Complete! 🎉\n\n"
-                     "The core infrastructure is ready:\n"
-                     "• User Authentication ✅\n"
-                     "• Google Sheets Sync ✅\n"
-                     "• Local Database ✅\n"
-                     "• GUI Framework ✅\n\n"
-                     "Phase 2 will implement all 9 modules.\n"
-                     "Select a module from the sidebar to continue.",
-                font=('Arial', 12),
-                bg='white',
-                fg='#34495e',
-                justify=tk.LEFT
-            )
-            info_label.pack(pady=20)
-        
+            module.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
         else:
-            # Other modules placeholder
-            placeholder_label = tk.Label(
+            # Fallback for unknown modules
+            content_frame = tk.Frame(self.content_area, bg='white')
+            content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+
+            error_label = tk.Label(
                 content_frame,
-                text=f"{module_name} module coming in Phase 2!",
+                text=f"Module '{module_name}' not found.",
                 font=('Arial', 14),
                 bg='white',
-                fg='#7f8c8d'
+                fg='#e74c3c'
             )
-            placeholder_label.pack(pady=50)
+            error_label.pack(pady=50)
     
     def update_status_bar(self):
         """Update the status bar information."""
@@ -535,8 +543,9 @@ class BreweryMainWindow:
             "A comprehensive brewery management solution\n"
             "with offline capability and cloud sync.\n\n"
             "Phase 1: Core Infrastructure ✅\n"
-            "Phase 2: Module Implementation (Coming Soon)\n"
-            "Phase 3: Windows Installer (Final)"
+            "Phase 2: Module Implementation ✅\n"
+            "Phase 3: Integration & Testing (In Progress)\n"
+            "Phase 4: Windows Installer (Final)"
         )
     
     def exit_application(self):
