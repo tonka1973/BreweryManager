@@ -437,12 +437,20 @@ class BreweryMainWindow:
 
         if module_class:
             # Create module instance with required parameters
-            module = module_class(
-                parent=self.content_area,
-                cache_manager=self.cache_manager,
-                current_user=self.current_user,
-                navigate_callback=self.switch_module if module_name == 'Dashboard' else None
-            )
+            # Dashboard module accepts navigate_callback, others don't
+            if module_name == 'Dashboard':
+                module = module_class(
+                    parent=self.content_area,
+                    cache_manager=self.cache_manager,
+                    current_user=self.current_user,
+                    navigate_callback=self.switch_module
+                )
+            else:
+                module = module_class(
+                    parent=self.content_area,
+                    cache_manager=self.cache_manager,
+                    current_user=self.current_user
+                )
             module.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
         else:
             # Fallback for unknown modules
