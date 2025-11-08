@@ -408,7 +408,20 @@ class BreweryMainWindow:
             bg='white',
             fg='#2c3e50'
         )
-        module_title.pack(anchor=tk.W)
+        module_title.pack(side=tk.LEFT)
+
+        # Add date/time on the right
+        self.header_datetime_label = tk.Label(
+            header_frame,
+            text=datetime.now().strftime("%A, %d/%m/%Y %H:%M"),
+            font=('Arial', 11, 'bold'),
+            bg='white',
+            fg='#7f8c8d'
+        )
+        self.header_datetime_label.pack(side=tk.RIGHT)
+
+        # Start updating the clock
+        self.update_header_clock()
 
         # Load the actual module content
         self.load_module_content(module_name)
@@ -557,7 +570,15 @@ class BreweryMainWindow:
         if messagebox.askyesno("Exit", "Are you sure you want to exit?"):
             self.root.quit()
             self.root.destroy()
-    
+
+    def update_header_clock(self):
+        """Update the header date/time label every second"""
+        if hasattr(self, 'header_datetime_label') and self.header_datetime_label.winfo_exists():
+            current_time = datetime.now().strftime("%A, %d/%m/%Y %H:%M")
+            self.header_datetime_label.config(text=current_time)
+            # Schedule next update in 1000ms (1 second)
+            self.root.after(1000, self.update_header_clock)
+
     def run(self):
         """Start the application main loop."""
         self.root.mainloop()
