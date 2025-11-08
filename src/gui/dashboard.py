@@ -42,7 +42,7 @@ class DashboardModule(tk.Frame):
         welcome_label = tk.Label(
             welcome_frame,
             text=f"Welcome back, {self.current_user.full_name}!",
-            font=('Arial', 16, 'bold'),
+            font=('Arial', 12, 'bold'),
             bg='white',
             fg='#2c3e50'
         )
@@ -131,30 +131,30 @@ class DashboardModule(tk.Frame):
         if destination and self.navigate:
             card.bind('<Button-1>', lambda e: self.navigate(destination))
 
-        # Value (smaller font)
+        # Value (larger and bold)
         value_label = tk.Label(
             card,
             text=value,
-            font=('Arial', 16, 'bold'),
+            font=('Arial', 24, 'bold'),
             bg=color,
             fg='white'
         )
-        value_label.pack(pady=(8, 2))
+        value_label.pack(pady=(5, 1))
 
         # Make label clickable too
         if destination and self.navigate:
             value_label.bind('<Button-1>', lambda e: self.navigate(destination))
             value_label.config(cursor='hand2')
 
-        # Title (smaller font)
+        # Title (larger and bold)
         title_label = tk.Label(
             card,
             text=title,
-            font=('Arial', 8),
+            font=('Arial', 10, 'bold'),
             bg=color,
             fg='white'
         )
-        title_label.pack(pady=(0, 8))
+        title_label.pack(pady=(0, 5))
 
         # Make label clickable too
         if destination and self.navigate:
