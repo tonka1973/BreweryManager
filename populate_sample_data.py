@@ -20,7 +20,12 @@ def populate_sample_data():
     cache = SQLiteCacheManager()
     cache.connect()
 
-    print("Populating sample data...")
+    # Initialize database (create all tables)
+    print("Initializing database...")
+    cache.initialize_database()
+    print("✓ Database initialized")
+
+    print("\nPopulating sample data...")
 
     # Sample Recipes
     print("\n1. Adding recipes...")
