@@ -106,6 +106,21 @@ What would you like to work on today?
 
 ---
 
+## STEP 8: Provide Program Start Command
+
+After asking what to work on, also give the user the command to start the program for testing:
+
+```
+🚀 TO START THE PROGRAM FOR TESTING:
+
+cd C:\Users\darre\Desktop\BreweryManager
+python main.py
+
+Default login: admin / admin
+```
+
+---
+
 ## IMPORTANT REMINDERS
 
 - Push frequently after each feature/fix
