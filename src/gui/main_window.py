@@ -278,8 +278,8 @@ class BreweryMainWindow:
         # Module buttons
         modules = [
             'Dashboard',
+            'Brewery Inventory',
             'Recipes',
-            'Inventory',
             'Batches',
             'Customers',
             'Sales',
@@ -422,8 +422,8 @@ class BreweryMainWindow:
         # Map module names to their classes
         module_map = {
             'Dashboard': DashboardModule,
+            'Brewery Inventory': InventoryModule,
             'Recipes': RecipesModule,
-            'Inventory': InventoryModule,
             'Batches': BatchesModule,
             'Customers': CustomersModule,
             'Sales': SalesModule,
