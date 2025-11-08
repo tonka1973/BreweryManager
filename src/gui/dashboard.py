@@ -48,14 +48,17 @@ class DashboardModule(tk.Frame):
         )
         welcome_label.pack(side=tk.LEFT)
 
-        date_label = tk.Label(
+        self.date_label = tk.Label(
             welcome_frame,
             text=datetime.now().strftime("%A, %d/%m/%Y %H:%M"),
             font=('Arial', 11, 'bold'),
             bg='white',
             fg='#7f8c8d'
         )
-        date_label.pack(side=tk.RIGHT)
+        self.date_label.pack(side=tk.RIGHT)
+
+        # Start the clock update
+        self.update_clock()
 
         # Quick stats cards
         self.create_stats_cards()
@@ -464,3 +467,11 @@ class DashboardModule(tk.Frame):
         # This method can be called to reload all data
         # For now, data is loaded in create methods
         pass
+
+    def update_clock(self):
+        """Update the date/time label every second"""
+        if hasattr(self, 'date_label') and self.date_label.winfo_exists():
+            current_time = datetime.now().strftime("%A, %d/%m/%Y %H:%M")
+            self.date_label.config(text=current_time)
+            # Schedule next update in 1000ms (1 second)
+            self.after(1000, self.update_clock)
