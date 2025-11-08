@@ -166,8 +166,21 @@ class BreweryMainWindow:
             command=self.authenticate_user,
             width=20
         )
-        login_button.pack(pady=(0, 20), padx=20)
-        
+        login_button.pack(pady=(0, 10), padx=20)
+
+        # Quick login button for testing
+        quick_login_button = tk.Button(
+            card_frame,
+            text="Quick Login (Admin)",
+            font=('Arial', 10),
+            bg='#3498db',
+            fg='white',
+            cursor='hand2',
+            command=self.quick_login_admin,
+            width=20
+        )
+        quick_login_button.pack(pady=(0, 20), padx=20)
+
         # Error message label
         self.error_label = tk.Label(
             card_frame,
@@ -195,15 +208,15 @@ class BreweryMainWindow:
         """Handle user login authentication."""
         username = self.username_entry.get().strip()
         password = self.password_entry.get()
-        
+
         # Clear previous error
         self.error_label.config(text="")
-        
+
         # Validate input
         if not username or not password:
             self.error_label.config(text="Please enter both username and password")
             return
-        
+
         # Attempt login
         user = self.auth.login(username, password)
 
@@ -213,7 +226,15 @@ class BreweryMainWindow:
         else:
             self.error_label.config(text="Invalid username or password")
             self.password_entry.delete(0, tk.END)
-    
+
+    def quick_login_admin(self):
+        """Quick login with admin credentials for testing/debugging."""
+        self.username_entry.delete(0, tk.END)
+        self.password_entry.delete(0, tk.END)
+        self.username_entry.insert(0, "admin")
+        self.password_entry.insert(0, "admin")
+        self.authenticate_user()
+
     def create_main_interface(self):
         """Create the main application interface after login."""
         # Clear login screen
