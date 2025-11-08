@@ -30,14 +30,18 @@ class BreweryMainWindow:
         
         # Initialize data access layer
         self.cache_manager = SQLiteCacheManager()
+        self.cache_manager.connect()
+        self.cache_manager.initialize_database()
+        self.cache_manager.close()
+
         self.sheets_client = GoogleSheetsClient()
-        
+
         # Initialize sync manager
         self.sync_manager = SyncManager(self.sheets_client, self.cache_manager)
-        
+
         # Initialize authentication
         self.auth = AuthManager(self.cache_manager)
-        
+
         # Create default admin user if no users exist
         self.auth.create_default_admin()
         
@@ -166,7 +170,7 @@ class BreweryMainWindow:
         # Info text
         info_label = tk.Label(
             center_frame,
-            text="Default credentials: admin / admin123",
+            text="Default credentials: admin / admin",
             font=('Arial', 9, 'italic'),
             bg='#f0f0f0',
             fg='#666666'
@@ -190,9 +194,9 @@ class BreweryMainWindow:
             return
         
         # Attempt login
-        success, user = self.auth.login(username, password)
-        
-        if success:
+        user = self.auth.login(username, password)
+
+        if user:
             self.current_user = user
             self.create_main_interface()
         else:
