@@ -139,7 +139,7 @@ class DashboardModule(tk.Frame):
             bg=color,
             fg='white'
         )
-        value_label.pack(pady=(5, 1))
+        value_label.pack(pady=(3, 0))
 
         # Make label clickable too
         if destination and self.navigate:
@@ -154,7 +154,7 @@ class DashboardModule(tk.Frame):
             bg=color,
             fg='white'
         )
-        title_label.pack(pady=(0, 5))
+        title_label.pack(pady=(0, 3))
 
         # Make label clickable too
         if destination and self.navigate:

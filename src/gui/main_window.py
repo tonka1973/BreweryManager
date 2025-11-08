@@ -400,19 +400,15 @@ class BreweryMainWindow:
         # Create module header
         header_frame = tk.Frame(self.content_area, bg='white')
         header_frame.pack(fill=tk.X, padx=20, pady=(20, 10))
-        
+
         module_title = tk.Label(
             header_frame,
             text=module_name,
-            font=('Arial', 20, 'bold'),
+            font=('Arial', 14, 'bold'),
             bg='white',
             fg='#2c3e50'
         )
         module_title.pack(anchor=tk.W)
-        
-        # Separator
-        separator = ttk.Separator(self.content_area, orient='horizontal')
-        separator.pack(fill=tk.X, padx=20, pady=10)
 
         # Load the actual module content
         self.load_module_content(module_name)
