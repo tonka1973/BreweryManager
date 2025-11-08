@@ -50,8 +50,8 @@ class DashboardModule(tk.Frame):
 
         date_label = tk.Label(
             welcome_frame,
-            text=datetime.now().strftime("%A, %d/%m/%Y"),
-            font=('Arial', 11),
+            text=datetime.now().strftime("%A, %d/%m/%Y %H:%M"),
+            font=('Arial', 11, 'bold'),
             bg='white',
             fg='#7f8c8d'
         )
