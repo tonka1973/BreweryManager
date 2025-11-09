@@ -15,6 +15,16 @@
   - Added Step 3: Ask which PC user is on
   - Added Step 4: Check PC_INFO.md and add new PCs if needed
   - Updated Step 5: Provide correct merge commands with PC-specific path
+- [x] Fixed Home PC path to include OneDrive folder
+- [x] Major improvements to Recipes module UI:
+  - Split view: recipe list (top half) and info panel (bottom half)
+  - Removed "View Details" and "Edit Recipe" buttons from toolbar
+  - Added inline Edit (✏️) and Delete (🗑️) buttons on each recipe row
+  - Double-click on recipe now opens edit dialog
+  - Clicking Edit/Delete icons performs those actions immediately
+  - Recipe info displays automatically when recipe is selected
+  - Info panel shows full details, brewing notes, and ingredients
+  - Delete confirmation dialog working correctly
 
 ## Issues Encountered
 - None yet
