@@ -1161,18 +1161,18 @@ class IngredientDialog(tk.Toplevel):
     def load_inventory_items(self):
         """Load all inventory items from database"""
         self.cache.connect()
-        items = self.cache.get_all_records('inventory', order_by='item_name')
+        items = self.cache.get_all_records('inventory_materials', order_by='material_name')
         self.cache.close()
 
         # Organize by type
         for item in items:
-            item_type = item.get('category', 'Other')
+            item_type = item.get('material_type', 'Other').capitalize()
             if item_type not in self.inventory_items:
                 self.inventory_items[item_type] = []
 
             self.inventory_items[item_type].append({
-                'id': item.get('inventory_id'),
-                'name': item.get('item_name', ''),
+                'id': item.get('material_id'),
+                'name': item.get('material_name', ''),
                 'unit': item.get('unit', 'kg')
             })
 
@@ -1285,18 +1285,20 @@ class IngredientDialog(tk.Toplevel):
         try:
             self.cache.connect()
 
-            inventory_data = {
-                'inventory_id': str(uuid.uuid4()),
-                'item_name': name,
-                'category': ing_type,
-                'quantity': 0.0,  # Start with zero stock
+            material_data = {
+                'material_id': str(uuid.uuid4()),
+                'material_name': name,
+                'material_type': ing_type.lower(),
+                'current_stock': 0.0,  # Start with zero stock
                 'unit': unit,
-                'location': 'Brewery',
+                'reorder_level': 0.0,
+                'supplier': '',
+                'cost_per_unit': 0.0,
                 'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 'sync_status': 'pending'
             }
 
-            self.cache.insert_record('inventory', inventory_data)
+            self.cache.insert_record('inventory_materials', material_data)
             self.cache.close()
 
             messagebox.showinfo(
@@ -1305,7 +1307,7 @@ class IngredientDialog(tk.Toplevel):
                 f"You can add stock levels in the Inventory module."
             )
 
-            return inventory_data['inventory_id']
+            return material_data['material_id']
 
         except Exception as e:
             self.cache.close()
