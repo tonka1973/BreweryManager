@@ -8,6 +8,7 @@ from tkinter import ttk, messagebox, simpledialog
 import uuid
 from datetime import datetime
 from typing import Optional
+from ..utilities.date_utils import format_date_for_display, format_datetime_for_display, get_today_db, get_now_db
 
 
 class RecipesModule(tk.Frame):
@@ -319,8 +320,8 @@ class RecipesModule(tk.Frame):
             ("Batch Size:", f"{recipe.get('target_batch_size_litres', 0.0)} litres"),
             ("Version:", str(recipe.get('version', 1))),
             ("Status:", 'Active' if recipe.get('is_active') else 'Inactive'),
-            ("Created:", f"{recipe.get('created_date', 'N/A')} by {recipe.get('created_by', 'Unknown')}"),
-            ("Last Modified:", recipe.get('last_modified', 'N/A'))
+            ("Created:", f"{format_date_for_display(recipe.get('created_date')) or 'N/A'} by {recipe.get('created_by', 'Unknown')}"),
+            ("Last Modified:", format_datetime_for_display(recipe.get('last_modified')) or 'N/A')
         ]
 
         for i, (label, value) in enumerate(info_items):
@@ -835,9 +836,9 @@ class RecipeDialog(tk.Toplevel):
                 'version': version,
                 'target_abv': abv,
                 'target_batch_size_litres': batch_size,
-                'created_date': datetime.now().strftime('%Y-%m-%d'),
+                'created_date': get_today_db(),
                 'created_by': self.current_user.username,
-                'last_modified': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'last_modified': get_now_db(),
                 'is_active': self.active_var.get(),
                 'brewing_notes': notes,
                 'sync_status': 'pending'
@@ -865,7 +866,7 @@ class RecipeDialog(tk.Toplevel):
                 'version': version,
                 'target_abv': abv,
                 'target_batch_size_litres': batch_size,
-                'last_modified': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'last_modified': get_now_db(),
                 'is_active': self.active_var.get(),
                 'brewing_notes': notes,
                 'sync_status': 'pending'
