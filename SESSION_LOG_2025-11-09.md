@@ -69,6 +69,15 @@
   - Five buttons: Malt, Hops, Yeast, Adjunct, Other
   - Selected button highlighted in green with sunken appearance
   - More intuitive and visually clear interface
+- [x] Converted entire application to DD/MM/YYYY date format
+  - Created date_utils.py with conversion utilities
+  - Updated all 8 GUI modules (batches, sales, invoicing, inventory, recipes, customers, dashboard)
+  - User entry fields now accept DD/MM/YYYY format
+  - Treeviews display dates as DD/MM/YYYY
+  - Details dialogs show dates as DD/MM/YYYY
+  - Database continues to store dates in YYYY-MM-DD format for consistency
+  - Added date validation on user input
+  - Entry field labels include (DD/MM/YYYY) hint
 
 ## Issues Encountered
 - Fixed table name mismatch (was using 'inventory' instead of 'inventory_materials')

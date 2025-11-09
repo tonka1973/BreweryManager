@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import uuid
 from datetime import datetime
+from ..utilities.date_utils import get_today_db
 
 
 class InventoryModule(tk.Frame):
@@ -329,7 +330,7 @@ class MaterialDialog(tk.Toplevel):
             'reorder_level': reorder,
             'cost_per_unit': cost,
             'supplier': self.supplier_entry.get().strip(),
-            'last_updated': datetime.now().strftime('%Y-%m-%d'),
+            'last_updated': get_today_db(),
             'sync_status': 'pending'
         }
 
@@ -413,13 +414,13 @@ class StockAdjustDialog(tk.Toplevel):
         # Update material stock
         self.cache.connect()
         self.cache.update_record('inventory_materials', self.material['material_id'],
-                                {'current_stock': new_stock, 'last_updated': datetime.now().strftime('%Y-%m-%d'),
+                                {'current_stock': new_stock, 'last_updated': get_today_db(),
                                  'sync_status': 'pending'}, 'material_id')
 
         # Log transaction
         trans_data = {
             'transaction_id': str(uuid.uuid4()),
-            'transaction_date': datetime.now().strftime('%Y-%m-%d'),
+            'transaction_date': get_today_db(),
             'transaction_type': self.adj_type.get(),
             'material_id': self.material['material_id'],
             'quantity_change': qty if self.adj_type.get() == 'add' else -qty,

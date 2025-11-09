@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import uuid
 from datetime import datetime
+from ..utilities.date_utils import get_today_db
 
 
 class CustomersModule(tk.Frame):
@@ -348,7 +349,7 @@ class CustomerDialog(tk.Toplevel):
         if self.mode == 'add':
             data['customer_id'] = str(uuid.uuid4())
             data['is_active'] = 1
-            data['created_date'] = datetime.now().strftime('%Y-%m-%d')
+            data['created_date'] = get_today_db()
             self.cache.insert_record('customers', data)
         else:
             self.cache.update_record('customers', self.customer['customer_id'], data, 'customer_id')
