@@ -710,7 +710,8 @@ class RecipeDialog(tk.Toplevel):
                 'quantity': ing.get('quantity', 0),
                 'unit': ing.get('unit', ''),
                 'timing': ing.get('timing', ''),
-                'notes': ing.get('notes', '')
+                'notes': ing.get('notes', ''),
+                'inventory_item_id': ing.get('inventory_item_id', None)
             })
 
         self.refresh_ingredients_list()
@@ -726,7 +727,7 @@ class RecipeDialog(tk.Toplevel):
 
     def add_ingredient(self):
         """Open dialog to add new ingredient"""
-        dialog = IngredientDialog(self, mode='add')
+        dialog = IngredientDialog(self, self.cache, mode='add')
         self.wait_window(dialog)
 
         if hasattr(dialog, 'result') and dialog.result:
@@ -743,7 +744,7 @@ class RecipeDialog(tk.Toplevel):
         index = selection[0]
         ingredient = self.ingredients[index]
 
-        dialog = IngredientDialog(self, mode='edit', ingredient=ingredient)
+        dialog = IngredientDialog(self, self.cache, mode='edit', ingredient=ingredient)
         self.wait_window(dialog)
 
         if hasattr(dialog, 'result') and dialog.result:
@@ -867,6 +868,7 @@ class RecipeDialog(tk.Toplevel):
                 'unit': ing['unit'],
                 'timing': ing.get('timing', ''),
                 'notes': ing.get('notes', ''),
+                'inventory_item_id': ing.get('inventory_item_id', None),  # Link to inventory
                 'sync_status': 'pending'
             }
             self.cache.insert_record('recipe_ingredients', ingredient_data)
@@ -1023,19 +1025,22 @@ Last Modified: {self.recipe.get('last_modified', 'N/A')}
 class IngredientDialog(tk.Toplevel):
     """Dialog for adding/editing ingredients"""
 
-    def __init__(self, parent, mode='add', ingredient=None):
+    def __init__(self, parent, cache_manager, mode='add', ingredient=None):
         super().__init__(parent)
+        self.cache = cache_manager
         self.mode = mode
         self.ingredient = ingredient
         self.result = None
+        self.inventory_items = {}  # Store inventory items by type
 
         self.title("Add Ingredient" if mode == 'add' else "Edit Ingredient")
-        self.geometry("500x400")
+        self.geometry("500x450")
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
 
         self.create_widgets()
+        self.load_inventory_items()
 
         if mode == 'edit' and ingredient:
             self.populate_fields()
@@ -1045,13 +1050,8 @@ class IngredientDialog(tk.Toplevel):
         main_frame = tk.Frame(self, bg='white', padx=20, pady=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Ingredient Name
-        tk.Label(main_frame, text="Ingredient Name *", font=('Arial', 10, 'bold'), bg='white').grid(row=0, column=0, sticky='w', pady=(0, 5))
-        self.name_entry = tk.Entry(main_frame, font=('Arial', 10), width=40)
-        self.name_entry.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0, 15))
-
-        # Type
-        tk.Label(main_frame, text="Type *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=0, sticky='w', pady=(0, 5))
+        # Type (moved to top so it can filter name options)
+        tk.Label(main_frame, text="Type *", font=('Arial', 10, 'bold'), bg='white').grid(row=0, column=0, sticky='w', pady=(0, 5))
         self.type_var = tk.StringVar(value='Malt')
         type_combo = ttk.Combobox(
             main_frame,
@@ -1061,15 +1061,41 @@ class IngredientDialog(tk.Toplevel):
             state='readonly',
             width=15
         )
-        type_combo.grid(row=3, column=0, sticky='w', pady=(0, 15))
+        type_combo.grid(row=1, column=0, sticky='w', pady=(0, 15))
+        type_combo.bind('<<ComboboxSelected>>', self.on_type_change)
+
+        # Ingredient Name (autocomplete from inventory)
+        tk.Label(main_frame, text="Ingredient Name *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=0, sticky='w', pady=(0, 5))
+
+        name_frame = tk.Frame(main_frame, bg='white')
+        name_frame.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 5))
+
+        self.name_var = tk.StringVar()
+        self.name_combo = ttk.Combobox(
+            name_frame,
+            textvariable=self.name_var,
+            font=('Arial', 10),
+            width=37
+        )
+        self.name_combo.pack(fill=tk.X)
+
+        # Info label
+        self.inventory_info_label = tk.Label(
+            main_frame,
+            text="Select from inventory or type new name",
+            font=('Arial', 8, 'italic'),
+            bg='white',
+            fg='#666'
+        )
+        self.inventory_info_label.grid(row=4, column=0, columnspan=2, sticky='w', pady=(0, 15))
 
         # Quantity
-        tk.Label(main_frame, text="Quantity *", font=('Arial', 10, 'bold'), bg='white').grid(row=4, column=0, sticky='w', pady=(0, 5))
+        tk.Label(main_frame, text="Quantity *", font=('Arial', 10, 'bold'), bg='white').grid(row=5, column=0, sticky='w', pady=(0, 5))
         self.quantity_entry = tk.Entry(main_frame, font=('Arial', 10), width=15)
-        self.quantity_entry.grid(row=5, column=0, sticky='w', pady=(0, 15))
+        self.quantity_entry.grid(row=6, column=0, sticky='w', pady=(0, 15))
 
         # Unit
-        tk.Label(main_frame, text="Unit *", font=('Arial', 10, 'bold'), bg='white').grid(row=4, column=1, sticky='w', pady=(0, 5), padx=(20, 0))
+        tk.Label(main_frame, text="Unit *", font=('Arial', 10, 'bold'), bg='white').grid(row=5, column=1, sticky='w', pady=(0, 5), padx=(20, 0))
         self.unit_var = tk.StringVar(value='kg')
         unit_combo = ttk.Combobox(
             main_frame,
@@ -1079,10 +1105,10 @@ class IngredientDialog(tk.Toplevel):
             state='readonly',
             width=10
         )
-        unit_combo.grid(row=5, column=1, sticky='w', pady=(0, 15), padx=(20, 0))
+        unit_combo.grid(row=6, column=1, sticky='w', pady=(0, 15), padx=(20, 0))
 
         # Timing
-        tk.Label(main_frame, text="Timing", font=('Arial', 10, 'bold'), bg='white').grid(row=6, column=0, sticky='w', pady=(0, 5))
+        tk.Label(main_frame, text="Timing", font=('Arial', 10, 'bold'), bg='white').grid(row=7, column=0, sticky='w', pady=(0, 5))
         self.timing_var = tk.StringVar()
         timing_combo = ttk.Combobox(
             main_frame,
@@ -1091,12 +1117,12 @@ class IngredientDialog(tk.Toplevel):
             font=('Arial', 10),
             width=15
         )
-        timing_combo.grid(row=7, column=0, sticky='w', pady=(0, 15))
+        timing_combo.grid(row=8, column=0, sticky='w', pady=(0, 15))
 
         # Notes
-        tk.Label(main_frame, text="Notes", font=('Arial', 10, 'bold'), bg='white').grid(row=8, column=0, sticky='w', pady=(0, 5))
+        tk.Label(main_frame, text="Notes", font=('Arial', 10, 'bold'), bg='white').grid(row=9, column=0, sticky='w', pady=(0, 5))
         self.notes_text = tk.Text(main_frame, font=('Arial', 10), width=40, height=4)
-        self.notes_text.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        self.notes_text.grid(row=10, column=0, columnspan=2, sticky='ew', pady=(0, 15))
 
         # Configure grid
         main_frame.grid_columnconfigure(0, weight=1)
@@ -1132,12 +1158,60 @@ class IngredientDialog(tk.Toplevel):
         )
         save_btn.pack(side=tk.RIGHT)
 
+    def load_inventory_items(self):
+        """Load all inventory items from database"""
+        self.cache.connect()
+        items = self.cache.get_all_records('inventory', order_by='item_name')
+        self.cache.close()
+
+        # Organize by type
+        for item in items:
+            item_type = item.get('category', 'Other')
+            if item_type not in self.inventory_items:
+                self.inventory_items[item_type] = []
+
+            self.inventory_items[item_type].append({
+                'id': item.get('inventory_id'),
+                'name': item.get('item_name', ''),
+                'unit': item.get('unit', 'kg')
+            })
+
+        # Update name combo with current type
+        self.update_name_options()
+
+    def on_type_change(self, event=None):
+        """Update name options when type changes"""
+        self.update_name_options()
+
+    def update_name_options(self):
+        """Update the name combobox based on selected type"""
+        selected_type = self.type_var.get()
+
+        # Get items for this type
+        items = self.inventory_items.get(selected_type, [])
+        item_names = [item['name'] for item in items]
+
+        # Update combobox
+        self.name_combo['values'] = item_names
+
+        # Update info label
+        if items:
+            self.inventory_info_label.config(
+                text=f"Found {len(items)} {selected_type} items in inventory - select or type new",
+                fg='#2196F3'
+            )
+        else:
+            self.inventory_info_label.config(
+                text=f"No {selected_type} items in inventory - type new name",
+                fg='#ff9800'
+            )
+
     def populate_fields(self):
         """Populate fields with existing ingredient data"""
         if not self.ingredient:
             return
 
-        self.name_entry.insert(0, self.ingredient.get('name', ''))
+        self.name_var.set(self.ingredient.get('name', ''))
         self.type_var.set(self.ingredient.get('type', 'Malt'))
         self.quantity_entry.insert(0, str(self.ingredient.get('quantity', '')))
         self.unit_var.set(self.ingredient.get('unit', 'kg'))
@@ -1149,7 +1223,7 @@ class IngredientDialog(tk.Toplevel):
 
     def save_ingredient(self):
         """Validate and save ingredient"""
-        name = self.name_entry.get().strip()
+        name = self.name_var.get().strip()
         ing_type = self.type_var.get()
         quantity_str = self.quantity_entry.get().strip()
         unit = self.unit_var.get()
@@ -1170,13 +1244,70 @@ class IngredientDialog(tk.Toplevel):
             messagebox.showerror("Validation Error", "Quantity must be greater than 0.")
             return
 
+        # Check if ingredient exists in inventory
+        inventory_item_id = self.check_inventory(name, ing_type)
+
+        # If not in inventory, offer to add it
+        if not inventory_item_id:
+            result = messagebox.askyesno(
+                "Add to Inventory?",
+                f"'{name}' is not in your inventory.\n\n"
+                f"Would you like to add it to your inventory now?\n\n"
+                f"This will help track stock levels when using recipes."
+            )
+
+            if result:
+                inventory_item_id = self.add_to_inventory(name, ing_type, unit)
+
         self.result = {
             'name': name,
             'type': ing_type,
             'quantity': quantity,
             'unit': unit,
             'timing': timing,
-            'notes': notes
+            'notes': notes,
+            'inventory_item_id': inventory_item_id  # Link to inventory if exists
         }
 
         self.destroy()
+
+    def check_inventory(self, name, ing_type):
+        """Check if ingredient exists in inventory"""
+        # Look in the loaded inventory items
+        items = self.inventory_items.get(ing_type, [])
+        for item in items:
+            if item['name'].lower() == name.lower():
+                return item['id']
+        return None
+
+    def add_to_inventory(self, name, ing_type, unit):
+        """Add ingredient to inventory"""
+        try:
+            self.cache.connect()
+
+            inventory_data = {
+                'inventory_id': str(uuid.uuid4()),
+                'item_name': name,
+                'category': ing_type,
+                'quantity': 0.0,  # Start with zero stock
+                'unit': unit,
+                'location': 'Brewery',
+                'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'sync_status': 'pending'
+            }
+
+            self.cache.insert_record('inventory', inventory_data)
+            self.cache.close()
+
+            messagebox.showinfo(
+                "Added to Inventory",
+                f"'{name}' has been added to your inventory with 0 {unit}.\n\n"
+                f"You can add stock levels in the Inventory module."
+            )
+
+            return inventory_data['inventory_id']
+
+        except Exception as e:
+            self.cache.close()
+            messagebox.showerror("Error", f"Failed to add to inventory: {str(e)}")
+            return None

@@ -32,6 +32,14 @@
   - Edit and Delete buttons for ingredient list
   - Save/load ingredients with recipes to database
   - Delete confirmation for ingredient removal
+- [x] Integrated recipe ingredients with brewery inventory system:
+  - Type selector filters available ingredients from inventory
+  - Name field is autocomplete combobox (type "marris" → "Marris Otter")
+  - Shows count of available items for selected type
+  - Automatically links ingredients to inventory items
+  - Prompts to add ingredient to inventory if not found
+  - Saves inventory_item_id for stock tracking
+  - Foundation for future batch stock deduction
 
 ## Issues Encountered
 - None yet
