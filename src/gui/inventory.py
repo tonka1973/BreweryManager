@@ -16,15 +16,52 @@ class InventoryModule(tk.Frame):
         super().__init__(parent, bg='white')
         self.cache = cache_manager
         self.current_user = current_user
+        self.current_category = 'all'  # Track selected category
 
         self.create_widgets()
         self.load_materials()
 
     def create_widgets(self):
         """Create inventory widgets"""
+        # Category tabs/buttons
+        category_frame = tk.Frame(self, bg='white')
+        category_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
+
+        categories = [
+            ('All', 'all'),
+            ('Grain', 'grain'),
+            ('Hops', 'hops'),
+            ('Yeast', 'yeast'),
+            ('Adjunct', 'adjunct'),
+            ('Sundries', 'sundries')
+        ]
+
+        self.category_buttons = {}
+        for label, cat_id in categories:
+            btn = tk.Button(
+                category_frame,
+                text=label,
+                font=('Arial', 10, 'bold'),
+                bg='#34495e',
+                fg='white',
+                activebackground='#4CAF50',
+                activeforeground='white',
+                cursor='hand2',
+                relief=tk.FLAT,
+                bd=0,
+                padx=15,
+                pady=8,
+                command=lambda c=cat_id: self.switch_category(c)
+            )
+            btn.pack(side=tk.LEFT, padx=(0, 5))
+            self.category_buttons[cat_id] = btn
+
+        # Highlight "All" button by default
+        self.category_buttons['all'].config(bg='#4CAF50')
+
         # Toolbar
         toolbar = tk.Frame(self, bg='white')
-        toolbar.pack(fill=tk.X, padx=20, pady=(0, 10))
+        toolbar.pack(fill=tk.X, padx=20, pady=(10, 10))
 
         add_btn = tk.Button(toolbar, text="➕ Add Material", font=('Arial', 10, 'bold'),
                            bg='#4CAF50', fg='white', cursor='hand2',
@@ -76,6 +113,20 @@ class InventoryModule(tk.Frame):
         self.tree.pack(fill=tk.BOTH, expand=True)
         vsb.config(command=self.tree.yview)
 
+    def switch_category(self, category):
+        """Switch to a different category"""
+        self.current_category = category
+
+        # Update button colors (highlight active)
+        for cat, btn in self.category_buttons.items():
+            if cat == category:
+                btn.config(bg='#4CAF50')
+            else:
+                btn.config(bg='#34495e')
+
+        # Reload materials with filter
+        self.load_materials()
+
     def load_materials(self):
         """Load materials from database"""
         for item in self.tree.get_children():
@@ -86,11 +137,22 @@ class InventoryModule(tk.Frame):
         self.cache.close()
 
         for mat in materials:
+            # Filter by category
+            mat_type = mat.get('material_type', '')
+            if self.current_category != 'all' and mat_type != self.current_category:
+                continue
+
             stock = mat.get('current_stock', 0)
             reorder = mat.get('reorder_level', 0)
+
+            # Display "Sundries" instead of "other" in the type column
+            display_type = mat_type.capitalize()
+            if mat_type == 'sundries':
+                display_type = 'Sundries'
+
             values = (
                 mat.get('material_name', ''),
-                mat.get('material_type', '').capitalize(),
+                display_type,
                 f"{stock:.1f}",
                 mat.get('unit', ''),
                 f"{reorder:.1f}",
@@ -199,7 +261,7 @@ class MaterialDialog(tk.Toplevel):
 
         tk.Label(frame, text="Type *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=0, sticky='w', pady=(0,5))
         self.type_var = tk.StringVar(value='grain')
-        types = ['grain', 'hops', 'yeast', 'adjunct', 'other']
+        types = ['grain', 'hops', 'yeast', 'adjunct', 'sundries']
         type_menu = ttk.Combobox(frame, textvariable=self.type_var, values=types, font=('Arial', 10), width=37, state='readonly')
         type_menu.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0,15))
 

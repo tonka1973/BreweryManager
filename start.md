@@ -106,6 +106,51 @@ What would you like to work on today?
 
 ---
 
+## STEP 8: Ask Location & Provide Program Start Command
+
+After asking what to work on, ask the user which computer they're on:
+
+**Ask:** "Which computer are you on? (home/brewery/other)"
+
+Then provide the appropriate command based on their answer:
+
+**If HOME computer:**
+```
+🚀 TO START THE PROGRAM FOR TESTING:
+
+cd C:\Users\Tonk\OneDrive\Desktop\BreweryManager
+python main.py
+
+Default login: admin / admin
+```
+
+**If BREWERY computer:**
+```
+🚀 TO START THE PROGRAM FOR TESTING:
+
+cd C:\Users\darre\Desktop\BreweryManager
+python main.py
+
+Default login: admin / admin
+```
+
+**If OTHER/NEW computer:**
+Ask: "What's the full path to the BreweryManager folder on this computer?"
+
+Then provide:
+```
+🚀 TO START THE PROGRAM FOR TESTING:
+
+cd [USER_PROVIDED_PATH]
+python main.py
+
+Default login: admin / admin
+```
+
+(See COMPUTER_CONFIGS.md for known computer paths and to add new ones)
+
+---
+
 ## IMPORTANT REMINDERS
 
 - Push frequently after each feature/fix

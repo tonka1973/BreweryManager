@@ -14,6 +14,21 @@
 
 ---
 
+## 🤖 FOR CLAUDE SESSIONS
+
+**To start a new session, just say to Claude:** `"read start.md"`
+
+That's it! Claude will:
+- ✅ Read the necessary project files
+- ✅ Check for previous session branches
+- ✅ Give you the exact merge commands to run
+- ✅ Create a session log
+- ✅ Ask what you want to work on
+
+**Simple!** Just remember: `"read start.md"` at the start of every new session.
+
+---
+
 ## 📚 DOCUMENTATION INDEX
 
 **New to this project? Start here:**
