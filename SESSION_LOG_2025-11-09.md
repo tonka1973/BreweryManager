@@ -64,6 +64,11 @@
   - Created migration to add column to existing databases
   - Migration automatically runs during database initialization
   - Enables proper linking between recipe ingredients and inventory
+- [x] Replaced type dropdown with buttons in ingredient dialog
+  - Changed from Combobox to button-based type selector
+  - Five buttons: Malt, Hops, Yeast, Adjunct, Other
+  - Selected button highlighted in green with sunken appearance
+  - More intuitive and visually clear interface
 
 ## Issues Encountered
 - Fixed table name mismatch (was using 'inventory' instead of 'inventory_materials')
