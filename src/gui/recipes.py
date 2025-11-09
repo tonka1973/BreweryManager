@@ -1034,7 +1034,7 @@ class IngredientDialog(tk.Toplevel):
         self.inventory_items = {}  # Store inventory items by type
 
         self.title("Add Ingredient" if mode == 'add' else "Edit Ingredient")
-        self.geometry("500x450")
+        self.geometry("500x550")
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
@@ -1216,10 +1216,6 @@ class IngredientDialog(tk.Toplevel):
 
         # Update combobox with filtered values
         self.name_combo['values'] = filtered
-
-        # If there are matches, open the dropdown
-        if filtered:
-            self.name_combo.event_generate('<Down>')
 
     def update_name_options(self):
         """Update the name combobox based on selected type"""
