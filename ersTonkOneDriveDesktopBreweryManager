@@ -1,0 +1,31 @@
+[33m4f772a2[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/claude/read-start-m-011CUxAWZHUWBi8wtffYVgFE[m[33m)[m HEAD@{0}: reset: moving to origin/claude/read-start-m-011CUxAWZHUWBi8wtffYVgFE
+[33m57100ea[m HEAD@{1}: reset: moving to HEAD
+[33m57100ea[m HEAD@{2}: checkout: moving from master to master
+[33m57100ea[m HEAD@{3}: merge origin/claude/read-start-md-011CUwCzukngU3aizetVcBNf: Merge made by the 'ort' strategy.
+[33m00ae4b9[m HEAD@{4}: checkout: moving from claude/read-start-md-011CUv4XdjSH9VJeq42RqxCt to master
+[33m718b957[m[33m ([m[1;32mclaude/read-start-md-011CUv4XdjSH9VJeq42RqxCt[m[33m)[m HEAD@{5}: merge origin/claude/read-start-md-011CUwCzukngU3aizetVcBNf: Merge made by the 'ort' strategy.
+[33m141a6ff[m HEAD@{6}: merge origin/claude/read-start-md-011CUwCzukngU3aizetVcBNf: Merge made by the 'ort' strategy.
+[33mc4f9b25[m HEAD@{7}: commit (merge): Merge Quick Login and Brewery Inventory changes
+[33me31bfa3[m[33m ([m[1;31morigin/claude/read-start-md-011CUv4XdjSH9VJeq42RqxCt[m[33m)[m HEAD@{8}: reset: moving to HEAD
+[33me31bfa3[m[33m ([m[1;31morigin/claude/read-start-md-011CUv4XdjSH9VJeq42RqxCt[m[33m)[m HEAD@{9}: pull: Fast-forward
+[33mdde3775[m HEAD@{10}: pull: Fast-forward
+[33m0199dca[m HEAD@{11}: pull: Fast-forward
+[33m41282bc[m HEAD@{12}: pull: Fast-forward
+[33m5a9970f[m HEAD@{13}: pull: Fast-forward
+[33m7deb0a3[m HEAD@{14}: pull: Fast-forward
+[33m17300cc[m HEAD@{15}: pull: Fast-forward
+[33mdedb39d[m HEAD@{16}: pull: Fast-forward
+[33mc631b7b[m HEAD@{17}: pull: Fast-forward
+[33mbb2d33a[m HEAD@{18}: checkout: moving from master to claude/read-start-md-011CUv4XdjSH9VJeq42RqxCt
+[33m00ae4b9[m HEAD@{19}: merge origin/claude/add-start-md-011CUtigEPRBeHUoDnpcJYkR: Merge made by the 'ort' strategy.
+[33ma8f2d14[m[33m ([m[1;31morigin/claude/session-planning-011CUtLcUBiAQZp8BoZ55NS8[m[33m)[m HEAD@{20}: merge origin/claude/session-planning-011CUtLcUBiAQZp8BoZ55NS8: Fast-forward
+[33m4834bb1[m HEAD@{21}: checkout: moving from claude/setup-local-testing-011CUsJqZ9Ui8ZrMTPn6jQnx to master
+[33m12d6ceb[m[33m ([m[1;32mclaude/setup-local-testing-011CUsJqZ9Ui8ZrMTPn6jQnx[m[33m)[m HEAD@{22}: checkout: moving from claude/setup-local-testing-011CUsJqZ9Ui8ZrMTPn6jQnx to claude/setup-local-testing-011CUsJqZ9Ui8ZrMTPn6jQnx
+[33m12d6ceb[m[33m ([m[1;32mclaude/setup-local-testing-011CUsJqZ9Ui8ZrMTPn6jQnx[m[33m)[m HEAD@{23}: pull origin claude/setup-local-testing-011CUsJqZ9Ui8ZrMTPn6jQnx: Fast-forward
+[33mf02eeb6[m HEAD@{24}: checkout: moving from claude/implement-cmd-commands-011CUsC4oq5JagebZSgigwEu to claude/setup-local-testing-011CUsJqZ9Ui8ZrMTPn6jQnx
+[33m160639e[m[33m ([m[1;31morigin/claude/implement-cmd-commands-011CUsC4oq5JagebZSgigwEu[m[33m, [m[1;32mclaude/implement-cmd-commands-011CUsC4oq5JagebZSgigwEu[m[33m)[m HEAD@{25}: checkout: moving from claude/setup-local-testing-011CUsJqZ9Ui8ZrMTPn6jQnx to claude/implement-cmd-commands-011CUsC4oq5JagebZSgigwEu
+[33mf02eeb6[m HEAD@{26}: pull origin claude/setup-local-testing-011CUsJqZ9Ui8ZrMTPn6jQnx: Fast-forward
+[33mfaeaee8[m HEAD@{27}: pull: Fast-forward
+[33m3839ab1[m HEAD@{28}: pull: Fast-forward
+[33m87ba040[m HEAD@{29}: checkout: moving from master to claude/setup-local-testing-011CUsJqZ9Ui8ZrMTPn6jQnx
+[33m4834bb1[m HEAD@{30}: clone: from https://github.com/tonka1973/BreweryManager.git
