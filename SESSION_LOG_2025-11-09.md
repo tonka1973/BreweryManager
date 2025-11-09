@@ -58,12 +58,19 @@
   - Recipe list reload was clearing the selection
   - Now automatically re-selects recipe after save
   - Info panel updates to show saved ingredients
+- [x] Added inventory_item_id column to recipe_ingredients table
+  - Database schema was missing the inventory_item_id column
+  - Added column to CREATE TABLE statement for new databases
+  - Created migration to add column to existing databases
+  - Migration automatically runs during database initialization
+  - Enables proper linking between recipe ingredients and inventory
 
 ## Issues Encountered
 - Fixed table name mismatch (was using 'inventory' instead of 'inventory_materials')
 - Fixed type mismatch between inventory ("grain") and recipe types ("Malt")
 - Fixed focus loss on autocomplete dropdown after each keystroke
 - Fixed ingredient disappearing after save (selection was being cleared)
+- Fixed missing inventory_item_id column in recipe_ingredients table
 
 ## Next Session TODO
 - (Will be updated at end of session)
