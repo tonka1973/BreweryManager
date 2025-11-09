@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import uuid
 from datetime import datetime
+from ..utilities.date_utils import format_date_for_display, parse_display_date, get_today_display, get_today_db
 
 
 class SalesModule(tk.Frame):
@@ -97,13 +98,13 @@ class SalesModule(tk.Frame):
                     customer_name = customers[0]['customer_name']
 
             values = (
-                sale.get('sale_date', ''),
+                format_date_for_display(sale.get('sale_date', '')),
                 customer_name,
                 sale.get('beer_name', 'N/A'),
                 sale.get('container_type', 'N/A'),
                 sale.get('quantity', 0),
                 f"£{sale.get('line_total', 0):.2f}",
-                sale.get('delivery_date', 'TBD'),
+                format_date_for_display(sale.get('delivery_date')) if sale.get('delivery_date') else 'TBD',
                 sale.get('status', '').capitalize()
             )
 
@@ -158,7 +159,7 @@ class SalesModule(tk.Frame):
                 self.cache.connect()
                 self.cache.update_record('sales', sale_id, {
                     'status': 'delivered',
-                    'delivery_date': datetime.now().strftime('%Y-%m-%d'),
+                    'delivery_date': get_today_db(),
                     'sync_status': 'pending'
                 }, 'sale_id')
                 self.cache.close()
@@ -241,13 +242,13 @@ class SaleDialog(tk.Toplevel):
         self.price_entry.grid(row=9, column=0, sticky='w', pady=(0,15))
 
         # Sale Date
-        tk.Label(frame, text="Sale Date", font=('Arial', 10, 'bold'), bg='white').grid(row=8, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        tk.Label(frame, text="Sale Date (DD/MM/YYYY)", font=('Arial', 10, 'bold'), bg='white').grid(row=8, column=1, sticky='w', pady=(0,5), padx=(20,0))
         self.sale_date_entry = tk.Entry(frame, font=('Arial', 10), width=15)
-        self.sale_date_entry.insert(0, datetime.now().strftime('%Y-%m-%d'))
+        self.sale_date_entry.insert(0, get_today_display())
         self.sale_date_entry.grid(row=9, column=1, sticky='w', pady=(0,15), padx=(20,0))
 
         # Delivery Date
-        tk.Label(frame, text="Delivery Date", font=('Arial', 10, 'bold'), bg='white').grid(row=10, column=0, sticky='w', pady=(0,5))
+        tk.Label(frame, text="Delivery Date (DD/MM/YYYY)", font=('Arial', 10, 'bold'), bg='white').grid(row=10, column=0, sticky='w', pady=(0,5))
         self.delivery_entry = tk.Entry(frame, font=('Arial', 10), width=15)
         self.delivery_entry.grid(row=11, column=0, sticky='w', pady=(0,15))
 
@@ -312,10 +313,10 @@ class SaleDialog(tk.Toplevel):
         self.price_entry.delete(0, tk.END)
         self.price_entry.insert(0, str(self.sale.get('unit_price', 65)))
         self.sale_date_entry.delete(0, tk.END)
-        self.sale_date_entry.insert(0, self.sale.get('sale_date', ''))
+        self.sale_date_entry.insert(0, format_date_for_display(self.sale.get('sale_date', '')))
         self.delivery_entry.delete(0, tk.END)
         if self.sale.get('delivery_date'):
-            self.delivery_entry.insert(0, self.sale['delivery_date'])
+            self.delivery_entry.insert(0, format_date_for_display(self.sale['delivery_date']))
         self.status_var.set(self.sale.get('status', 'reserved'))
         if self.sale.get('notes'):
             self.notes_text.insert('1.0', self.sale['notes'])
@@ -339,6 +340,19 @@ class SaleDialog(tk.Toplevel):
             messagebox.showerror("Error", "Invalid quantity or price.")
             return
 
+        # Convert dates from display format to database format
+        sale_date_db = parse_display_date(self.sale_date_entry.get())
+        if not sale_date_db:
+            messagebox.showerror("Error", "Invalid sale date format. Please use DD/MM/YYYY.")
+            return
+
+        delivery_date_db = None
+        if self.delivery_entry.get().strip():
+            delivery_date_db = parse_display_date(self.delivery_entry.get())
+            if not delivery_date_db:
+                messagebox.showerror("Error", "Invalid delivery date format. Please use DD/MM/YYYY.")
+                return
+
         batch = self.batch_list[gyle]
         container_sizes = {'pin': 20.5, 'firkin': 40.9, 'kilderkin': 81.8,
                           '30l_keg': 30.0, '50l_keg': 50.0,
@@ -357,9 +371,9 @@ class SaleDialog(tk.Toplevel):
             'unit_price': price,
             'line_total': qty * price,
             'status': self.status_var.get(),
-            'sale_date': self.sale_date_entry.get(),
-            'reserved_date': self.sale_date_entry.get(),
-            'delivery_date': self.delivery_entry.get() or None,
+            'sale_date': sale_date_db,
+            'reserved_date': sale_date_db,
+            'delivery_date': delivery_date_db,
             'recorded_by': self.current_user.username,
             'notes': self.notes_text.get('1.0', tk.END).strip(),
             'sync_status': 'pending'
