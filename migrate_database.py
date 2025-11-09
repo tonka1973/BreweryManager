@@ -6,8 +6,8 @@ Adds inventory_item_id column to recipe_ingredients table
 import sqlite3
 from pathlib import Path
 
-# Database path
-DB_PATH = Path("data") / "cache" / "brewery_cache.db"
+# Database path (same as in constants.py)
+DB_PATH = Path.home() / ".brewerymanager" / "cache.db"
 
 def migrate():
     """Add inventory_item_id column to recipe_ingredients table"""
