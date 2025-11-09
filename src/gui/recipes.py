@@ -1167,9 +1167,22 @@ class IngredientDialog(tk.Toplevel):
         items = self.cache.get_all_records('inventory_materials', order_by='material_name')
         self.cache.close()
 
+        # Map inventory types to recipe types
+        type_mapping = {
+            'grain': 'Malt',
+            'malt': 'Malt',
+            'hops': 'Hops',
+            'yeast': 'Yeast',
+            'adjunct': 'Adjunct',
+            'other': 'Other'
+        }
+
         # Organize by type
         for item in items:
-            item_type = item.get('material_type', 'Other').capitalize()
+            db_type = item.get('material_type', 'other').lower()
+            # Map the database type to recipe type
+            item_type = type_mapping.get(db_type, 'Other')
+
             if item_type not in self.inventory_items:
                 self.inventory_items[item_type] = []
 
