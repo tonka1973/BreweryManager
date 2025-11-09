@@ -10,7 +10,11 @@
 - Last commit: Merge remote-tracking branch 'origin/claude/add-start-md-011CUtigEPRBeHUoDnpcJYkR'
 
 ## Tasks Completed This Session
-- [ ] (Will be updated as we work)
+- [x] Created PC_INFO.md file to store computer-specific paths
+- [x] Updated start.md workflow to include PC identification steps
+  - Added Step 3: Ask which PC user is on
+  - Added Step 4: Check PC_INFO.md and add new PCs if needed
+  - Updated Step 5: Provide correct merge commands with PC-specific path
 
 ## Issues Encountered
 - None yet
