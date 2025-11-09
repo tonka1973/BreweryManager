@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import uuid
 from datetime import datetime
+from ..utilities.date_utils import format_date_for_display, format_datetime_for_display, parse_display_date, get_today_display, get_today_db, get_now_db
 
 
 class BatchesModule(tk.Frame):
@@ -111,7 +112,7 @@ class BatchesModule(tk.Frame):
             values = (
                 batch.get('gyle_number', ''),
                 recipe_name,
-                batch.get('brew_date', ''),
+                format_date_for_display(batch.get('brew_date', '')),
                 f"{abv:.1f}%" if abv else 'N/A',
                 f"{batch.get('actual_batch_size', 0):.0f}",
                 batch.get('status', '').capitalize(),
@@ -234,9 +235,9 @@ class BatchDialog(tk.Toplevel):
         self.gyle_entry.grid(row=3, column=0, sticky='w', pady=(0,15))
 
         # Brew Date
-        tk.Label(frame, text="Brew Date *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        tk.Label(frame, text="Brew Date (DD/MM/YYYY) *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=1, sticky='w', pady=(0,5), padx=(20,0))
         self.brew_date_entry = tk.Entry(frame, font=('Arial', 10), width=15)
-        self.brew_date_entry.insert(0, datetime.now().strftime('%Y-%m-%d'))
+        self.brew_date_entry.insert(0, get_today_display())
         self.brew_date_entry.grid(row=3, column=1, sticky='w', pady=(0,15), padx=(20,0))
 
         # Brewer Name
@@ -301,7 +302,7 @@ class BatchDialog(tk.Toplevel):
         self.gyle_entry.delete(0, tk.END)
         self.gyle_entry.insert(0, self.batch.get('gyle_number', ''))
         self.brew_date_entry.delete(0, tk.END)
-        self.brew_date_entry.insert(0, self.batch.get('brew_date', ''))
+        self.brew_date_entry.insert(0, format_date_for_display(self.batch.get('brew_date', '')))
         self.brewer_entry.delete(0, tk.END)
         self.brewer_entry.insert(0, self.batch.get('brewer_name', ''))
         self.size_entry.insert(0, str(self.batch.get('actual_batch_size', '')))
@@ -330,16 +331,22 @@ class BatchDialog(tk.Toplevel):
             messagebox.showerror("Error", "Invalid number format.")
             return
 
+        # Convert date from display format (DD/MM/YYYY) to database format (YYYY-MM-DD)
+        brew_date_db = parse_display_date(self.brew_date_entry.get())
+        if not brew_date_db:
+            messagebox.showerror("Error", "Invalid date format. Please use DD/MM/YYYY.")
+            return
+
         data = {
             'recipe_id': self.recipe_list[recipe_name],
             'gyle_number': gyle,
-            'brew_date': self.brew_date_entry.get(),
+            'brew_date': brew_date_db,
             'brewer_name': self.brewer_entry.get().strip(),
             'actual_batch_size': batch_size,
             'measured_abv': abv if abv > 0 else None,
             'status': self.status_var.get(),
             'brewing_notes': self.notes_text.get('1.0', tk.END).strip(),
-            'last_modified': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'last_modified': get_now_db(),
             'created_by': self.current_user.username,
             'sync_status': 'pending'
         }
@@ -392,17 +399,17 @@ class BatchDetailsDialog(tk.Toplevel):
 
         info = f"""
 Recipe: {recipe_name}
-Brew Date: {self.batch.get('brew_date', 'N/A')}
+Brew Date: {format_date_for_display(self.batch.get('brew_date')) or 'N/A'}
 Brewer: {self.batch.get('brewer_name', 'N/A')}
 Batch Size: {self.batch.get('actual_batch_size', 0):.1f} litres
 ABV: {self.batch.get('measured_abv', 0):.1f}%
 Pure Alcohol: {self.batch.get('pure_alcohol_litres', 0):.2f} litres
 Status: {self.batch.get('status', 'N/A').capitalize()}
 
-Fermenting Start: {self.batch.get('fermenting_start') or 'Not started'}
-Conditioning Start: {self.batch.get('conditioning_start') or 'Not started'}
-Ready Date: {self.batch.get('ready_date') or 'Not ready'}
-Packaged Date: {self.batch.get('packaged_date') or 'Not packaged'}
+Fermenting Start: {format_date_for_display(self.batch.get('fermenting_start')) or 'Not started'}
+Conditioning Start: {format_date_for_display(self.batch.get('conditioning_start')) or 'Not started'}
+Ready Date: {format_date_for_display(self.batch.get('ready_date')) or 'Not ready'}
+Packaged Date: {format_date_for_display(self.batch.get('packaged_date')) or 'Not packaged'}
         """
 
         tk.Label(frame, text=info.strip(), font=('Arial', 10), bg='white',
@@ -461,10 +468,10 @@ class StatusUpdateDialog(tk.Toplevel):
     def update(self):
         """Update status"""
         new_status = self.status_var.get()
-        data = {'status': new_status, 'last_modified': datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        data = {'status': new_status, 'last_modified': get_now_db()}
 
         # Set date fields based on status
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = get_today_db()
         if new_status == 'fermenting' and not self.batch.get('fermenting_start'):
             data['fermenting_start'] = today
         elif new_status == 'conditioning' and not self.batch.get('conditioning_start'):
