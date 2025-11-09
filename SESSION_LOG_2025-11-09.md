@@ -25,6 +25,13 @@
   - Recipe info displays automatically when recipe is selected
   - Info panel shows full details, brewing notes, and ingredients
   - Delete confirmation dialog working correctly
+- [x] Added complete ingredient management to recipe editor:
+  - Expanded recipe dialog with Ingredients section
+  - Created IngredientDialog for adding/editing ingredients
+  - Ingredient fields: name, type, quantity, unit, timing, notes
+  - Edit and Delete buttons for ingredient list
+  - Save/load ingredients with recipes to database
+  - Delete confirmation for ingredient removal
 
 ## Issues Encountered
 - None yet
