@@ -1110,9 +1110,6 @@ class IngredientDialog(tk.Toplevel):
             btn.pack(side=tk.LEFT, padx=(0, 5) if i < len(types) - 1 else 0)
             self.type_buttons[type_name] = btn
 
-        # Set initial selection
-        self.select_type('Malt')
-
         # Ingredient Name (autocomplete from inventory)
         tk.Label(main_frame, text="Ingredient Name *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=0, sticky='w', pady=(0, 5))
 
@@ -1209,6 +1206,9 @@ class IngredientDialog(tk.Toplevel):
             pady=8
         )
         save_btn.pack(side=tk.RIGHT)
+
+        # Set initial type selection (done after all widgets are created)
+        self.select_type('Malt')
 
     def load_inventory_items(self):
         """Load all inventory items from database"""
