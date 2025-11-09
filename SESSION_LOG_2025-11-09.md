@@ -40,9 +40,13 @@
   - Prompts to add ingredient to inventory if not found
   - Saves inventory_item_id for stock tracking
   - Foundation for future batch stock deduction
+- [x] Fixed inventory table name mismatch (inventory_materials)
+- [x] Added autocomplete filtering to ingredient name combobox
+  - Type to filter: "saf" shows only items containing "saf"
+  - Real-time filtering as you type
 
 ## Issues Encountered
-- None yet
+- Fixed table name mismatch (was using 'inventory' instead of 'inventory_materials')
 
 ## Next Session TODO
 - (Will be updated at end of session)
