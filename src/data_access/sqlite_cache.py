@@ -100,19 +100,65 @@ class SQLiteCacheManager:
                 )
             ''')
             
-            # Recipe Ingredients table
+            # Recipe Grains table
             self.cursor.execute('''
-                CREATE TABLE IF NOT EXISTS recipe_ingredients (
-                    ingredient_id TEXT PRIMARY KEY,
+                CREATE TABLE IF NOT EXISTS recipe_grains (
+                    grain_id TEXT PRIMARY KEY,
                     recipe_id TEXT,
-                    ingredient_type TEXT,
-                    ingredient_name TEXT,
+                    material_id TEXT,
+                    quantity REAL,
+                    unit TEXT,
+                    mash_notes TEXT,
+                    sync_status TEXT DEFAULT 'synced',
+                    FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id),
+                    FOREIGN KEY (material_id) REFERENCES inventory_materials(material_id)
+                )
+            ''')
+
+            # Recipe Hops table
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS recipe_hops (
+                    hop_id TEXT PRIMARY KEY,
+                    recipe_id TEXT,
+                    material_id TEXT,
+                    quantity REAL,
+                    unit TEXT,
+                    boil_time_minutes REAL,
+                    alpha_acid_percent REAL,
+                    addition_type TEXT,
+                    sync_status TEXT DEFAULT 'synced',
+                    FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id),
+                    FOREIGN KEY (material_id) REFERENCES inventory_materials(material_id)
+                )
+            ''')
+
+            # Recipe Yeast table
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS recipe_yeast (
+                    yeast_id TEXT PRIMARY KEY,
+                    recipe_id TEXT,
+                    material_id TEXT,
+                    quantity REAL,
+                    unit TEXT,
+                    notes TEXT,
+                    sync_status TEXT DEFAULT 'synced',
+                    FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id),
+                    FOREIGN KEY (material_id) REFERENCES inventory_materials(material_id)
+                )
+            ''')
+
+            # Recipe Adjuncts table
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS recipe_adjuncts (
+                    adjunct_id TEXT PRIMARY KEY,
+                    recipe_id TEXT,
+                    material_id TEXT,
                     quantity REAL,
                     unit TEXT,
                     timing TEXT,
-                    notes TEXT,
                     sync_status TEXT DEFAULT 'synced',
-                    FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id)
+                    FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id),
+                    FOREIGN KEY (material_id) REFERENCES inventory_materials(material_id)
                 )
             ''')
             
