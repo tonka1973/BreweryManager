@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import uuid
 from datetime import datetime, timedelta
+from ..utilities.date_utils import format_date_for_display, parse_display_date, get_today_display, get_today_db
 
 
 class InvoicingModule(tk.Frame):
@@ -99,7 +100,7 @@ class InvoicingModule(tk.Frame):
 
             values = (
                 inv.get('invoice_number', ''),
-                inv.get('invoice_date', ''),
+                format_date_for_display(inv.get('invoice_date', '')),
                 customer_name,
                 f"£{inv.get('subtotal', 0):.2f}",
                 f"£{inv.get('vat_amount', 0):.2f}",
@@ -262,7 +263,7 @@ class InvoiceCreateDialog(tk.Toplevel):
         self.cache.close()
 
         for sale in sales:
-            values = ('☐', sale.get('delivery_date', ''), sale.get('beer_name', ''),
+            values = ('☐', format_date_for_display(sale.get('delivery_date', '')), sale.get('beer_name', ''),
                      sale.get('quantity', 0), f"£{sale.get('unit_price', 0):.2f}",
                      f"£{sale.get('line_total', 0):.2f}")
             self.sales_tree.insert('', 'end', text='', values=values, tags=(sale['sale_id'],))
@@ -321,7 +322,7 @@ class InvoiceCreateDialog(tk.Toplevel):
         invoice_data = {
             'invoice_id': invoice_id,
             'invoice_number': invoice_number,
-            'invoice_date': datetime.now().strftime('%Y-%m-%d'),
+            'invoice_date': get_today_db(),
             'customer_id': self.customer_list[customer_name],
             'subtotal': subtotal,
             'vat_rate': vat_rate,
@@ -330,9 +331,9 @@ class InvoiceCreateDialog(tk.Toplevel):
             'payment_status': 'unpaid',
             'amount_paid': 0,
             'amount_outstanding': total,
-            'due_date': (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d'),
+            'due_date': parse_display_date((datetime.now() + timedelta(days=30)).strftime('%d/%m/%Y')),
             'created_by': self.current_user.username,
-            'created_date': datetime.now().strftime('%Y-%m-%d'),
+            'created_date': get_today_db(),
             'sync_status': 'pending'
         }
         self.cache.insert_record('invoices', invoice_data)
@@ -406,10 +407,10 @@ class PaymentDialog(tk.Toplevel):
                     width=17, state='readonly').pack(anchor='w', pady=(0,15))
 
         # Payment Date
-        tk.Label(frame, text="Payment Date", font=('Arial', 10, 'bold'),
+        tk.Label(frame, text="Payment Date (DD/MM/YYYY)", font=('Arial', 10, 'bold'),
                 bg='white').pack(anchor='w', pady=(0,5))
         self.date_entry = tk.Entry(frame, font=('Arial', 10), width=20)
-        self.date_entry.insert(0, datetime.now().strftime('%Y-%m-%d'))
+        self.date_entry.insert(0, get_today_display())
         self.date_entry.pack(anchor='w', pady=(0,15))
 
         # Reference
@@ -446,16 +447,22 @@ class PaymentDialog(tk.Toplevel):
             messagebox.showerror("Error", f"Amount exceeds outstanding balance (£{outstanding:.2f}).")
             return
 
+        # Convert date from display format to database format
+        payment_date_db = parse_display_date(self.date_entry.get())
+        if not payment_date_db:
+            messagebox.showerror("Error", "Invalid payment date format. Please use DD/MM/YYYY.")
+            return
+
         # Create payment record
         payment_data = {
             'payment_id': str(uuid.uuid4()),
             'invoice_id': self.invoice['invoice_id'],
-            'payment_date': self.date_entry.get(),
+            'payment_date': payment_date_db,
             'payment_amount': amount,
             'payment_method': self.method_var.get(),
             'payment_reference': self.ref_entry.get().strip(),
             'recorded_by': self.current_user.username,
-            'recorded_date': datetime.now().strftime('%Y-%m-%d'),
+            'recorded_date': get_today_db(),
             'sync_status': 'pending'
         }
 
@@ -520,8 +527,8 @@ class InvoiceViewDialog(tk.Toplevel):
 
         info = f"""
 Customer: {customer_name}
-Invoice Date: {self.invoice.get('invoice_date', '')}
-Due Date: {self.invoice.get('due_date', '')}
+Invoice Date: {format_date_for_display(self.invoice.get('invoice_date')) or 'N/A'}
+Due Date: {format_date_for_display(self.invoice.get('due_date')) or 'N/A'}
 Status: {self.invoice.get('payment_status', '').replace('_', ' ').title()}
         """
 
