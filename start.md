@@ -24,14 +24,43 @@ Identify the most recent `claude/*` branch.
 
 ---
 
-## STEP 3: Provide Merge Commands to User
+## STEP 3: Ask Which PC User is On
 
-Give the user these exact commands (fill in the actual branch name you found):
+Ask the user:
+```
+Which computer are you on?
+1. Home PC
+2. Brewery PC
+3. Other (please specify)
+```
+
+---
+
+## STEP 4: Check PC Information
+
+Read the `PC_INFO.md` file to get the correct path for the user's computer.
+
+**If the PC is listed in PC_INFO.md:**
+- Use the path from that file
+
+**If the PC is NOT listed (user said "Other" or new PC):**
+1. Ask: "What is the full path to the BreweryManager folder on this computer?"
+2. When they provide it, add a new entry to PC_INFO.md with:
+   - PC name/description
+   - Full path
+   - User
+   - OS (if known)
+
+---
+
+## STEP 5: Provide Merge Commands to User
+
+Give the user these exact commands (fill in the actual branch name you found AND the correct path from PC_INFO.md):
 
 ```
 Please run these commands to merge the previous session's work:
 
-cd C:\Users\darre\Desktop\BreweryManager
+cd [PATH-FROM-PC-INFO]
 git fetch origin
 git checkout master
 git merge origin/claude/<MOST-RECENT-BRANCH-NAME> --no-edit
@@ -41,13 +70,13 @@ Tell them: "Let me know when you've run these commands!"
 
 ---
 
-## STEP 4: Wait for User Confirmation
+## STEP 6: Wait for User Confirmation
 
 Wait for the user to confirm they've run the commands.
 
 ---
 
-## STEP 5: Check Current Git Status
+## STEP 7: Check Current Git Status
 
 After user confirms, run:
 ```bash
@@ -58,7 +87,7 @@ git log --oneline -3
 
 ---
 
-## STEP 6: Create Session Log
+## STEP 8: Create Session Log
 
 Create a file named `SESSION_LOG_YYYY-MM-DD.md` with this content:
 
@@ -89,7 +118,7 @@ Create a file named `SESSION_LOG_YYYY-MM-DD.md` with this content:
 
 ---
 
-## STEP 7: Report Status and Ask What to Work On
+## STEP 9: Report Status and Ask What to Work On
 
 Say something like:
 
