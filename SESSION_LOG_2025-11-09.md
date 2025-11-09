@@ -76,6 +76,7 @@
 - Fixed focus loss on autocomplete dropdown after each keystroke
 - Fixed ingredient disappearing after save (selection was being cleared)
 - Fixed missing inventory_item_id column in recipe_ingredients table
+- Fixed widget initialization order causing AttributeError on name_combo
 
 ## Next Session TODO
 - (Will be updated at end of session)
