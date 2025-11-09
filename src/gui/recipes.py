@@ -50,48 +50,6 @@ class RecipesModule(tk.Frame):
         )
         add_btn.pack(side=tk.LEFT, padx=(0, 10))
 
-        # Edit Recipe button
-        edit_btn = tk.Button(
-            toolbar,
-            text="✏️ Edit Recipe",
-            font=('Arial', 10),
-            bg='#2196F3',
-            fg='white',
-            cursor='hand2',
-            command=self.edit_recipe,
-            padx=15,
-            pady=8
-        )
-        edit_btn.pack(side=tk.LEFT, padx=(0, 10))
-
-        # View Details button
-        view_btn = tk.Button(
-            toolbar,
-            text="👁️ View Details",
-            font=('Arial', 10),
-            bg='#9C27B0',
-            fg='white',
-            cursor='hand2',
-            command=self.view_recipe_details,
-            padx=15,
-            pady=8
-        )
-        view_btn.pack(side=tk.LEFT, padx=(0, 10))
-
-        # Delete Recipe button
-        delete_btn = tk.Button(
-            toolbar,
-            text="🗑️ Delete",
-            font=('Arial', 10),
-            bg='#f44336',
-            fg='white',
-            cursor='hand2',
-            command=self.delete_recipe,
-            padx=15,
-            pady=8
-        )
-        delete_btn.pack(side=tk.LEFT, padx=(0, 10))
-
         # Refresh button
         refresh_btn = tk.Button(
             toolbar,
@@ -129,9 +87,13 @@ class RecipesModule(tk.Frame):
         )
         search_entry.pack(side=tk.LEFT)
 
-        # Recipes list
-        list_frame = tk.Frame(self, bg='white', relief=tk.SOLID, borderwidth=1)
-        list_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
+        # Container for list and info panel
+        content_container = tk.Frame(self, bg='white')
+        content_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
+
+        # Recipes list (top half)
+        list_frame = tk.Frame(content_container, bg='white', relief=tk.SOLID, borderwidth=1)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         # Scrollbars
         vsb = tk.Scrollbar(list_frame, orient="vertical")
@@ -141,7 +103,7 @@ class RecipesModule(tk.Frame):
         hsb.pack(side=tk.BOTTOM, fill=tk.X)
 
         # Treeview
-        columns = ('Name', 'Style', 'ABV %', 'Batch Size (L)', 'Version', 'Status')
+        columns = ('Name', 'Style', 'ABV %', 'Batch Size (L)', 'Version', 'Status', 'Edit', 'Delete')
         self.recipes_tree = ttk.Treeview(
             list_frame,
             columns=columns,
@@ -157,22 +119,68 @@ class RecipesModule(tk.Frame):
         self.recipes_tree.heading('Batch Size (L)', text='Batch Size (L)')
         self.recipes_tree.heading('Version', text='Version')
         self.recipes_tree.heading('Status', text='Status')
+        self.recipes_tree.heading('Edit', text='Edit')
+        self.recipes_tree.heading('Delete', text='Delete')
 
         # Column widths
-        self.recipes_tree.column('Name', width=250)
-        self.recipes_tree.column('Style', width=150)
-        self.recipes_tree.column('ABV %', width=100)
-        self.recipes_tree.column('Batch Size (L)', width=120)
-        self.recipes_tree.column('Version', width=80)
-        self.recipes_tree.column('Status', width=100)
+        self.recipes_tree.column('Name', width=200)
+        self.recipes_tree.column('Style', width=130)
+        self.recipes_tree.column('ABV %', width=80)
+        self.recipes_tree.column('Batch Size (L)', width=100)
+        self.recipes_tree.column('Version', width=60)
+        self.recipes_tree.column('Status', width=80)
+        self.recipes_tree.column('Edit', width=50, anchor='center')
+        self.recipes_tree.column('Delete', width=50, anchor='center')
 
         self.recipes_tree.pack(fill=tk.BOTH, expand=True)
 
         vsb.config(command=self.recipes_tree.yview)
         hsb.config(command=self.recipes_tree.xview)
 
-        # Double-click to view details
-        self.recipes_tree.bind('<Double-1>', lambda e: self.view_recipe_details())
+        # Double-click to edit recipe
+        self.recipes_tree.bind('<Double-1>', lambda e: self.edit_recipe())
+
+        # Single-click to handle edit/delete buttons and show info
+        self.recipes_tree.bind('<Button-1>', self.on_tree_click)
+
+        # Selection change to show info
+        self.recipes_tree.bind('<<TreeviewSelect>>', self.on_recipe_select)
+
+        # Recipe info panel (bottom half)
+        info_frame = tk.Frame(content_container, bg='white', relief=tk.SOLID, borderwidth=1)
+        info_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Info panel header
+        info_header = tk.Frame(info_frame, bg='#2196F3', height=35)
+        info_header.pack(fill=tk.X)
+        info_header.pack_propagate(False)
+
+        tk.Label(
+            info_header,
+            text="Recipe Information",
+            font=('Arial', 11, 'bold'),
+            bg='#2196F3',
+            fg='white'
+        ).pack(side=tk.LEFT, padx=10, pady=5)
+
+        # Scrollable info content
+        info_canvas = tk.Canvas(info_frame, bg='white')
+        info_scrollbar = tk.Scrollbar(info_frame, orient="vertical", command=info_canvas.yview)
+        self.info_content = tk.Frame(info_canvas, bg='white')
+
+        self.info_content.bind(
+            "<Configure>",
+            lambda e: info_canvas.configure(scrollregion=info_canvas.bbox("all"))
+        )
+
+        info_canvas.create_window((0, 0), window=self.info_content, anchor="nw")
+        info_canvas.configure(yscrollcommand=info_scrollbar.set)
+
+        info_canvas.pack(side="left", fill="both", expand=True)
+        info_scrollbar.pack(side="right", fill="y")
+
+        # Initial message
+        self.show_no_selection_message()
 
     def load_recipes(self):
         """Load recipes from database"""
@@ -203,7 +211,7 @@ class RecipesModule(tk.Frame):
             is_active = recipe.get('is_active', 1)
             status = 'Active' if is_active else 'Inactive'
 
-            values = (name, style, f"{abv:.1f}", f"{batch_size:.0f}", version, status)
+            values = (name, style, f"{abv:.1f}", f"{batch_size:.0f}", version, status, '✏️', '🗑️')
 
             # Color code by status
             tag = 'active' if is_active else 'inactive'
@@ -212,6 +220,181 @@ class RecipesModule(tk.Frame):
         # Tag colors
         self.recipes_tree.tag_configure('active', background='#e8f5e9')
         self.recipes_tree.tag_configure('inactive', background='#ffebee')
+
+    def on_tree_click(self, event):
+        """Handle clicks on tree items, especially Edit and Delete columns"""
+        region = self.recipes_tree.identify_region(event.x, event.y)
+        if region != "cell":
+            return
+
+        column = self.recipes_tree.identify_column(event.x)
+        row = self.recipes_tree.identify_row(event.y)
+
+        if not row:
+            return
+
+        # Column #7 is Edit, #8 is Delete (0-indexed: #6 and #7)
+        if column == '#7':  # Edit column
+            self.recipes_tree.selection_set(row)
+            self.edit_recipe()
+        elif column == '#8':  # Delete column
+            self.recipes_tree.selection_set(row)
+            self.delete_recipe()
+
+    def on_recipe_select(self, event=None):
+        """Update info panel when a recipe is selected"""
+        selection = self.recipes_tree.selection()
+        if not selection:
+            self.show_no_selection_message()
+            return
+
+        # Get recipe ID from tags
+        tags = self.recipes_tree.item(selection[0], 'tags')
+        recipe_id = tags[1] if len(tags) > 1 else None
+
+        if not recipe_id:
+            self.show_no_selection_message()
+            return
+
+        # Get recipe data
+        self.cache.connect()
+        recipes = self.cache.get_all_records('recipes', f"recipe_id = '{recipe_id}'")
+        ingredients = self.cache.get_all_records('recipe_ingredients', f"recipe_id = '{recipe_id}'", order_by='timing, ingredient_type')
+        self.cache.close()
+
+        if not recipes:
+            self.show_no_selection_message()
+            return
+
+        self.update_recipe_info(recipes[0], ingredients)
+
+    def show_no_selection_message(self):
+        """Show message when no recipe is selected"""
+        # Clear info content
+        for widget in self.info_content.winfo_children():
+            widget.destroy()
+
+        tk.Label(
+            self.info_content,
+            text="Select a recipe to view its details",
+            font=('Arial', 11, 'italic'),
+            fg='#999',
+            bg='white'
+        ).pack(padx=20, pady=40)
+
+    def update_recipe_info(self, recipe, ingredients):
+        """Update the info panel with recipe details"""
+        # Clear info content
+        for widget in self.info_content.winfo_children():
+            widget.destroy()
+
+        content = tk.Frame(self.info_content, bg='white', padx=20, pady=15)
+        content.pack(fill=tk.BOTH, expand=True)
+
+        # Recipe name
+        tk.Label(
+            content,
+            text=recipe.get('recipe_name', 'Unknown'),
+            font=('Arial', 14, 'bold'),
+            bg='white'
+        ).pack(anchor='w', pady=(0, 10))
+
+        # Recipe details in a grid
+        details_frame = tk.Frame(content, bg='white')
+        details_frame.pack(fill=tk.X, pady=(0, 10))
+
+        info_items = [
+            ("Style:", recipe.get('style', 'N/A')),
+            ("Target ABV:", f"{recipe.get('target_abv', 0.0)}%"),
+            ("Batch Size:", f"{recipe.get('target_batch_size_litres', 0.0)} litres"),
+            ("Version:", str(recipe.get('version', 1))),
+            ("Status:", 'Active' if recipe.get('is_active') else 'Inactive'),
+            ("Created:", f"{recipe.get('created_date', 'N/A')} by {recipe.get('created_by', 'Unknown')}"),
+            ("Last Modified:", recipe.get('last_modified', 'N/A'))
+        ]
+
+        for i, (label, value) in enumerate(info_items):
+            row = i // 2
+            col = (i % 2) * 2
+
+            tk.Label(
+                details_frame,
+                text=label,
+                font=('Arial', 9, 'bold'),
+                bg='white',
+                fg='#555'
+            ).grid(row=row, column=col, sticky='w', padx=(0, 5), pady=2)
+
+            tk.Label(
+                details_frame,
+                text=value,
+                font=('Arial', 9),
+                bg='white'
+            ).grid(row=row, column=col+1, sticky='w', padx=(0, 20), pady=2)
+
+        # Brewing Notes
+        if recipe.get('brewing_notes'):
+            tk.Label(
+                content,
+                text="Brewing Notes:",
+                font=('Arial', 10, 'bold'),
+                bg='white'
+            ).pack(anchor='w', pady=(10, 5))
+
+            notes_frame = tk.Frame(content, bg='#f5f5f5', relief=tk.SOLID, borderwidth=1)
+            notes_frame.pack(fill=tk.X, pady=(0, 10))
+
+            tk.Label(
+                notes_frame,
+                text=recipe.get('brewing_notes', ''),
+                font=('Arial', 9),
+                bg='#f5f5f5',
+                justify=tk.LEFT,
+                wraplength=500
+            ).pack(padx=10, pady=8, anchor='w')
+
+        # Ingredients
+        tk.Label(
+            content,
+            text="Ingredients:",
+            font=('Arial', 10, 'bold'),
+            bg='white'
+        ).pack(anchor='w', pady=(10, 5))
+
+        if ingredients:
+            for ing in ingredients:
+                ing_frame = tk.Frame(content, bg='#e3f2fd', relief=tk.FLAT, borderwidth=1)
+                ing_frame.pack(fill=tk.X, pady=2)
+
+                ing_text = f"{ing.get('ingredient_name', 'Unknown')} - {ing.get('quantity', 0)} {ing.get('unit', '')} ({ing.get('ingredient_type', 'N/A')})"
+                if ing.get('timing'):
+                    ing_text += f" - {ing.get('timing')}"
+
+                tk.Label(
+                    ing_frame,
+                    text=ing_text,
+                    font=('Arial', 9),
+                    bg='#e3f2fd',
+                    anchor='w'
+                ).pack(padx=8, pady=4, fill=tk.X)
+
+                if ing.get('notes'):
+                    tk.Label(
+                        ing_frame,
+                        text=f"  Note: {ing.get('notes')}",
+                        font=('Arial', 8, 'italic'),
+                        bg='#e3f2fd',
+                        fg='#555',
+                        anchor='w'
+                    ).pack(padx=16, pady=(0, 4), fill=tk.X)
+        else:
+            tk.Label(
+                content,
+                text="No ingredients added yet.",
+                font=('Arial', 9, 'italic'),
+                bg='white',
+                fg='#999'
+            ).pack(anchor='w')
 
     def add_recipe(self):
         """Open dialog to add new recipe"""
