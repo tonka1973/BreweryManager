@@ -511,15 +511,19 @@ class RecipeDialog(tk.Toplevel):
         self.recipe = recipe
 
         self.title("Add Recipe" if mode == 'add' else "Edit Recipe")
-        self.geometry("600x700")
-        self.resizable(False, False)
+        self.geometry("700x900")
+        self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
+
+        # Store ingredients list
+        self.ingredients = []
 
         self.create_widgets()
 
         if mode == 'edit' and recipe:
             self.populate_fields()
+            self.load_ingredients()
 
     def create_widgets(self):
         """Create dialog widgets"""
@@ -566,8 +570,73 @@ class RecipeDialog(tk.Toplevel):
 
         # Brewing Notes
         tk.Label(main_frame, text="Brewing Notes", font=('Arial', 10, 'bold'), bg='white').grid(row=8, column=0, sticky='w', pady=(0, 5))
-        self.notes_text = tk.Text(main_frame, font=('Arial', 10), width=40, height=6)
+        self.notes_text = tk.Text(main_frame, font=('Arial', 10), width=40, height=4)
         self.notes_text.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+
+        # Ingredients Section
+        tk.Label(main_frame, text="Ingredients", font=('Arial', 11, 'bold'), bg='white').grid(row=10, column=0, columnspan=2, sticky='w', pady=(10, 5))
+
+        # Add ingredient button
+        add_ing_btn = tk.Button(
+            main_frame,
+            text="+ Add Ingredient",
+            font=('Arial', 9),
+            bg='#4CAF50',
+            fg='white',
+            cursor='hand2',
+            command=self.add_ingredient,
+            padx=10,
+            pady=5
+        )
+        add_ing_btn.grid(row=11, column=0, sticky='w', pady=(0, 5))
+
+        # Ingredients list frame
+        ing_frame = tk.Frame(main_frame, bg='white', relief=tk.SOLID, borderwidth=1)
+        ing_frame.grid(row=12, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+
+        # Scrollbar for ingredients
+        ing_scroll = tk.Scrollbar(ing_frame, orient="vertical")
+        ing_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # Ingredients listbox
+        self.ingredients_listbox = tk.Listbox(
+            ing_frame,
+            font=('Arial', 9),
+            height=8,
+            yscrollcommand=ing_scroll.set
+        )
+        self.ingredients_listbox.pack(fill=tk.BOTH, expand=True)
+        ing_scroll.config(command=self.ingredients_listbox.yview)
+
+        # Ingredient action buttons
+        ing_btn_frame = tk.Frame(main_frame, bg='white')
+        ing_btn_frame.grid(row=13, column=0, columnspan=2, sticky='w', pady=(0, 15))
+
+        edit_ing_btn = tk.Button(
+            ing_btn_frame,
+            text="Edit Selected",
+            font=('Arial', 9),
+            bg='#2196F3',
+            fg='white',
+            cursor='hand2',
+            command=self.edit_ingredient,
+            padx=10,
+            pady=5
+        )
+        edit_ing_btn.pack(side=tk.LEFT, padx=(0, 5))
+
+        delete_ing_btn = tk.Button(
+            ing_btn_frame,
+            text="Delete Selected",
+            font=('Arial', 9),
+            bg='#f44336',
+            fg='white',
+            cursor='hand2',
+            command=self.delete_ingredient,
+            padx=10,
+            pady=5
+        )
+        delete_ing_btn.pack(side=tk.LEFT)
 
         # Configure grid
         main_frame.grid_columnconfigure(0, weight=1)
@@ -620,6 +689,84 @@ class RecipeDialog(tk.Toplevel):
         if notes:
             self.notes_text.insert('1.0', notes)
 
+    def load_ingredients(self):
+        """Load ingredients for existing recipe"""
+        if not self.recipe or 'recipe_id' not in self.recipe:
+            return
+
+        self.cache.connect()
+        ingredients = self.cache.get_all_records(
+            'recipe_ingredients',
+            f"recipe_id = '{self.recipe['recipe_id']}'",
+            order_by='timing, ingredient_type'
+        )
+        self.cache.close()
+
+        self.ingredients = []
+        for ing in ingredients:
+            self.ingredients.append({
+                'name': ing.get('ingredient_name', ''),
+                'type': ing.get('ingredient_type', ''),
+                'quantity': ing.get('quantity', 0),
+                'unit': ing.get('unit', ''),
+                'timing': ing.get('timing', ''),
+                'notes': ing.get('notes', '')
+            })
+
+        self.refresh_ingredients_list()
+
+    def refresh_ingredients_list(self):
+        """Refresh the ingredients listbox"""
+        self.ingredients_listbox.delete(0, tk.END)
+        for ing in self.ingredients:
+            display = f"{ing['name']} - {ing['quantity']} {ing['unit']} ({ing['type']})"
+            if ing.get('timing'):
+                display += f" - {ing['timing']}"
+            self.ingredients_listbox.insert(tk.END, display)
+
+    def add_ingredient(self):
+        """Open dialog to add new ingredient"""
+        dialog = IngredientDialog(self, mode='add')
+        self.wait_window(dialog)
+
+        if hasattr(dialog, 'result') and dialog.result:
+            self.ingredients.append(dialog.result)
+            self.refresh_ingredients_list()
+
+    def edit_ingredient(self):
+        """Edit selected ingredient"""
+        selection = self.ingredients_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select an ingredient to edit.")
+            return
+
+        index = selection[0]
+        ingredient = self.ingredients[index]
+
+        dialog = IngredientDialog(self, mode='edit', ingredient=ingredient)
+        self.wait_window(dialog)
+
+        if hasattr(dialog, 'result') and dialog.result:
+            self.ingredients[index] = dialog.result
+            self.refresh_ingredients_list()
+
+    def delete_ingredient(self):
+        """Delete selected ingredient"""
+        selection = self.ingredients_listbox.curselection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select an ingredient to delete.")
+            return
+
+        index = selection[0]
+        result = messagebox.askyesno(
+            "Confirm Delete",
+            "Are you sure you want to delete this ingredient?"
+        )
+
+        if result:
+            del self.ingredients[index]
+            self.refresh_ingredients_list()
+
     def save_recipe(self):
         """Save recipe to database"""
         # Validate
@@ -671,12 +818,17 @@ class RecipeDialog(tk.Toplevel):
 
             self.cache.connect()
             self.cache.insert_record('recipes', recipe_data)
+
+            # Save ingredients
+            self.save_ingredients(recipe_id)
+
             self.cache.close()
 
             messagebox.showinfo("Success", "Recipe created successfully!")
 
         else:
             # Update existing recipe
+            recipe_id = self.recipe['recipe_id']
             recipe_data = {
                 'recipe_name': name,
                 'style': style,
@@ -690,12 +842,34 @@ class RecipeDialog(tk.Toplevel):
             }
 
             self.cache.connect()
-            self.cache.update_record('recipes', self.recipe['recipe_id'], recipe_data, id_column='recipe_id')
+            self.cache.update_record('recipes', recipe_id, recipe_data, id_column='recipe_id')
+
+            # Delete old ingredients and save new ones
+            self.cache.cursor.execute("DELETE FROM recipe_ingredients WHERE recipe_id = ?", (recipe_id,))
+            self.cache.connection.commit()
+            self.save_ingredients(recipe_id)
+
             self.cache.close()
 
             messagebox.showinfo("Success", "Recipe updated successfully!")
 
         self.destroy()
+
+    def save_ingredients(self, recipe_id):
+        """Save ingredients to database"""
+        for ing in self.ingredients:
+            ingredient_data = {
+                'ingredient_id': str(uuid.uuid4()),
+                'recipe_id': recipe_id,
+                'ingredient_name': ing['name'],
+                'ingredient_type': ing['type'],
+                'quantity': ing['quantity'],
+                'unit': ing['unit'],
+                'timing': ing.get('timing', ''),
+                'notes': ing.get('notes', ''),
+                'sync_status': 'pending'
+            }
+            self.cache.insert_record('recipe_ingredients', ingredient_data)
 
 
 class RecipeDetailsDialog(tk.Toplevel):
@@ -844,3 +1018,165 @@ Last Modified: {self.recipe.get('last_modified', 'N/A')}
             pady=8
         )
         close_btn.pack(side=tk.RIGHT)
+
+
+class IngredientDialog(tk.Toplevel):
+    """Dialog for adding/editing ingredients"""
+
+    def __init__(self, parent, mode='add', ingredient=None):
+        super().__init__(parent)
+        self.mode = mode
+        self.ingredient = ingredient
+        self.result = None
+
+        self.title("Add Ingredient" if mode == 'add' else "Edit Ingredient")
+        self.geometry("500x400")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.grab_set()
+
+        self.create_widgets()
+
+        if mode == 'edit' and ingredient:
+            self.populate_fields()
+
+    def create_widgets(self):
+        """Create dialog widgets"""
+        main_frame = tk.Frame(self, bg='white', padx=20, pady=20)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Ingredient Name
+        tk.Label(main_frame, text="Ingredient Name *", font=('Arial', 10, 'bold'), bg='white').grid(row=0, column=0, sticky='w', pady=(0, 5))
+        self.name_entry = tk.Entry(main_frame, font=('Arial', 10), width=40)
+        self.name_entry.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+
+        # Type
+        tk.Label(main_frame, text="Type *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=0, sticky='w', pady=(0, 5))
+        self.type_var = tk.StringVar(value='Malt')
+        type_combo = ttk.Combobox(
+            main_frame,
+            textvariable=self.type_var,
+            values=['Malt', 'Hops', 'Yeast', 'Adjunct', 'Other'],
+            font=('Arial', 10),
+            state='readonly',
+            width=15
+        )
+        type_combo.grid(row=3, column=0, sticky='w', pady=(0, 15))
+
+        # Quantity
+        tk.Label(main_frame, text="Quantity *", font=('Arial', 10, 'bold'), bg='white').grid(row=4, column=0, sticky='w', pady=(0, 5))
+        self.quantity_entry = tk.Entry(main_frame, font=('Arial', 10), width=15)
+        self.quantity_entry.grid(row=5, column=0, sticky='w', pady=(0, 15))
+
+        # Unit
+        tk.Label(main_frame, text="Unit *", font=('Arial', 10, 'bold'), bg='white').grid(row=4, column=1, sticky='w', pady=(0, 5), padx=(20, 0))
+        self.unit_var = tk.StringVar(value='kg')
+        unit_combo = ttk.Combobox(
+            main_frame,
+            textvariable=self.unit_var,
+            values=['kg', 'g', 'L', 'mL', 'oz', 'lb', 'packets'],
+            font=('Arial', 10),
+            state='readonly',
+            width=10
+        )
+        unit_combo.grid(row=5, column=1, sticky='w', pady=(0, 15), padx=(20, 0))
+
+        # Timing
+        tk.Label(main_frame, text="Timing", font=('Arial', 10, 'bold'), bg='white').grid(row=6, column=0, sticky='w', pady=(0, 5))
+        self.timing_var = tk.StringVar()
+        timing_combo = ttk.Combobox(
+            main_frame,
+            textvariable=self.timing_var,
+            values=['Mash', '90 min', '60 min', '30 min', '15 min', '10 min', '5 min', 'Flameout', 'Whirlpool', 'Dry hop', 'Primary', 'Secondary'],
+            font=('Arial', 10),
+            width=15
+        )
+        timing_combo.grid(row=7, column=0, sticky='w', pady=(0, 15))
+
+        # Notes
+        tk.Label(main_frame, text="Notes", font=('Arial', 10, 'bold'), bg='white').grid(row=8, column=0, sticky='w', pady=(0, 5))
+        self.notes_text = tk.Text(main_frame, font=('Arial', 10), width=40, height=4)
+        self.notes_text.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+
+        # Configure grid
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_columnconfigure(1, weight=1)
+
+        # Buttons
+        button_frame = tk.Frame(self, bg='white', pady=10)
+        button_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
+
+        cancel_btn = tk.Button(
+            button_frame,
+            text="Cancel",
+            font=('Arial', 10),
+            bg='#757575',
+            fg='white',
+            cursor='hand2',
+            command=self.destroy,
+            padx=20,
+            pady=8
+        )
+        cancel_btn.pack(side=tk.RIGHT, padx=(10, 0))
+
+        save_btn = tk.Button(
+            button_frame,
+            text="Save",
+            font=('Arial', 10, 'bold'),
+            bg='#4CAF50',
+            fg='white',
+            cursor='hand2',
+            command=self.save_ingredient,
+            padx=20,
+            pady=8
+        )
+        save_btn.pack(side=tk.RIGHT)
+
+    def populate_fields(self):
+        """Populate fields with existing ingredient data"""
+        if not self.ingredient:
+            return
+
+        self.name_entry.insert(0, self.ingredient.get('name', ''))
+        self.type_var.set(self.ingredient.get('type', 'Malt'))
+        self.quantity_entry.insert(0, str(self.ingredient.get('quantity', '')))
+        self.unit_var.set(self.ingredient.get('unit', 'kg'))
+        self.timing_var.set(self.ingredient.get('timing', ''))
+
+        notes = self.ingredient.get('notes', '')
+        if notes:
+            self.notes_text.insert('1.0', notes)
+
+    def save_ingredient(self):
+        """Validate and save ingredient"""
+        name = self.name_entry.get().strip()
+        ing_type = self.type_var.get()
+        quantity_str = self.quantity_entry.get().strip()
+        unit = self.unit_var.get()
+        timing = self.timing_var.get().strip()
+        notes = self.notes_text.get('1.0', tk.END).strip()
+
+        if not name or not quantity_str:
+            messagebox.showerror("Validation Error", "Please fill in name and quantity.")
+            return
+
+        try:
+            quantity = float(quantity_str)
+        except ValueError:
+            messagebox.showerror("Validation Error", "Quantity must be a number.")
+            return
+
+        if quantity <= 0:
+            messagebox.showerror("Validation Error", "Quantity must be greater than 0.")
+            return
+
+        self.result = {
+            'name': name,
+            'type': ing_type,
+            'quantity': quantity,
+            'unit': unit,
+            'timing': timing,
+            'notes': notes
+        }
+
+        self.destroy()
