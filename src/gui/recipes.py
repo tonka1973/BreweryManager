@@ -1082,19 +1082,36 @@ class IngredientDialog(tk.Toplevel):
         main_frame = tk.Frame(self, bg='white', padx=20, pady=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Type (moved to top so it can filter name options)
-        tk.Label(main_frame, text="Type *", font=('Arial', 10, 'bold'), bg='white').grid(row=0, column=0, sticky='w', pady=(0, 5))
+        # Type buttons (instead of dropdown)
+        tk.Label(main_frame, text="Type *", font=('Arial', 10, 'bold'), bg='white').grid(row=0, column=0, columnspan=2, sticky='w', pady=(0, 5))
+
         self.type_var = tk.StringVar(value='Malt')
-        type_combo = ttk.Combobox(
-            main_frame,
-            textvariable=self.type_var,
-            values=['Malt', 'Hops', 'Yeast', 'Adjunct', 'Other'],
-            font=('Arial', 10),
-            state='readonly',
-            width=15
-        )
-        type_combo.grid(row=1, column=0, sticky='w', pady=(0, 15))
-        type_combo.bind('<<ComboboxSelected>>', self.on_type_change)
+        type_button_frame = tk.Frame(main_frame, bg='white')
+        type_button_frame.grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 15))
+
+        # Create type buttons
+        self.type_buttons = {}
+        types = ['Malt', 'Hops', 'Yeast', 'Adjunct', 'Other']
+        for i, type_name in enumerate(types):
+            btn = tk.Button(
+                type_button_frame,
+                text=type_name,
+                font=('Arial', 9, 'bold'),
+                bg='#E0E0E0',
+                fg='#424242',
+                activebackground='#BDBDBD',
+                cursor='hand2',
+                command=lambda t=type_name: self.select_type(t),
+                padx=12,
+                pady=6,
+                relief=tk.RAISED,
+                borderwidth=2
+            )
+            btn.pack(side=tk.LEFT, padx=(0, 5) if i < len(types) - 1 else 0)
+            self.type_buttons[type_name] = btn
+
+        # Set initial selection
+        self.select_type('Malt')
 
         # Ingredient Name (autocomplete from inventory)
         tk.Label(main_frame, text="Ingredient Name *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=0, sticky='w', pady=(0, 5))
@@ -1227,6 +1244,33 @@ class IngredientDialog(tk.Toplevel):
         # Update name combo with current type
         self.update_name_options()
 
+    def select_type(self, type_name):
+        """Handle type button selection"""
+        # Update the type variable
+        self.type_var.set(type_name)
+
+        # Update button appearance - highlight selected, unhighlight others
+        for btn_type, btn in self.type_buttons.items():
+            if btn_type == type_name:
+                # Selected button - green/highlighted
+                btn.config(
+                    bg='#4CAF50',
+                    fg='white',
+                    relief=tk.SUNKEN,
+                    borderwidth=3
+                )
+            else:
+                # Unselected button - grey
+                btn.config(
+                    bg='#E0E0E0',
+                    fg='#424242',
+                    relief=tk.RAISED,
+                    borderwidth=2
+                )
+
+        # Update the inventory items shown
+        self.on_type_change()
+
     def on_type_change(self, event=None):
         """Update name options when type changes"""
         self.update_name_options()
@@ -1277,8 +1321,12 @@ class IngredientDialog(tk.Toplevel):
         if not self.ingredient:
             return
 
+        # Set the type first (this will update buttons and inventory)
+        ing_type = self.ingredient.get('type', 'Malt')
+        self.select_type(ing_type)
+
+        # Then populate other fields
         self.name_var.set(self.ingredient.get('name', ''))
-        self.type_var.set(self.ingredient.get('type', 'Malt'))
         self.quantity_entry.insert(0, str(self.ingredient.get('quantity', '')))
         self.unit_var.set(self.ingredient.get('unit', 'kg'))
         self.timing_var.set(self.ingredient.get('timing', ''))
