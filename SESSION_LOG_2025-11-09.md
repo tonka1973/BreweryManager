@@ -49,10 +49,21 @@
   - Recipe dialog uses "Malt" as type name
   - Added type_mapping dictionary to map database types to recipe types
   - Grains now appear correctly when "Malt" is selected
+- [x] Fixed autocomplete focus issue
+  - Removed auto-opening dropdown that was stealing focus
+  - Users can now type continuously in ingredient name field
+  - Increased dialog height to ensure Save button is visible
+- [x] Fixed ingredient visibility after saving recipe
+  - Ingredients were being saved correctly but appeared to disappear
+  - Recipe list reload was clearing the selection
+  - Now automatically re-selects recipe after save
+  - Info panel updates to show saved ingredients
 
 ## Issues Encountered
 - Fixed table name mismatch (was using 'inventory' instead of 'inventory_materials')
 - Fixed type mismatch between inventory ("grain") and recipe types ("Malt")
+- Fixed focus loss on autocomplete dropdown after each keystroke
+- Fixed ingredient disappearing after save (selection was being cleared)
 
 ## Next Session TODO
 - (Will be updated at end of session)
