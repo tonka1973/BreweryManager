@@ -1079,6 +1079,9 @@ class IngredientDialog(tk.Toplevel):
         )
         self.name_combo.pack(fill=tk.X)
 
+        # Enable autocomplete filtering
+        self.name_combo.bind('<KeyRelease>', self.on_name_keyrelease)
+
         # Info label
         self.inventory_info_label = tk.Label(
             main_frame,
@@ -1182,6 +1185,28 @@ class IngredientDialog(tk.Toplevel):
     def on_type_change(self, event=None):
         """Update name options when type changes"""
         self.update_name_options()
+
+    def on_name_keyrelease(self, event):
+        """Filter combobox values as user types"""
+        typed = self.name_var.get().lower()
+        if not typed:
+            # If empty, show all items for this type
+            self.update_name_options()
+            return
+
+        # Get all items for current type
+        selected_type = self.type_var.get()
+        all_items = self.inventory_items.get(selected_type, [])
+
+        # Filter items that contain the typed text
+        filtered = [item['name'] for item in all_items if typed in item['name'].lower()]
+
+        # Update combobox with filtered values
+        self.name_combo['values'] = filtered
+
+        # If there are matches, open the dropdown
+        if filtered:
+            self.name_combo.event_generate('<Down>')
 
     def update_name_options(self):
         """Update the name combobox based on selected type"""
