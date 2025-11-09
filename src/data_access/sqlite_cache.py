@@ -111,8 +111,10 @@ class SQLiteCacheManager:
                     unit TEXT,
                     timing TEXT,
                     notes TEXT,
+                    inventory_item_id TEXT,
                     sync_status TEXT DEFAULT 'synced',
-                    FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id)
+                    FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id),
+                    FOREIGN KEY (inventory_item_id) REFERENCES inventory_materials(material_id)
                 )
             ''')
             
@@ -534,7 +536,10 @@ class SQLiteCacheManager:
                     last_attempt TEXT
                 )
             ''')
-            
+
+            # Run migrations for existing databases
+            self._run_migrations()
+
             self.connection.commit()
             logger.info("Database tables initialized successfully")
             return True
@@ -542,7 +547,26 @@ class SQLiteCacheManager:
         except Exception as e:
             logger.error(f"Failed to initialize database: {str(e)}")
             return False
-    
+
+    def _run_migrations(self):
+        """Run database migrations for existing databases"""
+        try:
+            # Migration: Add inventory_item_id to recipe_ingredients table
+            # Check if column exists
+            self.cursor.execute("PRAGMA table_info(recipe_ingredients)")
+            columns = [row[1] for row in self.cursor.fetchall()]
+
+            if 'inventory_item_id' not in columns:
+                logger.info("Adding inventory_item_id column to recipe_ingredients table")
+                self.cursor.execute('''
+                    ALTER TABLE recipe_ingredients
+                    ADD COLUMN inventory_item_id TEXT
+                ''')
+                logger.info("Migration completed: inventory_item_id column added")
+
+        except Exception as e:
+            logger.warning(f"Migration warning: {str(e)}")
+
     def insert_record(self, table_name, data):
         """
         Insert a new record into a table.
