@@ -221,6 +221,16 @@ class RecipesModule(tk.Frame):
         self.recipes_tree.tag_configure('active', background='#e8f5e9')
         self.recipes_tree.tag_configure('inactive', background='#ffebee')
 
+    def select_recipe_by_id(self, recipe_id):
+        """Find and select a recipe by its ID in the tree"""
+        for item in self.recipes_tree.get_children():
+            tags = self.recipes_tree.item(item, 'tags')
+            if len(tags) > 1 and tags[1] == recipe_id:
+                self.recipes_tree.selection_set(item)
+                self.recipes_tree.see(item)  # Scroll to make it visible
+                self.on_recipe_select()  # Update info panel
+                break
+
     def on_tree_click(self, event):
         """Handle clicks on tree items, especially Edit and Delete columns"""
         region = self.recipes_tree.identify_region(event.x, event.y)
@@ -400,7 +410,15 @@ class RecipesModule(tk.Frame):
         """Open dialog to add new recipe"""
         dialog = RecipeDialog(self, self.cache, self.current_user, mode='add')
         self.wait_window(dialog)
+
+        # Get the recipe_id that was just created (if any)
+        recipe_id = getattr(dialog, 'saved_recipe_id', None)
+
         self.load_recipes()
+
+        # Re-select the newly created recipe
+        if recipe_id:
+            self.select_recipe_by_id(recipe_id)
 
     def edit_recipe(self):
         """Edit selected recipe"""
@@ -429,7 +447,15 @@ class RecipesModule(tk.Frame):
         recipe = recipes[0]
         dialog = RecipeDialog(self, self.cache, self.current_user, mode='edit', recipe=recipe)
         self.wait_window(dialog)
+
+        # Get the recipe_id that was just edited (if saved)
+        saved_recipe_id = getattr(dialog, 'saved_recipe_id', None)
+
         self.load_recipes()
+
+        # Re-select the edited recipe
+        if saved_recipe_id:
+            self.select_recipe_by_id(saved_recipe_id)
 
     def view_recipe_details(self):
         """View detailed recipe information"""
@@ -825,6 +851,9 @@ class RecipeDialog(tk.Toplevel):
 
             self.cache.close()
 
+            # Store recipe_id so parent can re-select it
+            self.saved_recipe_id = recipe_id
+
             messagebox.showinfo("Success", "Recipe created successfully!")
 
         else:
@@ -851,6 +880,9 @@ class RecipeDialog(tk.Toplevel):
             self.save_ingredients(recipe_id)
 
             self.cache.close()
+
+            # Store recipe_id so parent can re-select it
+            self.saved_recipe_id = recipe_id
 
             messagebox.showinfo("Success", "Recipe updated successfully!")
 
