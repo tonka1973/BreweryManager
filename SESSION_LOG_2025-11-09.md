@@ -44,9 +44,15 @@
 - [x] Added autocomplete filtering to ingredient name combobox
   - Type to filter: "saf" shows only items containing "saf"
   - Real-time filtering as you type
+- [x] Fixed grain/malt type mapping for inventory integration
+  - Inventory stores grains with type "grain"
+  - Recipe dialog uses "Malt" as type name
+  - Added type_mapping dictionary to map database types to recipe types
+  - Grains now appear correctly when "Malt" is selected
 
 ## Issues Encountered
 - Fixed table name mismatch (was using 'inventory' instead of 'inventory_materials')
+- Fixed type mismatch between inventory ("grain") and recipe types ("Malt")
 
 ## Next Session TODO
 - (Will be updated at end of session)
