@@ -76,7 +76,7 @@ Wait for the user to confirm they've run the commands.
 
 ---
 
-## STEP 7: Check Current Git Status
+## STEP 7: Check Current Git Status and Sync Claude Branch
 
 After user confirms, run:
 ```bash
@@ -84,6 +84,15 @@ git branch --show-current
 git status
 git log --oneline -3
 ```
+
+**CRITICAL: Sync Claude branch with master to prevent merge conflicts later**
+
+If on a claude/* branch, merge master into it:
+```bash
+git merge master --no-edit
+```
+
+This ensures the Claude branch has all the latest changes from the previous session merge.
 
 ---
 
