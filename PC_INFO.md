@@ -5,7 +5,7 @@ This file stores computer-specific paths for the BreweryManager project.
 ---
 
 ## Home PC
-- **Path:** `C:\Users\Tonk\Desktop\BreweryManager`
+- **Path:** `C:\Users\Tonk\OneDrive\Desktop\BreweryManager`
 - **User:** Tonk
 - **OS:** Windows
 
