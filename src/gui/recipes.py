@@ -554,9 +554,38 @@ class RecipeDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
-        # Main container
-        main_frame = tk.Frame(self, bg='white', padx=20, pady=20)
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        # Create button frame first (pack at bottom)
+        button_frame = tk.Frame(self, bg='white', pady=10)
+        button_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=20, pady=(0, 20))
+
+        # Create canvas with scrollbar for content
+        canvas = tk.Canvas(self, bg='white', highlightthickness=0)
+        scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Pack scrollbar and canvas
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        # Create frame inside canvas for all content
+        main_frame = tk.Frame(canvas, bg='white', padx=20, pady=20)
+        canvas_window = canvas.create_window((0, 0), window=main_frame, anchor='nw')
+
+        # Configure canvas scrolling
+        def configure_scroll_region(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+
+        def configure_canvas_width(event):
+            canvas.itemconfig(canvas_window, width=event.width)
+
+        main_frame.bind('<Configure>', configure_scroll_region)
+        canvas.bind('<Configure>', configure_canvas_width)
+
+        # Enable mousewheel scrolling
+        def on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
+        canvas.bind_all("<MouseWheel>", on_mousewheel)
 
         # Recipe Name
         tk.Label(main_frame, text="Recipe Name *", font=('Arial', 10, 'bold'), bg='white').grid(row=0, column=0, sticky='w', pady=(0, 5))
@@ -669,10 +698,7 @@ class RecipeDialog(tk.Toplevel):
         main_frame.grid_columnconfigure(0, weight=1)
         main_frame.grid_columnconfigure(1, weight=1)
 
-        # Buttons
-        button_frame = tk.Frame(self, bg='white', pady=10)
-        button_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
-
+        # Add buttons to the button_frame created at the top
         cancel_btn = tk.Button(
             button_frame,
             text="Cancel",
