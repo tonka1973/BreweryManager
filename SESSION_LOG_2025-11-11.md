@@ -1,15 +1,18 @@
 # Session Log - November 11, 2025
 
 ## Session Info
-- **Current Session ID:** 011CV1k6X55LSXeJbXpTtQx7
-- **Current Branch:** claude/read-start-011CV1k6X55LSXeJbXpTtQx7
-- **Previous Branches Merged:**
+- **Computer:** Brewery
+- **Current Session ID:** 011CV1vipZDc3yHDtoc55r8c
+- **Current Branch:** claude/read-start-m-011CV1vipZDc3yHDtoc55r8c
+- **Previous Sessions Today:**
+  - claude/read-start-011CV1k6X55LSXeJbXpTtQx7
   - claude/read-start-011CUz37PTSSznnENrNGRDUm
   - claude/read-start-md-011CV1gWx9QJQqMJ6Laoi7p4
 
-## Starting State
+## Current Session Starting State
 - Git status: clean
-- Last commit: 0934d56 - Merge remote-tracking branch 'origin/claude/add-start-md-011CUtigEPRBeHUoDnpcJYkR'
+- Last commit: 9070ce8 - Add STEP 10 to start.md: Provide program start commands
+- Branch: claude/read-start-m-011CV1vipZDc3yHDtoc55r8c
 
 ## Tasks Completed (From Previous Sessions Today)
 - [x] Created end.md for session termination workflow
@@ -20,8 +23,9 @@
 - [x] Verified program is at latest version on home computer
 - [x] Documented home computer path: C:\Users\Tonk\OneDrive\Desktop\BreweryManager
 
-## Tasks Completed This Session
-- [x] Merged previous session work (claude/read-start-md-011CV1gWx9QJQqMJ6Laoi7p4)
+## Tasks Completed This Session (011CV1vipZDc3yHDtoc55r8c)
+- [x] Session resumed on Brewery computer
+- [x] Confirmed git status and branch
 - [ ] (Additional tasks will be updated as we work)
 
 ## Issues Encountered
@@ -30,9 +34,9 @@
 - Merge conflict in SESSION_LOG_2025-11-11.md (resolved)
 
 ## Next Session TODO
-- Add step to start.md to ASK which computer user is on (home vs brewery)
-- Document both computer paths clearly in start.md
-- Consider adding environment detection logic
+- ✅ Computer selection added to start.md
+- ✅ COMPUTER_PATHS.md created with both computer paths
+- ✅ STEP 10 added to provide program start commands
 - Continue Phase 3 testing when ready
 
 ---
