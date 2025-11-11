@@ -4,16 +4,37 @@
 
 ---
 
-## STEP 1: Read Project Context Files
+## STEP 1: Ask Which Computer User Is On
 
-Read these files to understand the project:
-1. CLAUDE_SESSION_WORKFLOW.md
-2. README.md (first 100 lines)
-3. PROGRESS.md (if it exists)
+**First, ask the user:**
+
+```
+Which computer are you on?
+1. Brewery
+2. Home
+3. Other (new computer)
+```
+
+**Then read COMPUTER_PATHS.md to get the correct folder path.**
+
+If they answer "Other":
+- Ask them for their full path to BreweryManager
+- Remind them to add it to COMPUTER_PATHS.md
+- Ask if they've completed initial setup (Python, dependencies, etc.)
 
 ---
 
-## STEP 2: Check Available Branches (Sorted by Date)
+## STEP 2: Read Project Context Files
+
+Read these files to understand the project:
+1. COMPUTER_PATHS.md (to get folder paths)
+2. CLAUDE_SESSION_WORKFLOW.md
+3. README.md (first 100 lines)
+4. PROGRESS.md (if it exists)
+
+---
+
+## STEP 3: Check Available Branches (Sorted by Date)
 
 Run this command to see previous session branches sorted by most recent:
 ```bash
@@ -26,7 +47,7 @@ IMPORTANT: If there are multiple branches from the same date, choose the one wit
 
 ---
 
-## STEP 3: Check for Old Unpushed Local Work
+## STEP 4: Check for Old Unpushed Local Work
 
 Before merging, check if local master has unpushed commits:
 ```bash
@@ -41,19 +62,23 @@ If it says "Your branch is ahead of origin/master by X commits":
 
 ---
 
-## STEP 4: Provide Merge Commands to User
+## STEP 5: Provide Merge Commands to User
 
-Give the user these exact commands (fill in the actual branch name you found):
+Give the user these exact commands (fill in the actual branch name AND computer path):
 
 ```
 Please run these commands to merge the previous session's work:
 
-cd C:\Users\darre\Desktop\BreweryManager
+cd <PATH-FROM-COMPUTER_PATHS.MD>
 git fetch origin
 git checkout master
 git reset --hard origin/master
 git merge origin/claude/<MOST-RECENT-BRANCH-NAME> --no-edit
 ```
+
+**Replace:**
+- `<PATH-FROM-COMPUTER_PATHS.MD>` with the correct path from STEP 1
+- `<MOST-RECENT-BRANCH-NAME>` with the branch from STEP 3
 
 Tell them: "Let me know when you've run these commands!"
 
@@ -61,13 +86,13 @@ Tell them: "Let me know when you've run these commands!"
 
 ---
 
-## STEP 5: Wait for User Confirmation
+## STEP 6: Wait for User Confirmation
 
 Wait for the user to confirm they've run the commands.
 
 ---
 
-## STEP 6: Check Current Git Status
+## STEP 7: Check Current Git Status
 
 After user confirms, run:
 ```bash
@@ -78,7 +103,7 @@ git log --oneline -3
 
 ---
 
-## STEP 7: Create Session Log
+## STEP 8: Create Session Log
 
 Create a file named `SESSION_LOG_YYYY-MM-DD.md` with this content:
 
@@ -86,6 +111,7 @@ Create a file named `SESSION_LOG_YYYY-MM-DD.md` with this content:
 # Session Log - [Today's Date]
 
 ## Session Info
+- **Computer:** [Brewery/Home/Other]
 - **Session ID:** [current session ID from branch name]
 - **Branch:** [current branch]
 - **Previous Branch Merged:** [branch they just merged]
@@ -109,7 +135,7 @@ Create a file named `SESSION_LOG_YYYY-MM-DD.md` with this content:
 
 ---
 
-## STEP 8: Report Status and Ask What to Work On
+## STEP 9: Report Status and Ask What to Work On
 
 Say something like:
 
@@ -132,6 +158,41 @@ What would you like to work on today?
 - Update the session log as tasks are completed
 - At end of session, do final push and update session log
 - Always work on a claude/* branch, never on master directly
+
+---
+
+## HANDLING NEW/UNKNOWN COMPUTERS
+
+If the user is on a new computer not listed in COMPUTER_PATHS.md:
+
+### Step A: Verify Setup
+Ask them:
+1. Have you cloned the repository to this computer?
+2. Where is it located? (full path)
+3. Have you installed Python 3.11+?
+4. Have you run `pip install -r requirements.txt`?
+5. Have you tested with `python main.py`?
+
+### Step B: Get Computer Info
+Ask them to provide:
+- Computer name/identifier (e.g., "Work Laptop", "Office Desktop")
+- Full path to BreweryManager folder
+- Username on that computer
+
+### Step C: Add to COMPUTER_PATHS.md
+Tell them:
+```
+Please add this computer to COMPUTER_PATHS.md:
+
+### [Number]. [Computer Name]
+- **Name:** [Computer Name]
+- **Path:** [Full Path]
+- **User:** [Username]
+- **Added:** [Today's Date]
+```
+
+### Step D: Continue Normally
+Once added to COMPUTER_PATHS.md, proceed with the normal workflow using the new path.
 
 ---
 
