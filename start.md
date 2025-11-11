@@ -196,4 +196,27 @@ Once added to COMPUTER_PATHS.md, proceed with the normal workflow using the new 
 
 ---
 
+## STEP 10: Provide Program Start Commands
+
+After completing the session setup, provide the user with commands to start testing the application:
+
+```
+🚀 Ready to test the Brewery Manager!
+
+To launch the application, run these commands:
+
+cd <PATH-FROM-COMPUTER_PATHS.MD>
+python main.py
+
+Login credentials:
+Username: admin
+Password: admin
+
+The application is currently in Phase 3 (Testing). All 9 modules are implemented and ready to test!
+```
+
+**Replace `<PATH-FROM-COMPUTER_PATHS.MD>` with the correct path from STEP 1.**
+
+---
+
 **That's it! Follow these steps every time the user says "read start.md"**
