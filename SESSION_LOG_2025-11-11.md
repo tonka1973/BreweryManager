@@ -1,39 +1,41 @@
 # Session Log - November 11, 2025
 
 ## Session Info
-- **Current Session ID:** 011CV1k6X55LSXeJbXpTtQx7
-- **Current Branch:** claude/read-start-011CV1k6X55LSXeJbXpTtQx7
-- **Previous Branches Merged:**
-  - claude/read-start-011CUz37PTSSznnENrNGRDUm
-  - claude/read-start-md-011CV1gWx9QJQqMJ6Laoi7p4
+- **Current Session ID:** 011CV2PRX9sge9UXFcYbYnL4
+- **Current Branch:** claude/fix-recipe-editor-buttons-011CV2PRX9sge9UXFcYbYnL4
+- **Computer:** Home (3840x2160) & Brewery (1920x1080)
 
 ## Starting State
 - Git status: clean
-- Last commit: 0934d56 - Merge remote-tracking branch 'origin/claude/add-start-md-011CUtigEPRBeHUoDnpcJYkR'
-
-## Tasks Completed (From Previous Sessions Today)
-- [x] Created end.md for session termination workflow
-- [x] Updated start.md with improved branch sorting (git for-each-ref)
-- [x] Added step to check and discard old unpushed local work
-- [x] Added git reset --hard origin/master to merge workflow
-- [x] Added conflict handling note to start.md
-- [x] Verified program is at latest version on home computer
-- [x] Documented home computer path: C:\Users\Tonk\OneDrive\Desktop\BreweryManager
+- Recipe editor buttons not visible on Brewery laptop (1080p screen)
 
 ## Tasks Completed This Session
-- [x] Merged previous session work (claude/read-start-md-011CV1gWx9QJQqMJ6Laoi7p4)
-- [ ] (Additional tasks will be updated as we work)
+- [x] Identified root cause: Screen resolution compatibility issue (not file sync)
+- [x] Implemented scrollable canvas for Recipe dialog
+- [x] Fixed button bar to stay at bottom (always visible)
+- [x] Adjusted window size from 900px → 750px → 650px → 600px for 1080p
+- [x] Tested on both Home (4K) and Brewery (1080p) computers
+- [x] Merged fix to master branch
+- [x] Synced both computers with identical working code
+- [x] Analyzed 29 markdown files for duplicates
+- [x] Deleted 11 obsolete/duplicate markdown files (1,933 lines removed)
+- [x] Updated CONTINUATION_GUIDE.md (Phase 1 → Phase 3)
+- [x] Pushed all changes to GitHub
 
 ## Issues Encountered
-- Initial confusion about which computer user was on (need to ask first)
-- start.md had hardcoded path for brewery computer only
-- Merge conflict in SESSION_LOG_2025-11-11.md (resolved)
+- Initial assumption: file sync issue
+- Reality: Screen resolution compatibility (900px too tall for 1080p)
+- Solution: Scrollable canvas + smaller default window (600px)
+
+## Key Learning
+- Different behavior on different computers doesn't always mean sync issue
+- Check hardware differences (screen resolution) first
+- Responsive UI design critical for multi-computer workflow
 
 ## Next Session TODO
-- Add step to start.md to ASK which computer user is on (home vs brewery)
-- Document both computer paths clearly in start.md
-- Consider adding environment detection logic
-- Continue Phase 3 testing when ready
+- Continue Phase 3 testing with Recipe module
+- Test other modules for screen compatibility issues
+- Consider adding responsive design checks for remaining dialogs
 
 ---
-*Session started: 2025-11-11*
+*Session completed: 2025-11-11*
