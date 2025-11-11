@@ -554,9 +554,25 @@ class RecipeDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
-        # Main container
-        main_frame = tk.Frame(self, bg='white', padx=20, pady=20)
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        # Main container with scrollbar
+        container = tk.Frame(self, bg='white')
+        container.pack(fill=tk.BOTH, expand=True)
+
+        # Canvas for scrolling
+        canvas = tk.Canvas(container, bg='white', highlightthickness=0)
+        scrollbar = tk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        main_frame = tk.Frame(canvas, bg='white', padx=20, pady=20)
+
+        main_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=main_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
 
         # Recipe Name
         tk.Label(main_frame, text="Recipe Name *", font=('Arial', 10, 'bold'), bg='white').grid(row=0, column=0, sticky='w', pady=(0, 5))
