@@ -538,7 +538,7 @@ class RecipeDialog(tk.Toplevel):
         self.recipe = recipe
 
         self.title("Add Recipe" if mode == 'add' else "Edit Recipe")
-        self.geometry("700x750")
+        self.geometry("700x650")
         self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
