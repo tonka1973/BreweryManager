@@ -13,18 +13,35 @@ Read these files to understand the project:
 
 ---
 
-## STEP 2: Check Available Branches
+## STEP 2: Check Available Branches (Sorted by Date)
 
-Run this command to see previous session branches:
+Run this command to see previous session branches sorted by most recent:
 ```bash
-git branch -r | grep "claude/"
+git for-each-ref --sort=-committerdate --format='%(committerdate:short) %(refname:short) - %(subject)' refs/remotes/origin/claude/ | head -10
 ```
 
 Identify the most recent `claude/*` branch.
 
+IMPORTANT: If there are multiple branches from the same date, choose the one with the LATEST timestamp.
+
 ---
 
-## STEP 3: Provide Merge Commands to User
+## STEP 3: Check for Old Unpushed Local Work
+
+Before merging, check if local master has unpushed commits:
+```bash
+git checkout master
+git status
+```
+
+If it says "Your branch is ahead of origin/master by X commits":
+- These are OLD commits from a previous session that weren't pushed
+- They are OUT OF DATE
+- Discard them with: `git reset --hard origin/master`
+
+---
+
+## STEP 4: Provide Merge Commands to User
 
 Give the user these exact commands (fill in the actual branch name you found):
 
@@ -34,20 +51,23 @@ Please run these commands to merge the previous session's work:
 cd C:\Users\darre\Desktop\BreweryManager
 git fetch origin
 git checkout master
+git reset --hard origin/master
 git merge origin/claude/<MOST-RECENT-BRANCH-NAME> --no-edit
 ```
 
 Tell them: "Let me know when you've run these commands!"
 
+**Note:** If merge has conflicts, STOP and ask user which version to keep.
+
 ---
 
-## STEP 4: Wait for User Confirmation
+## STEP 5: Wait for User Confirmation
 
 Wait for the user to confirm they've run the commands.
 
 ---
 
-## STEP 5: Check Current Git Status
+## STEP 6: Check Current Git Status
 
 After user confirms, run:
 ```bash
@@ -58,7 +78,7 @@ git log --oneline -3
 
 ---
 
-## STEP 6: Create Session Log
+## STEP 7: Create Session Log
 
 Create a file named `SESSION_LOG_YYYY-MM-DD.md` with this content:
 
@@ -89,7 +109,7 @@ Create a file named `SESSION_LOG_YYYY-MM-DD.md` with this content:
 
 ---
 
-## STEP 7: Report Status and Ask What to Work On
+## STEP 8: Report Status and Ask What to Work On
 
 Say something like:
 
