@@ -92,9 +92,39 @@ Wait for the user to confirm they've run the commands.
 
 ---
 
-## STEP 7: Check Current Git Status
+## STEP 7: Check for New Dependencies
 
-After user confirms, run:
+**After user confirms merge, check if requirements.txt was updated:**
+
+Run this command to check if requirements.txt changed:
+```bash
+git diff HEAD~10..HEAD --name-only | grep requirements.txt
+```
+
+**If it shows "requirements.txt":**
+
+Tell the user:
+```
+⚠️  IMPORTANT: Dependencies have been updated!
+
+Please run this command to install new packages:
+
+pip install -r requirements.txt
+
+This will install any new libraries needed for the updated code.
+Without this, the program may crash with import errors!
+
+Let me know when you've run this command.
+```
+
+**If requirements.txt didn't change:**
+- Skip this message and continue to next step
+
+---
+
+## STEP 8: Check Current Git Status
+
+After dependencies are handled, run:
 ```bash
 git branch --show-current
 git status
@@ -103,7 +133,7 @@ git log --oneline -3
 
 ---
 
-## STEP 8: Create Session Log
+## STEP 9: Create Session Log
 
 Create a file named `SESSION_LOG_YYYY-MM-DD.md` with this content:
 
@@ -135,7 +165,7 @@ Create a file named `SESSION_LOG_YYYY-MM-DD.md` with this content:
 
 ---
 
-## STEP 9: Report Status and Ask What to Work On
+## STEP 10: Report Status and Ask What to Work On
 
 Say something like:
 
@@ -196,7 +226,7 @@ Once added to COMPUTER_PATHS.md, proceed with the normal workflow using the new 
 
 ---
 
-## STEP 10: Provide Program Start Commands
+## STEP 11: Provide Program Start Commands
 
 After completing the session setup, provide the user with commands to start testing the application:
 
