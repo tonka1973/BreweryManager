@@ -12,6 +12,12 @@ Run this once to update existing databases.
 
 import sqlite3
 from pathlib import Path
+import sys
+import os
+
+# Add parent directory to path to import config
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from src.config.constants import CACHE_DB_PATH
 
 
 def migrate_batches_table(db_path):
@@ -67,8 +73,8 @@ def migrate_batches_table(db_path):
 
 
 if __name__ == '__main__':
-    # Default database path
-    db_path = Path(__file__).parent.parent.parent / 'data' / 'brewery_cache.db'
+    # Use the correct database path from config
+    db_path = CACHE_DB_PATH
 
     if not db_path.exists():
         print(f"❌ Database not found at: {db_path}")
