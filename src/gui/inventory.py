@@ -9,6 +9,7 @@ import ttkbootstrap as ttk
 import uuid
 from datetime import datetime
 from ..utilities.date_utils import get_today_db
+from ..utilities.window_manager import get_window_manager
 
 
 class InventoryModule(ttk.Frame):
@@ -347,10 +348,18 @@ class MaterialDialog(tk.Toplevel):
         self.material = material
 
         self.title("Add Material" if mode == 'add' else "Edit Material")
-        self.geometry("500x550")
-        self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'material_dialog', width_pct=0.35, height_pct=0.6,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("500x550")
+            self.resizable(True, True)
 
         self.create_widgets()
         if mode == 'edit' and material:
@@ -461,10 +470,18 @@ class StockAdjustDialog(tk.Toplevel):
         self.material = material
 
         self.title(f"Adjust Stock: {material['material_name']}")
-        self.geometry("400x350")
-        self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'stock_adjust_dialog', width_pct=0.3, height_pct=0.4,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("400x350")
+            self.resizable(True, True)
 
         self.create_widgets()
 
@@ -552,10 +569,18 @@ class ContainerDialog(tk.Toplevel):
         self.mode = mode
 
         self.title("Add Container")
-        self.geometry("450x400")
-        self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'container_dialog', width_pct=0.32, height_pct=0.45,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("450x400")
+            self.resizable(True, True)
 
         self.create_widgets()
 
@@ -756,10 +781,18 @@ class ContainerAdjustDialog(tk.Toplevel):
             name = "Container"
 
         self.title(f"Adjust Stock: {name}")
-        self.geometry("400x300")
-        self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'container_adjust_dialog', width_pct=0.3, height_pct=0.35,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("400x300")
+            self.resizable(True, True)
 
         self.create_widgets()
 

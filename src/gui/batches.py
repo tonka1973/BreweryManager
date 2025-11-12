@@ -379,9 +379,18 @@ class BatchDetailsDialog(tk.Toplevel):
         self.cache = cache
 
         self.title(f"Batch: {batch.get('gyle_number', 'Unknown')}")
-        self.geometry("600x500")
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'batch_details_dialog', width_pct=0.4, height_pct=0.55,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("600x500")
+            self.resizable(True, True)
 
         self.create_widgets()
 
@@ -440,9 +449,18 @@ class StatusUpdateDialog(tk.Toplevel):
         self.batch = batch
 
         self.title(f"Update Status: {batch.get('gyle_number', 'Unknown')}")
-        self.geometry("400x300")
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'status_update_dialog', width_pct=0.3, height_pct=0.35,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("400x300")
+            self.resizable(True, True)
 
         self.create_widgets()
 

@@ -9,6 +9,7 @@ from tkinter import messagebox
 import uuid
 from datetime import datetime, timedelta
 from ..utilities.date_utils import format_date_for_display, parse_display_date, get_today_display, get_today_db
+from ..utilities.window_manager import get_window_manager
 
 
 class InvoicingModule(ttk.Frame):
@@ -172,9 +173,18 @@ class InvoiceCreateDialog(tk.Toplevel):
         self.current_user = current_user
 
         self.title("Create Invoice")
-        self.geometry("700x600")
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'invoice_create_dialog', width_pct=0.5, height_pct=0.65,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("700x600")
+            self.resizable(True, True)
 
         self.create_widgets()
 
@@ -373,9 +383,18 @@ class PaymentDialog(tk.Toplevel):
         self.invoice = invoice
 
         self.title(f"Record Payment: {invoice.get('invoice_number', '')}")
-        self.geometry("450x400")
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'payment_dialog', width_pct=0.32, height_pct=0.45,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("450x400")
+            self.resizable(True, True)
 
         self.create_widgets()
 
@@ -496,9 +515,18 @@ class InvoiceViewDialog(tk.Toplevel):
         self.cache = cache
 
         self.title(f"Invoice: {invoice.get('invoice_number', '')}")
-        self.geometry("650x650")
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'invoice_view_dialog', width_pct=0.45, height_pct=0.7,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("650x650")
+            self.resizable(True, True)
 
         self.create_widgets()
 

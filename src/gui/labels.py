@@ -10,6 +10,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 import os
+from ..utilities.window_manager import get_window_manager
 
 
 class LabelsModule(ttk.Frame):
@@ -250,9 +251,18 @@ class LabelPreviewDialog(tk.Toplevel):
     def __init__(self, parent, beer_name, abv, container, gyle):
         super().__init__(parent)
         self.title("Label Preview")
-        self.geometry("400x300")
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'label_preview_dialog', width_pct=0.3, height_pct=0.35,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("400x300")
+            self.resizable(True, True)
 
         frame = ttk.Frame(self, relief=tk.SOLID, borderwidth=2, padding=(20, 20))
         frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)

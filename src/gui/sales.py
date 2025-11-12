@@ -9,6 +9,7 @@ import ttkbootstrap as ttk
 import uuid
 from datetime import datetime
 from ..utilities.date_utils import format_date_for_display, parse_display_date, get_today_display, get_today_db
+from ..utilities.window_manager import get_window_manager
 
 
 class SalesModule(ttk.Frame):
@@ -186,10 +187,18 @@ class SaleDialog(tk.Toplevel):
         self.sale = sale
 
         self.title("New Sale" if mode == 'add' else "Edit Sale")
-        self.geometry("600x650")
-        self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'sale_dialog', width_pct=0.4, height_pct=0.7,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("600x650")
+            self.resizable(True, True)
 
         self.create_widgets()
         if mode == 'edit' and sale:

@@ -384,6 +384,10 @@ class BreweryMainWindow:
         )
         self.status_sync.pack(side=tk.LEFT, padx=10, pady=5)
 
+        # Resize grip (right side, before sync button)
+        resize_grip = ttk.Sizegrip(self.status_bar)
+        resize_grip.pack(side=tk.RIGHT, anchor='se')
+
         # Manual sync button
         sync_button = ttk.Button(
             self.status_bar,
