@@ -4,12 +4,12 @@ Provides overview of key metrics, alerts, and recent activity
 """
 
 import tkinter as tk
-from tkinter import ttk
+import ttkbootstrap as ttk
 from datetime import datetime, timedelta
 from typing import Optional
 
 
-class DashboardModule(tk.Frame):
+class DashboardModule(ttk.Frame):
     """Dashboard module showing overview and quick stats"""
 
     def __init__(self, parent, cache_manager, current_user, navigate_callback=None):
@@ -22,7 +22,7 @@ class DashboardModule(tk.Frame):
             current_user: Current logged-in user
             navigate_callback: Function to call for navigation to other modules
         """
-        super().__init__(parent, bg='white')
+        super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
         self.navigate = navigate_callback
@@ -36,24 +36,20 @@ class DashboardModule(tk.Frame):
     def create_widgets(self):
         """Create all dashboard widgets"""
         # Welcome section
-        welcome_frame = tk.Frame(self, bg='white')
+        welcome_frame = ttk.Frame(self)
         welcome_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
 
-        welcome_label = tk.Label(
+        welcome_label = ttk.Label(
             welcome_frame,
             text=f"Welcome back, {self.current_user.full_name}!",
-            font=('Arial', 16, 'bold'),
-            bg='white',
-            fg='#2c3e50'
+            font=('Arial', 16, 'bold')
         )
         welcome_label.pack(side=tk.LEFT)
 
-        date_label = tk.Label(
+        date_label = ttk.Label(
             welcome_frame,
             text=datetime.now().strftime("%A, %d/%m/%Y"),
-            font=('Arial', 11),
-            bg='white',
-            fg='#7f8c8d'
+            font=('Arial', 11)
         )
         date_label.pack(side=tk.RIGHT)
 
@@ -61,15 +57,15 @@ class DashboardModule(tk.Frame):
         self.create_stats_cards()
 
         # Two column layout for content
-        content_frame = tk.Frame(self, bg='white')
+        content_frame = ttk.Frame(self)
         content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
         # Left column
-        left_column = tk.Frame(content_frame, bg='white')
+        left_column = ttk.Frame(content_frame)
         left_column.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
 
         # Right column
-        right_column = tk.Frame(content_frame, bg='white')
+        right_column = ttk.Frame(content_frame)
         right_column.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(10, 0))
 
         # Recent batches (left)
@@ -83,7 +79,7 @@ class DashboardModule(tk.Frame):
 
     def create_stats_cards(self):
         """Create quick stats cards at the top"""
-        stats_frame = tk.Frame(self, bg='white')
+        stats_frame = ttk.Frame(self)
         stats_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
 
         # Get stats data
@@ -116,7 +112,7 @@ class DashboardModule(tk.Frame):
 
     def create_stat_card(self, parent, title, value, color, column, destination=None):
         """Create a single stat card as a clickable frame"""
-        # Frame wrapper (not Button to avoid glitching)
+        # Frame wrapper (keep tk.Frame for specific color requirements)
         card = tk.Frame(
             parent,
             bg=color,
@@ -131,7 +127,7 @@ class DashboardModule(tk.Frame):
         if destination and self.navigate:
             card.bind('<Button-1>', lambda e: self.navigate(destination))
 
-        # Value (smaller font)
+        # Value (smaller font) - keep tk.Label for colored background
         value_label = tk.Label(
             card,
             text=value,
@@ -146,7 +142,7 @@ class DashboardModule(tk.Frame):
             value_label.bind('<Button-1>', lambda e: self.navigate(destination))
             value_label.config(cursor='hand2')
 
-        # Title (smaller font)
+        # Title (smaller font) - keep tk.Label for colored background
         title_label = tk.Label(
             card,
             text=title,
@@ -164,24 +160,22 @@ class DashboardModule(tk.Frame):
     def create_recent_batches(self, parent):
         """Create recent batches section"""
         # Section header
-        header_frame = tk.Frame(parent, bg='white')
+        header_frame = ttk.Frame(parent)
         header_frame.pack(fill=tk.X, pady=(0, 10))
 
-        header_label = tk.Label(
+        header_label = ttk.Label(
             header_frame,
             text="Production Flow",
-            font=('Arial', 13, 'bold'),
-            bg='white',
-            fg='#2c3e50'
+            font=('Arial', 13, 'bold')
         )
         header_label.pack(side=tk.LEFT)
 
         # Batches list
-        list_frame = tk.Frame(parent, bg='white', relief=tk.SOLID, borderwidth=1)
+        list_frame = ttk.Frame(parent, relief=tk.SOLID, borderwidth=1)
         list_frame.pack(fill=tk.BOTH, expand=True)
 
         # Scrollbar
-        scrollbar = tk.Scrollbar(list_frame)
+        scrollbar = ttk.Scrollbar(list_frame)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
         # Treeview
@@ -264,20 +258,18 @@ class DashboardModule(tk.Frame):
     def create_alerts_section(self, parent):
         """Create alerts section for low stock, etc."""
         # Section header
-        header_frame = tk.Frame(parent, bg='white')
+        header_frame = ttk.Frame(parent)
         header_frame.pack(fill=tk.X, pady=(0, 10))
 
-        header_label = tk.Label(
+        header_label = ttk.Label(
             header_frame,
             text="⚠️ Alerts",
-            font=('Arial', 13, 'bold'),
-            bg='white',
-            fg='#e74c3c'
+            font=('Arial', 13, 'bold')
         )
         header_label.pack(side=tk.LEFT)
 
         # Alerts container
-        alerts_frame = tk.Frame(parent, bg='white', relief=tk.SOLID, borderwidth=1)
+        alerts_frame = ttk.Frame(parent, relief=tk.SOLID, borderwidth=1)
         alerts_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         # Check for alerts
@@ -330,21 +322,21 @@ class DashboardModule(tk.Frame):
             for alert in alerts[:5]:  # Show max 5 alerts
                 self.create_alert_item(alerts_frame, alert)
         else:
-            no_alerts = tk.Label(
+            no_alerts = ttk.Label(
                 alerts_frame,
                 text="✓ No alerts - everything looks good!",
                 font=('Arial', 11),
-                bg='white',
-                fg='#27ae60',
-                pady=20
+                padding=(0, 20)
             )
             no_alerts.pack()
 
     def create_alert_item(self, parent, alert):
         """Create a single alert item"""
+        # Keep tk.Frame for specific color requirements
         alert_frame = tk.Frame(parent, bg=alert['color'], relief=tk.FLAT)
         alert_frame.pack(fill=tk.X, padx=5, pady=5)
 
+        # Keep tk.Label for colored background
         type_label = tk.Label(
             alert_frame,
             text=f"[{alert['type']}]",
@@ -356,6 +348,7 @@ class DashboardModule(tk.Frame):
         )
         type_label.pack(side=tk.LEFT)
 
+        # Keep tk.Label for colored background
         msg_label = tk.Label(
             alert_frame,
             text=alert['message'],
@@ -370,20 +363,18 @@ class DashboardModule(tk.Frame):
     def create_upcoming_deliveries(self, parent):
         """Create upcoming deliveries section"""
         # Section header
-        header_frame = tk.Frame(parent, bg='white')
+        header_frame = ttk.Frame(parent)
         header_frame.pack(fill=tk.X, pady=(10, 10))
 
-        header_label = tk.Label(
+        header_label = ttk.Label(
             header_frame,
             text="📦 Upcoming Deliveries",
-            font=('Arial', 13, 'bold'),
-            bg='white',
-            fg='#2c3e50'
+            font=('Arial', 13, 'bold')
         )
         header_label.pack(side=tk.LEFT)
 
         # Deliveries container
-        deliveries_frame = tk.Frame(parent, bg='white', relief=tk.SOLID, borderwidth=1)
+        deliveries_frame = ttk.Frame(parent, relief=tk.SOLID, borderwidth=1)
         deliveries_frame.pack(fill=tk.BOTH, expand=True)
 
         # Get upcoming deliveries
@@ -404,18 +395,17 @@ class DashboardModule(tk.Frame):
             for delivery in deliveries[:5]:  # Show max 5
                 self.create_delivery_item(deliveries_frame, delivery)
         else:
-            no_deliveries = tk.Label(
+            no_deliveries = ttk.Label(
                 deliveries_frame,
                 text="No deliveries scheduled this week",
                 font=('Arial', 10),
-                bg='white',
-                fg='#7f8c8d',
-                pady=20
+                padding=(0, 20)
             )
             no_deliveries.pack()
 
     def create_delivery_item(self, parent, delivery):
         """Create a single delivery item"""
+        # Keep tk.Frame for specific color requirements
         item_frame = tk.Frame(parent, bg='#ecf0f1', relief=tk.FLAT)
         item_frame.pack(fill=tk.X, padx=5, pady=3)
 
@@ -430,6 +420,7 @@ class DashboardModule(tk.Frame):
         else:
             delivery_date_formatted = 'N/A'
 
+        # Keep tk.Label for colored background
         date_label = tk.Label(
             item_frame,
             text=delivery_date_formatted,
@@ -449,6 +440,7 @@ class DashboardModule(tk.Frame):
 
         details = f"{customer_name} - {delivery.get('beer_name', 'N/A')} ({delivery.get('quantity', 0)} x {delivery.get('container_type', 'N/A')})"
 
+        # Keep tk.Label for colored background
         details_label = tk.Label(
             item_frame,
             text=details,

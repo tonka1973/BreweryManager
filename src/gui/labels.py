@@ -4,18 +4,19 @@ Generate professional cask labels with brewery logo and beer details
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import messagebox, filedialog
+import ttkbootstrap as ttk
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 import os
 
 
-class LabelsModule(tk.Frame):
+class LabelsModule(ttk.Frame):
     """Label printing module for cask labels"""
 
     def __init__(self, parent, cache_manager, current_user):
-        super().__init__(parent, bg='white')
+        super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
 
@@ -24,31 +25,29 @@ class LabelsModule(tk.Frame):
     def create_widgets(self):
         """Create label printing widgets"""
         # Header
-        header = tk.Frame(self, bg='white')
+        header = ttk.Frame(self)
         header.pack(fill=tk.X, padx=20, pady=(0, 20))
 
-        tk.Label(header, text="Cask Label Printing",
-                font=('Arial', 16, 'bold'), bg='white',
-                fg='#2c3e50').pack(side=tk.LEFT)
+        ttk.Label(header, text="Cask Label Printing",
+                font=('Arial', 16, 'bold')).pack(side=tk.LEFT)
 
-        tk.Label(header, text="Professional PDF Labels",
-                font=('Arial', 9, 'italic'), bg='white',
-                fg='#7f8c8d').pack(side=tk.RIGHT)
+        ttk.Label(header, text="Professional PDF Labels",
+                font=('Arial', 9, 'italic')).pack(side=tk.RIGHT)
 
         # Content in center
-        content = tk.Frame(self, bg='white')
+        content = ttk.Frame(self)
         content.pack(expand=True)
 
         # Label configuration
-        config_frame = tk.Frame(content, bg='white', relief=tk.SOLID, borderwidth=1, padx=30, pady=30)
+        config_frame = ttk.Frame(content, relief=tk.SOLID, borderwidth=1, padding=(30, 30))
         config_frame.pack()
 
-        tk.Label(config_frame, text="Create Cask Labels",
-                font=('Arial', 14, 'bold'), bg='white').grid(row=0, column=0, columnspan=2, pady=(0,20))
+        ttk.Label(config_frame, text="Create Cask Labels",
+                font=('Arial', 14, 'bold')).grid(row=0, column=0, columnspan=2, pady=(0,20))
 
         # Batch selection
-        tk.Label(config_frame, text="Select Batch (Gyle) *",
-                font=('Arial', 10, 'bold'), bg='white').grid(row=1, column=0, sticky='w', pady=(0,5))
+        ttk.Label(config_frame, text="Select Batch (Gyle) *",
+                font=('Arial', 10, 'bold')).grid(row=1, column=0, sticky='w', pady=(0,5))
 
         self.batch_var = tk.StringVar()
         self.cache.connect()
@@ -63,45 +62,45 @@ class LabelsModule(tk.Frame):
         batch_combo.bind('<<ComboboxSelected>>', self.on_batch_selected)
 
         # Beer name (auto-filled)
-        tk.Label(config_frame, text="Beer Name",
-                font=('Arial', 10, 'bold'), bg='white').grid(row=3, column=0, sticky='w', pady=(0,5))
-        self.beer_label = tk.Label(config_frame, text="Select a batch",
-                                   font=('Arial', 10), bg='white', fg='#7f8c8d')
+        ttk.Label(config_frame, text="Beer Name",
+                font=('Arial', 10, 'bold')).grid(row=3, column=0, sticky='w', pady=(0,5))
+        self.beer_label = ttk.Label(config_frame, text="Select a batch",
+                                   font=('Arial', 10))
         self.beer_label.grid(row=4, column=0, columnspan=2, sticky='w', pady=(0,15))
 
         # ABV (auto-filled)
-        tk.Label(config_frame, text="ABV %",
-                font=('Arial', 10, 'bold'), bg='white').grid(row=5, column=0, sticky='w', pady=(0,5))
-        self.abv_label = tk.Label(config_frame, text="-",
-                                 font=('Arial', 10), bg='white')
+        ttk.Label(config_frame, text="ABV %",
+                font=('Arial', 10, 'bold')).grid(row=5, column=0, sticky='w', pady=(0,5))
+        self.abv_label = ttk.Label(config_frame, text="-",
+                                 font=('Arial', 10))
         self.abv_label.grid(row=6, column=0, sticky='w', pady=(0,15))
 
         # Container type
-        tk.Label(config_frame, text="Container Type *",
-                font=('Arial', 10, 'bold'), bg='white').grid(row=7, column=0, sticky='w', pady=(0,5))
+        ttk.Label(config_frame, text="Container Type *",
+                font=('Arial', 10, 'bold')).grid(row=7, column=0, sticky='w', pady=(0,5))
         self.container_var = tk.StringVar(value='firkin')
         ttk.Combobox(config_frame, textvariable=self.container_var,
                     values=['pin', 'firkin', 'kilderkin', '30l_keg', '50l_keg'],
                     width=20, state='readonly', font=('Arial', 10)).grid(row=8, column=0, sticky='w', pady=(0,15))
 
         # Quantity
-        tk.Label(config_frame, text="Number of Labels",
-                font=('Arial', 10, 'bold'), bg='white').grid(row=9, column=0, sticky='w', pady=(0,5))
+        ttk.Label(config_frame, text="Number of Labels",
+                font=('Arial', 10, 'bold')).grid(row=9, column=0, sticky='w', pady=(0,5))
         self.qty_spinbox = tk.Spinbox(config_frame, from_=1, to=50, width=10, font=('Arial', 10))
         self.qty_spinbox.delete(0, tk.END)
         self.qty_spinbox.insert(0, "1")
         self.qty_spinbox.grid(row=10, column=0, sticky='w', pady=(0,20))
 
         # Brewery name
-        tk.Label(config_frame, text="Brewery Name",
-                font=('Arial', 10, 'bold'), bg='white').grid(row=11, column=0, sticky='w', pady=(0,5))
-        self.brewery_entry = tk.Entry(config_frame, font=('Arial', 10), width=30)
+        ttk.Label(config_frame, text="Brewery Name",
+                font=('Arial', 10, 'bold')).grid(row=11, column=0, sticky='w', pady=(0,5))
+        self.brewery_entry = ttk.Entry(config_frame, font=('Arial', 10), width=30)
         self.brewery_entry.insert(0, "Your Brewery Name")
         self.brewery_entry.grid(row=12, column=0, columnspan=2, sticky='ew', pady=(0,15))
 
         # Brewery address
-        tk.Label(config_frame, text="Brewery Address",
-                font=('Arial', 10, 'bold'), bg='white').grid(row=13, column=0, sticky='w', pady=(0,5))
+        ttk.Label(config_frame, text="Brewery Address",
+                font=('Arial', 10, 'bold')).grid(row=13, column=0, sticky='w', pady=(0,5))
         self.address_text = tk.Text(config_frame, font=('Arial', 9), width=35, height=3)
         self.address_text.insert('1.0', "123 Brewery Lane\nAnytown, AB1 2CD\nUnited Kingdom")
         self.address_text.grid(row=14, column=0, columnspan=2, sticky='ew', pady=(0,20))
@@ -109,10 +108,9 @@ class LabelsModule(tk.Frame):
         config_frame.grid_columnconfigure(0, weight=1)
 
         # Generate button
-        tk.Button(config_frame, text="📄 Generate PDF Labels",
-                 font=('Arial', 11, 'bold'), bg='#4CAF50', fg='white',
-                 cursor='hand2', command=self.generate_labels,
-                 padx=30, pady=12).grid(row=15, column=0, columnspan=2, pady=(10,0))
+        ttk.Button(config_frame, text="📄 Generate PDF Labels",
+                 bootstyle="success",
+                 cursor='hand2', command=self.generate_labels).grid(row=15, column=0, columnspan=2, pady=(10,0))
 
     def on_batch_selected(self, event=None):
         """Auto-fill beer details when batch selected"""
@@ -127,7 +125,7 @@ class LabelsModule(tk.Frame):
                 recipes = self.cache.get_all_records('recipes', f"recipe_id = '{recipe_id}'")
                 self.cache.close()
                 if recipes:
-                    self.beer_label.config(text=recipes[0]['recipe_name'], fg='#2c3e50')
+                    self.beer_label.config(text=recipes[0]['recipe_name'])
 
             # Get ABV
             abv = batch.get('measured_abv', 0)
@@ -256,24 +254,24 @@ class LabelPreviewDialog(tk.Toplevel):
         self.transient(parent)
         self.grab_set()
 
-        frame = tk.Frame(self, bg='white', relief=tk.SOLID, borderwidth=2, padx=20, pady=20)
+        frame = ttk.Frame(self, relief=tk.SOLID, borderwidth=2, padding=(20, 20))
         frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
-        tk.Label(frame, text="Your Brewery Name",
-                font=('Arial', 16, 'bold'), bg='white').pack(pady=(0,10))
+        ttk.Label(frame, text="Your Brewery Name",
+                font=('Arial', 16, 'bold')).pack(pady=(0,10))
 
-        tk.Label(frame, text=beer_name,
-                font=('Arial', 24, 'bold'), bg='white').pack(pady=(10,10))
+        ttk.Label(frame, text=beer_name,
+                font=('Arial', 24, 'bold')).pack(pady=(10,10))
 
-        tk.Label(frame, text=f"ABV: {abv:.1f}%",
-                font=('Arial', 18, 'bold'), bg='white').pack(pady=(0,10))
+        ttk.Label(frame, text=f"ABV: {abv:.1f}%",
+                font=('Arial', 18, 'bold')).pack(pady=(0,10))
 
-        tk.Label(frame, text=f"{container.replace('_', ' ').title()} | {gyle}",
-                font=('Arial', 11), bg='white').pack(pady=(0,10))
+        ttk.Label(frame, text=f"{container.replace('_', ' ').title()} | {gyle}",
+                font=('Arial', 11)).pack(pady=(0,10))
 
-        tk.Label(frame, text="123 Brewery Lane\nAnytown, AB1 2CD",
-                font=('Arial', 9), bg='white', fg='#666').pack(pady=(10,0))
+        ttk.Label(frame, text="123 Brewery Lane\nAnytown, AB1 2CD",
+                font=('Arial', 9)).pack(pady=(10,0))
 
-        tk.Button(self, text="Close Preview", font=('Arial', 10),
-                 bg='#607D8B', fg='white', command=self.destroy,
-                 padx=20, pady=8).pack(pady=(0,20))
+        ttk.Button(self, text="Close Preview",
+                 bootstyle="secondary",
+                 command=self.destroy).pack(pady=(0,20))

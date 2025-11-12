@@ -4,14 +4,15 @@ Manages beer recipes with ingredients and scaling
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
+from tkinter import messagebox, simpledialog
+import ttkbootstrap as ttk
 import uuid
 from datetime import datetime
 from typing import Optional
 from ..utilities.date_utils import format_date_for_display, format_datetime_for_display, get_today_db, get_now_db
 
 
-class RecipesModule(tk.Frame):
+class RecipesModule(ttk.Frame):
     """Recipes module for creating and managing beer recipes"""
 
     def __init__(self, parent, cache_manager, current_user):
@@ -23,7 +24,7 @@ class RecipesModule(tk.Frame):
             cache_manager: SQLiteCacheManager instance
             current_user: Current logged-in user
         """
-        super().__init__(parent, bg='white')
+        super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
 
@@ -34,53 +35,42 @@ class RecipesModule(tk.Frame):
     def create_widgets(self):
         """Create all recipe widgets"""
         # Toolbar
-        toolbar = tk.Frame(self, bg='white')
+        toolbar = ttk.Frame(self)
         toolbar.pack(fill=tk.X, padx=20, pady=(0, 10))
 
         # Add Recipe button
-        add_btn = tk.Button(
+        add_btn = ttk.Button(
             toolbar,
-            text="➕ New Recipe",
-            font=('Arial', 10, 'bold'),
-            bg='#4CAF50',
-            fg='white',
-            cursor='hand2',
-            command=self.add_recipe,
-            padx=15,
-            pady=8
+            text="+ New Recipe",
+            bootstyle="success",
+            command=self.add_recipe
         )
         add_btn.pack(side=tk.LEFT, padx=(0, 10))
 
         # Refresh button
-        refresh_btn = tk.Button(
+        refresh_btn = ttk.Button(
             toolbar,
-            text="🔄 Refresh",
-            font=('Arial', 10),
-            bg='#607D8B',
-            fg='white',
-            cursor='hand2',
-            command=self.load_recipes,
-            padx=15,
-            pady=8
+            text="Refresh",
+            bootstyle="secondary",
+            command=self.load_recipes
         )
         refresh_btn.pack(side=tk.LEFT)
 
         # Search box
-        search_frame = tk.Frame(toolbar, bg='white')
+        search_frame = ttk.Frame(toolbar)
         search_frame.pack(side=tk.RIGHT)
 
-        search_label = tk.Label(
+        search_label = ttk.Label(
             search_frame,
             text="Search:",
-            font=('Arial', 10),
-            bg='white'
+            font=('Arial', 10)
         )
         search_label.pack(side=tk.LEFT, padx=(0, 5))
 
         self.search_var = tk.StringVar()
         self.search_var.trace('w', lambda *args: self.load_recipes())
 
-        search_entry = tk.Entry(
+        search_entry = ttk.Entry(
             search_frame,
             textvariable=self.search_var,
             font=('Arial', 10),
@@ -89,18 +79,18 @@ class RecipesModule(tk.Frame):
         search_entry.pack(side=tk.LEFT)
 
         # Container for list and info panel
-        content_container = tk.Frame(self, bg='white')
+        content_container = ttk.Frame(self)
         content_container.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
 
         # Recipes list (top half)
-        list_frame = tk.Frame(content_container, bg='white', relief=tk.SOLID, borderwidth=1)
+        list_frame = ttk.Frame(content_container)
         list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
         # Scrollbars
-        vsb = tk.Scrollbar(list_frame, orient="vertical")
+        vsb = ttk.Scrollbar(list_frame, orient="vertical")
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
 
-        hsb = tk.Scrollbar(list_frame, orient="horizontal")
+        hsb = ttk.Scrollbar(list_frame, orient="horizontal")
         hsb.pack(side=tk.BOTTOM, fill=tk.X)
 
         # Treeview
@@ -148,26 +138,23 @@ class RecipesModule(tk.Frame):
         self.recipes_tree.bind('<<TreeviewSelect>>', self.on_recipe_select)
 
         # Recipe info panel (bottom half)
-        info_frame = tk.Frame(content_container, bg='white', relief=tk.SOLID, borderwidth=1)
+        info_frame = ttk.Frame(content_container)
         info_frame.pack(fill=tk.BOTH, expand=True)
 
         # Info panel header
-        info_header = tk.Frame(info_frame, bg='#2196F3', height=35)
+        info_header = ttk.Frame(info_frame)
         info_header.pack(fill=tk.X)
-        info_header.pack_propagate(False)
 
-        tk.Label(
+        ttk.Label(
             info_header,
             text="Recipe Information",
-            font=('Arial', 11, 'bold'),
-            bg='#2196F3',
-            fg='white'
+            font=('Arial', 11, 'bold')
         ).pack(side=tk.LEFT, padx=10, pady=5)
 
         # Scrollable info content
-        info_canvas = tk.Canvas(info_frame, bg='white')
-        info_scrollbar = tk.Scrollbar(info_frame, orient="vertical", command=info_canvas.yview)
-        self.info_content = tk.Frame(info_canvas, bg='white')
+        info_canvas = tk.Canvas(info_frame, highlightthickness=0)
+        info_scrollbar = ttk.Scrollbar(info_frame, orient="vertical", command=info_canvas.yview)
+        self.info_content = ttk.Frame(info_canvas)
 
         self.info_content.bind(
             "<Configure>",
@@ -285,12 +272,10 @@ class RecipesModule(tk.Frame):
         for widget in self.info_content.winfo_children():
             widget.destroy()
 
-        tk.Label(
+        ttk.Label(
             self.info_content,
             text="Select a recipe to view its details",
-            font=('Arial', 11, 'italic'),
-            fg='#999',
-            bg='white'
+            font=('Arial', 11, 'italic')
         ).pack(padx=20, pady=40)
 
     def update_recipe_info(self, recipe, ingredients):
@@ -299,19 +284,18 @@ class RecipesModule(tk.Frame):
         for widget in self.info_content.winfo_children():
             widget.destroy()
 
-        content = tk.Frame(self.info_content, bg='white', padx=20, pady=15)
-        content.pack(fill=tk.BOTH, expand=True)
+        content = ttk.Frame(self.info_content)
+        content.pack(fill=tk.BOTH, expand=True, padx=20, pady=15)
 
         # Recipe name
-        tk.Label(
+        ttk.Label(
             content,
             text=recipe.get('recipe_name', 'Unknown'),
-            font=('Arial', 14, 'bold'),
-            bg='white'
+            font=('Arial', 14, 'bold')
         ).pack(anchor='w', pady=(0, 10))
 
         # Recipe details in a grid
-        details_frame = tk.Frame(content, bg='white')
+        details_frame = ttk.Frame(content)
         details_frame.pack(fill=tk.X, pady=(0, 10))
 
         info_items = [
@@ -328,83 +312,70 @@ class RecipesModule(tk.Frame):
             row = i // 2
             col = (i % 2) * 2
 
-            tk.Label(
+            ttk.Label(
                 details_frame,
                 text=label,
-                font=('Arial', 9, 'bold'),
-                bg='white',
-                fg='#555'
+                font=('Arial', 9, 'bold')
             ).grid(row=row, column=col, sticky='w', padx=(0, 5), pady=2)
 
-            tk.Label(
+            ttk.Label(
                 details_frame,
                 text=value,
-                font=('Arial', 9),
-                bg='white'
+                font=('Arial', 9)
             ).grid(row=row, column=col+1, sticky='w', padx=(0, 20), pady=2)
 
         # Brewing Notes
         if recipe.get('brewing_notes'):
-            tk.Label(
+            ttk.Label(
                 content,
                 text="Brewing Notes:",
-                font=('Arial', 10, 'bold'),
-                bg='white'
+                font=('Arial', 10, 'bold')
             ).pack(anchor='w', pady=(10, 5))
 
-            notes_frame = tk.Frame(content, bg='#f5f5f5', relief=tk.SOLID, borderwidth=1)
+            notes_frame = ttk.Frame(content)
             notes_frame.pack(fill=tk.X, pady=(0, 10))
 
-            tk.Label(
+            ttk.Label(
                 notes_frame,
                 text=recipe.get('brewing_notes', ''),
                 font=('Arial', 9),
-                bg='#f5f5f5',
                 justify=tk.LEFT,
                 wraplength=500
             ).pack(padx=10, pady=8, anchor='w')
 
         # Ingredients
-        tk.Label(
+        ttk.Label(
             content,
             text="Ingredients:",
-            font=('Arial', 10, 'bold'),
-            bg='white'
+            font=('Arial', 10, 'bold')
         ).pack(anchor='w', pady=(10, 5))
 
         if ingredients:
             for ing in ingredients:
-                ing_frame = tk.Frame(content, bg='#e3f2fd', relief=tk.FLAT, borderwidth=1)
+                ing_frame = ttk.Frame(content)
                 ing_frame.pack(fill=tk.X, pady=2)
 
                 ing_text = f"{ing.get('ingredient_name', 'Unknown')} - {ing.get('quantity', 0)} {ing.get('unit', '')} ({ing.get('ingredient_type', 'N/A')})"
                 if ing.get('timing'):
                     ing_text += f" - {ing.get('timing')}"
 
-                tk.Label(
+                ttk.Label(
                     ing_frame,
                     text=ing_text,
-                    font=('Arial', 9),
-                    bg='#e3f2fd',
-                    anchor='w'
+                    font=('Arial', 9)
                 ).pack(padx=8, pady=4, fill=tk.X)
 
                 if ing.get('notes'):
-                    tk.Label(
+                    ttk.Label(
                         ing_frame,
                         text=f"  Note: {ing.get('notes')}",
-                        font=('Arial', 8, 'italic'),
-                        bg='#e3f2fd',
-                        fg='#555',
-                        anchor='w'
+                        font=('Arial', 8, 'italic')
                     ).pack(padx=16, pady=(0, 4), fill=tk.X)
         else:
-            tk.Label(
+            ttk.Label(
                 content,
                 text="No ingredients added yet.",
-                font=('Arial', 9, 'italic'),
-                bg='white',
-                fg='#999'
+                font=('Arial', 9, 'italic')
             ).pack(anchor='w')
 
     def add_recipe(self):
@@ -555,12 +526,12 @@ class RecipeDialog(tk.Toplevel):
     def create_widgets(self):
         """Create dialog widgets"""
         # Create button frame first (pack at bottom)
-        button_frame = tk.Frame(self, bg='white', pady=10)
+        button_frame = ttk.Frame(self)
         button_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=20, pady=(0, 20))
 
         # Create canvas with scrollbar for content
-        canvas = tk.Canvas(self, bg='white', highlightthickness=0)
-        scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        canvas = tk.Canvas(self, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
         canvas.configure(yscrollcommand=scrollbar.set)
 
         # Pack scrollbar and canvas
@@ -568,7 +539,7 @@ class RecipeDialog(tk.Toplevel):
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # Create frame inside canvas for all content
-        main_frame = tk.Frame(canvas, bg='white', padx=20, pady=20)
+        main_frame = ttk.Frame(canvas)
         canvas_window = canvas.create_window((0, 0), window=main_frame, anchor='nw')
 
         # Configure canvas scrolling
@@ -588,70 +559,63 @@ class RecipeDialog(tk.Toplevel):
         canvas.bind_all("<MouseWheel>", on_mousewheel)
 
         # Recipe Name
-        tk.Label(main_frame, text="Recipe Name *", font=('Arial', 10, 'bold'), bg='white').grid(row=0, column=0, sticky='w', pady=(0, 5))
-        self.name_entry = tk.Entry(main_frame, font=('Arial', 10), width=40)
-        self.name_entry.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        ttk.Label(main_frame, text="Recipe Name *", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0, 5), padx=20)
+        self.name_entry = ttk.Entry(main_frame, font=('Arial', 10), width=40)
+        self.name_entry.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=20)
 
         # Style
-        tk.Label(main_frame, text="Style *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=0, sticky='w', pady=(0, 5))
-        self.style_entry = tk.Entry(main_frame, font=('Arial', 10), width=40)
-        self.style_entry.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        ttk.Label(main_frame, text="Style *", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky='w', pady=(0, 5), padx=20)
+        self.style_entry = ttk.Entry(main_frame, font=('Arial', 10), width=40)
+        self.style_entry.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=20)
 
         # Target ABV
-        tk.Label(main_frame, text="Target ABV % *", font=('Arial', 10, 'bold'), bg='white').grid(row=4, column=0, sticky='w', pady=(0, 5))
-        self.abv_entry = tk.Entry(main_frame, font=('Arial', 10), width=15)
-        self.abv_entry.grid(row=5, column=0, sticky='w', pady=(0, 15))
+        ttk.Label(main_frame, text="Target ABV % *", font=('Arial', 10, 'bold')).grid(row=4, column=0, sticky='w', pady=(0, 5), padx=20)
+        self.abv_entry = ttk.Entry(main_frame, font=('Arial', 10), width=15)
+        self.abv_entry.grid(row=5, column=0, sticky='w', pady=(0, 15), padx=20)
 
         # Target Batch Size
-        tk.Label(main_frame, text="Target Batch Size (Litres) *", font=('Arial', 10, 'bold'), bg='white').grid(row=4, column=1, sticky='w', pady=(0, 5), padx=(20, 0))
-        self.batch_size_entry = tk.Entry(main_frame, font=('Arial', 10), width=15)
+        ttk.Label(main_frame, text="Target Batch Size (Litres) *", font=('Arial', 10, 'bold')).grid(row=4, column=1, sticky='w', pady=(0, 5), padx=(20, 0))
+        self.batch_size_entry = ttk.Entry(main_frame, font=('Arial', 10), width=15)
         self.batch_size_entry.grid(row=5, column=1, sticky='w', pady=(0, 15), padx=(20, 0))
 
         # Version
-        tk.Label(main_frame, text="Version", font=('Arial', 10, 'bold'), bg='white').grid(row=6, column=0, sticky='w', pady=(0, 5))
-        self.version_entry = tk.Entry(main_frame, font=('Arial', 10), width=15)
+        ttk.Label(main_frame, text="Version", font=('Arial', 10, 'bold')).grid(row=6, column=0, sticky='w', pady=(0, 5), padx=20)
+        self.version_entry = ttk.Entry(main_frame, font=('Arial', 10), width=15)
         self.version_entry.insert(0, "1")
-        self.version_entry.grid(row=7, column=0, sticky='w', pady=(0, 15))
+        self.version_entry.grid(row=7, column=0, sticky='w', pady=(0, 15), padx=20)
 
         # Active checkbox
         self.active_var = tk.IntVar(value=1)
-        active_check = tk.Checkbutton(
+        active_check = ttk.Checkbutton(
             main_frame,
             text="Active Recipe",
-            variable=self.active_var,
-            font=('Arial', 10),
-            bg='white'
+            variable=self.active_var
         )
         active_check.grid(row=7, column=1, sticky='w', pady=(0, 15), padx=(20, 0))
 
         # Brewing Notes
-        tk.Label(main_frame, text="Brewing Notes", font=('Arial', 10, 'bold'), bg='white').grid(row=8, column=0, sticky='w', pady=(0, 5))
+        ttk.Label(main_frame, text="Brewing Notes", font=('Arial', 10, 'bold')).grid(row=8, column=0, sticky='w', pady=(0, 5), padx=20)
         self.notes_text = tk.Text(main_frame, font=('Arial', 10), width=40, height=4)
-        self.notes_text.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        self.notes_text.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=20)
 
         # Ingredients Section
-        tk.Label(main_frame, text="Ingredients", font=('Arial', 11, 'bold'), bg='white').grid(row=10, column=0, columnspan=2, sticky='w', pady=(10, 5))
+        ttk.Label(main_frame, text="Ingredients", font=('Arial', 11, 'bold')).grid(row=10, column=0, columnspan=2, sticky='w', pady=(10, 5), padx=20)
 
         # Add ingredient button
-        add_ing_btn = tk.Button(
+        add_ing_btn = ttk.Button(
             main_frame,
             text="+ Add Ingredient",
-            font=('Arial', 9),
-            bg='#4CAF50',
-            fg='white',
-            cursor='hand2',
-            command=self.add_ingredient,
-            padx=10,
-            pady=5
+            bootstyle="success",
+            command=self.add_ingredient
         )
-        add_ing_btn.grid(row=11, column=0, sticky='w', pady=(0, 5))
+        add_ing_btn.grid(row=11, column=0, sticky='w', pady=(0, 5), padx=20)
 
         # Ingredients list frame
-        ing_frame = tk.Frame(main_frame, bg='white', relief=tk.SOLID, borderwidth=1)
-        ing_frame.grid(row=12, column=0, columnspan=2, sticky='ew', pady=(0, 15))
+        ing_frame = ttk.Frame(main_frame)
+        ing_frame.grid(row=12, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=20)
 
         # Scrollbar for ingredients
-        ing_scroll = tk.Scrollbar(ing_frame, orient="vertical")
+        ing_scroll = ttk.Scrollbar(ing_frame, orient="vertical")
         ing_scroll.pack(side=tk.RIGHT, fill=tk.Y)
 
         # Ingredients listbox
@@ -665,32 +629,22 @@ class RecipeDialog(tk.Toplevel):
         ing_scroll.config(command=self.ingredients_listbox.yview)
 
         # Ingredient action buttons
-        ing_btn_frame = tk.Frame(main_frame, bg='white')
-        ing_btn_frame.grid(row=13, column=0, columnspan=2, sticky='w', pady=(0, 15))
+        ing_btn_frame = ttk.Frame(main_frame)
+        ing_btn_frame.grid(row=13, column=0, columnspan=2, sticky='w', pady=(0, 15), padx=20)
 
-        edit_ing_btn = tk.Button(
+        edit_ing_btn = ttk.Button(
             ing_btn_frame,
             text="Edit Selected",
-            font=('Arial', 9),
-            bg='#2196F3',
-            fg='white',
-            cursor='hand2',
-            command=self.edit_ingredient,
-            padx=10,
-            pady=5
+            bootstyle="primary",
+            command=self.edit_ingredient
         )
         edit_ing_btn.pack(side=tk.LEFT, padx=(0, 5))
 
-        delete_ing_btn = tk.Button(
+        delete_ing_btn = ttk.Button(
             ing_btn_frame,
             text="Delete Selected",
-            font=('Arial', 9),
-            bg='#f44336',
-            fg='white',
-            cursor='hand2',
-            command=self.delete_ingredient,
-            padx=10,
-            pady=5
+            bootstyle="danger",
+            command=self.delete_ingredient
         )
         delete_ing_btn.pack(side=tk.LEFT)
 
@@ -699,29 +653,19 @@ class RecipeDialog(tk.Toplevel):
         main_frame.grid_columnconfigure(1, weight=1)
 
         # Add buttons to the button_frame created at the top
-        cancel_btn = tk.Button(
+        cancel_btn = ttk.Button(
             button_frame,
             text="Cancel",
-            font=('Arial', 10),
-            bg='#757575',
-            fg='white',
-            cursor='hand2',
-            command=self.destroy,
-            padx=20,
-            pady=8
+            bootstyle="secondary",
+            command=self.destroy
         )
         cancel_btn.pack(side=tk.RIGHT, padx=(10, 0))
 
-        save_btn = tk.Button(
+        save_btn = ttk.Button(
             button_frame,
             text="Save Recipe",
-            font=('Arial', 10, 'bold'),
-            bg='#4CAF50',
-            fg='white',
-            cursor='hand2',
-            command=self.save_recipe,
-            padx=20,
-            pady=8
+            bootstyle="success",
+            command=self.save_recipe
         )
         save_btn.pack(side=tk.RIGHT)
 
@@ -952,9 +896,9 @@ class RecipeDetailsDialog(tk.Toplevel):
     def create_widgets(self):
         """Create dialog widgets"""
         # Main container with scrollbar
-        canvas = tk.Canvas(self, bg='white')
-        scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg='white')
+        canvas = tk.Canvas(self, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
 
         scrollable_frame.bind(
             "<Configure>",
@@ -965,15 +909,14 @@ class RecipeDetailsDialog(tk.Toplevel):
         canvas.configure(yscrollcommand=scrollbar.set)
 
         # Content
-        content = tk.Frame(scrollable_frame, bg='white', padx=30, pady=20)
-        content.pack(fill=tk.BOTH, expand=True)
+        content = ttk.Frame(scrollable_frame)
+        content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
 
         # Recipe info
-        tk.Label(
+        ttk.Label(
             content,
             text=self.recipe.get('recipe_name', 'Unknown'),
-            font=('Arial', 18, 'bold'),
-            bg='white'
+            font=('Arial', 18, 'bold')
         ).pack(anchor='w', pady=(0, 10))
 
         info_text = f"""
@@ -987,76 +930,65 @@ Created: {self.recipe.get('created_date', 'N/A')} by {self.recipe.get('created_b
 Last Modified: {self.recipe.get('last_modified', 'N/A')}
         """
 
-        tk.Label(
+        ttk.Label(
             content,
             text=info_text.strip(),
             font=('Arial', 10),
-            bg='white',
             justify=tk.LEFT
         ).pack(anchor='w', pady=(0, 20))
 
         # Brewing Notes
         if self.recipe.get('brewing_notes'):
-            tk.Label(
+            ttk.Label(
                 content,
                 text="Brewing Notes:",
-                font=('Arial', 11, 'bold'),
-                bg='white'
+                font=('Arial', 11, 'bold')
             ).pack(anchor='w', pady=(0, 5))
 
-            notes_frame = tk.Frame(content, bg='#f5f5f5', relief=tk.SOLID, borderwidth=1)
+            notes_frame = ttk.Frame(content)
             notes_frame.pack(fill=tk.X, pady=(0, 20))
 
-            tk.Label(
+            ttk.Label(
                 notes_frame,
                 text=self.recipe.get('brewing_notes', ''),
                 font=('Arial', 10),
-                bg='#f5f5f5',
                 justify=tk.LEFT,
                 wraplength=600
             ).pack(padx=10, pady=10, anchor='w')
 
         # Ingredients
-        tk.Label(
+        ttk.Label(
             content,
             text="Ingredients:",
-            font=('Arial', 11, 'bold'),
-            bg='white'
+            font=('Arial', 11, 'bold')
         ).pack(anchor='w', pady=(0, 10))
 
         if self.ingredients:
             for ing in self.ingredients:
-                ing_frame = tk.Frame(content, bg='#e3f2fd', relief=tk.FLAT)
+                ing_frame = ttk.Frame(content)
                 ing_frame.pack(fill=tk.X, pady=2)
 
                 ing_text = f"{ing.get('ingredient_name', 'Unknown')} - {ing.get('quantity', 0)} {ing.get('unit', '')} ({ing.get('ingredient_type', 'N/A')})"
                 if ing.get('timing'):
                     ing_text += f" - {ing.get('timing')}"
 
-                tk.Label(
+                ttk.Label(
                     ing_frame,
                     text=ing_text,
-                    font=('Arial', 10),
-                    bg='#e3f2fd',
-                    anchor='w'
+                    font=('Arial', 10)
                 ).pack(padx=10, pady=5, fill=tk.X)
 
                 if ing.get('notes'):
-                    tk.Label(
+                    ttk.Label(
                         ing_frame,
                         text=f"  Note: {ing.get('notes')}",
-                        font=('Arial', 9, 'italic'),
-                        bg='#e3f2fd',
-                        fg='#555',
-                        anchor='w'
+                        font=('Arial', 9, 'italic')
                     ).pack(padx=20, pady=(0, 5), fill=tk.X)
         else:
-            tk.Label(
+            ttk.Label(
                 content,
                 text="No ingredients added yet.",
-                font=('Arial', 10, 'italic'),
-                bg='white',
-                fg='#999'
+                font=('Arial', 10, 'italic')
             ).pack(anchor='w')
 
         # Pack canvas and scrollbar
@@ -1064,19 +996,14 @@ Last Modified: {self.recipe.get('last_modified', 'N/A')}
         scrollbar.pack(side="right", fill="y")
 
         # Close button
-        button_frame = tk.Frame(self, bg='white', pady=10)
-        button_frame.pack(fill=tk.X, padx=20)
+        button_frame = ttk.Frame(self)
+        button_frame.pack(fill=tk.X, padx=20, pady=10)
 
-        close_btn = tk.Button(
+        close_btn = ttk.Button(
             button_frame,
             text="Close",
-            font=('Arial', 10),
-            bg='#607D8B',
-            fg='white',
-            cursor='hand2',
-            command=self.destroy,
-            padx=20,
-            pady=8
+            bootstyle="secondary",
+            command=self.destroy
         )
         close_btn.pack(side=tk.RIGHT)
 
@@ -1106,41 +1033,33 @@ class IngredientDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
-        main_frame = tk.Frame(self, bg='white', padx=20, pady=20)
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame = ttk.Frame(self)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
         # Type buttons (instead of dropdown)
-        tk.Label(main_frame, text="Type *", font=('Arial', 10, 'bold'), bg='white').grid(row=0, column=0, columnspan=2, sticky='w', pady=(0, 5))
+        ttk.Label(main_frame, text="Type *", font=('Arial', 10, 'bold')).grid(row=0, column=0, columnspan=2, sticky='w', pady=(0, 5))
 
         self.type_var = tk.StringVar(value='Malt')
-        type_button_frame = tk.Frame(main_frame, bg='white')
+        type_button_frame = ttk.Frame(main_frame)
         type_button_frame.grid(row=1, column=0, columnspan=2, sticky='w', pady=(0, 15))
 
         # Create type buttons
         self.type_buttons = {}
         types = ['Malt', 'Hops', 'Yeast', 'Adjunct', 'Other']
         for i, type_name in enumerate(types):
-            btn = tk.Button(
+            btn = ttk.Button(
                 type_button_frame,
                 text=type_name,
-                font=('Arial', 9, 'bold'),
-                bg='#E0E0E0',
-                fg='#424242',
-                activebackground='#BDBDBD',
-                cursor='hand2',
-                command=lambda t=type_name: self.select_type(t),
-                padx=12,
-                pady=6,
-                relief=tk.RAISED,
-                borderwidth=2
+                bootstyle="secondary-outline",
+                command=lambda t=type_name: self.select_type(t)
             )
             btn.pack(side=tk.LEFT, padx=(0, 5) if i < len(types) - 1 else 0)
             self.type_buttons[type_name] = btn
 
         # Ingredient Name (autocomplete from inventory)
-        tk.Label(main_frame, text="Ingredient Name *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=0, sticky='w', pady=(0, 5))
+        ttk.Label(main_frame, text="Ingredient Name *", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky='w', pady=(0, 5))
 
-        name_frame = tk.Frame(main_frame, bg='white')
+        name_frame = ttk.Frame(main_frame)
         name_frame.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0, 5))
 
         self.name_var = tk.StringVar()
@@ -1156,22 +1075,20 @@ class IngredientDialog(tk.Toplevel):
         self.name_combo.bind('<KeyRelease>', self.on_name_keyrelease)
 
         # Info label
-        self.inventory_info_label = tk.Label(
+        self.inventory_info_label = ttk.Label(
             main_frame,
             text="Select from inventory or type new name",
-            font=('Arial', 8, 'italic'),
-            bg='white',
-            fg='#666'
+            font=('Arial', 8, 'italic')
         )
         self.inventory_info_label.grid(row=4, column=0, columnspan=2, sticky='w', pady=(0, 15))
 
         # Quantity
-        tk.Label(main_frame, text="Quantity *", font=('Arial', 10, 'bold'), bg='white').grid(row=5, column=0, sticky='w', pady=(0, 5))
-        self.quantity_entry = tk.Entry(main_frame, font=('Arial', 10), width=15)
+        ttk.Label(main_frame, text="Quantity *", font=('Arial', 10, 'bold')).grid(row=5, column=0, sticky='w', pady=(0, 5))
+        self.quantity_entry = ttk.Entry(main_frame, font=('Arial', 10), width=15)
         self.quantity_entry.grid(row=6, column=0, sticky='w', pady=(0, 15))
 
         # Unit
-        tk.Label(main_frame, text="Unit *", font=('Arial', 10, 'bold'), bg='white').grid(row=5, column=1, sticky='w', pady=(0, 5), padx=(20, 0))
+        ttk.Label(main_frame, text="Unit *", font=('Arial', 10, 'bold')).grid(row=5, column=1, sticky='w', pady=(0, 5), padx=(20, 0))
         self.unit_var = tk.StringVar(value='kg')
         unit_combo = ttk.Combobox(
             main_frame,
@@ -1184,7 +1101,7 @@ class IngredientDialog(tk.Toplevel):
         unit_combo.grid(row=6, column=1, sticky='w', pady=(0, 15), padx=(20, 0))
 
         # Timing
-        tk.Label(main_frame, text="Timing", font=('Arial', 10, 'bold'), bg='white').grid(row=7, column=0, sticky='w', pady=(0, 5))
+        ttk.Label(main_frame, text="Timing", font=('Arial', 10, 'bold')).grid(row=7, column=0, sticky='w', pady=(0, 5))
         self.timing_var = tk.StringVar()
         timing_combo = ttk.Combobox(
             main_frame,
@@ -1196,7 +1113,7 @@ class IngredientDialog(tk.Toplevel):
         timing_combo.grid(row=8, column=0, sticky='w', pady=(0, 15))
 
         # Notes
-        tk.Label(main_frame, text="Notes", font=('Arial', 10, 'bold'), bg='white').grid(row=9, column=0, sticky='w', pady=(0, 5))
+        ttk.Label(main_frame, text="Notes", font=('Arial', 10, 'bold')).grid(row=9, column=0, sticky='w', pady=(0, 5))
         self.notes_text = tk.Text(main_frame, font=('Arial', 10), width=40, height=4)
         self.notes_text.grid(row=10, column=0, columnspan=2, sticky='ew', pady=(0, 15))
 
@@ -1205,32 +1122,22 @@ class IngredientDialog(tk.Toplevel):
         main_frame.grid_columnconfigure(1, weight=1)
 
         # Buttons
-        button_frame = tk.Frame(self, bg='white', pady=10)
+        button_frame = ttk.Frame(self)
         button_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
 
-        cancel_btn = tk.Button(
+        cancel_btn = ttk.Button(
             button_frame,
             text="Cancel",
-            font=('Arial', 10),
-            bg='#757575',
-            fg='white',
-            cursor='hand2',
-            command=self.destroy,
-            padx=20,
-            pady=8
+            bootstyle="secondary",
+            command=self.destroy
         )
         cancel_btn.pack(side=tk.RIGHT, padx=(10, 0))
 
-        save_btn = tk.Button(
+        save_btn = ttk.Button(
             button_frame,
             text="Save",
-            font=('Arial', 10, 'bold'),
-            bg='#4CAF50',
-            fg='white',
-            cursor='hand2',
-            command=self.save_ingredient,
-            padx=20,
-            pady=8
+            bootstyle="success",
+            command=self.save_ingredient
         )
         save_btn.pack(side=tk.RIGHT)
 
@@ -1279,21 +1186,11 @@ class IngredientDialog(tk.Toplevel):
         # Update button appearance - highlight selected, unhighlight others
         for btn_type, btn in self.type_buttons.items():
             if btn_type == type_name:
-                # Selected button - green/highlighted
-                btn.config(
-                    bg='#4CAF50',
-                    fg='white',
-                    relief=tk.SUNKEN,
-                    borderwidth=3
-                )
+                # Selected button - use success style
+                btn.configure(bootstyle="success")
             else:
-                # Unselected button - grey
-                btn.config(
-                    bg='#E0E0E0',
-                    fg='#424242',
-                    relief=tk.RAISED,
-                    borderwidth=2
-                )
+                # Unselected button - use outline style
+                btn.configure(bootstyle="secondary-outline")
 
         # Update the inventory items shown
         self.on_type_change()
@@ -1334,13 +1231,11 @@ class IngredientDialog(tk.Toplevel):
         # Update info label
         if items:
             self.inventory_info_label.config(
-                text=f"Found {len(items)} {selected_type} items in inventory - select or type new",
-                fg='#2196F3'
+                text=f"Found {len(items)} {selected_type} items in inventory - select or type new"
             )
         else:
             self.inventory_info_label.config(
-                text=f"No {selected_type} items in inventory - type new name",
-                fg='#ff9800'
+                text=f"No {selected_type} items in inventory - type new name"
             )
 
     def populate_fields(self):
