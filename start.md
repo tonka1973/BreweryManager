@@ -74,7 +74,6 @@ git fetch origin
 git checkout master
 git reset --hard origin/master
 git merge origin/claude/<MOST-RECENT-BRANCH-NAME> --no-edit
-git push origin master
 ```
 
 **Replace:**
@@ -83,8 +82,8 @@ git push origin master
 
 **What this does:**
 - Resets local master to match origin/master (discards any old unpushed work)
-- Merges the most recent claude branch into master
-- **Pushes master to origin** - this keeps origin/master up-to-date and prevents conflicts
+- Merges the most recent claude branch into local master
+- **Note:** Master will be pushed at END of session after testing/verification
 
 Tell them: "Let me know when you've run these commands!"
 
@@ -111,7 +110,10 @@ git log --oneline -3
 
 ## STEP 8: Create Session Log
 
-Create a file named `SESSION_LOG_YYYY-MM-DD.md` with this content:
+Create a file named `SESSION_LOG_YYYY-MM-DD_<session-id>.md` with this content:
+
+**Example filename:** `SESSION_LOG_2025-11-12_011CV4EhkjMSEy84V3cXvgQp.md`
+(Use the session ID from the current branch name)
 
 ```markdown
 # Session Log - [Today's Date]
@@ -138,6 +140,8 @@ Create a file named `SESSION_LOG_YYYY-MM-DD.md` with this content:
 ---
 *Session started: [timestamp]*
 ```
+
+**Note:** Including the session ID in the filename prevents overwriting if multiple sessions happen on the same day.
 
 ---
 

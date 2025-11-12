@@ -58,17 +58,47 @@ Should show your recent commits are on GitHub.
 
 ---
 
-## STEP 6: Report to User
+## STEP 6: Push Master to Origin
+
+Now that the claude branch is tested and verified, push master to origin:
+
+```bash
+git checkout master
+git push origin master
+```
+
+**What this does:**
+- Makes the verified, tested work the official state on origin/master
+- Ensures origin/master stays synchronized across all computers
+- Next session can safely reset to origin/master
+
+**If push fails:**
+- Check if you're on master branch
+- Verify master was merged from the claude branch earlier in the session
+- Retry with exponential backoff (2s, 4s, 8s, 16s) if network error
+
+Verify master push:
+```bash
+git status  # Should show: "Your branch is up to date with 'origin/master'"
+```
+
+---
+
+## STEP 7: Report to User
 
 Tell the user:
 
 ```
 ✅ Session ended successfully!
-All changes pushed to: claude/[branch-name]
+
+Pushed to GitHub:
+- ✅ Claude branch: claude/[branch-name]
+- ✅ Master branch: origin/master (verified work)
+
 Summary:
 - Total commits: [number]
 - Last commit: [message]
-- GitHub status: ✅ Synchronized
+- GitHub status: ✅ Fully synchronized
 
 Safe to close session. Next session: say 'read start.md'
 ```
