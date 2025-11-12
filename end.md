@@ -58,11 +58,14 @@ Should show your recent commits are on GitHub.
 
 ---
 
-## STEP 6: Push Master to Origin
+## STEP 6: Ask User to Push Master to Origin
 
-Now that the claude branch is tested and verified, push master to origin:
+Now that the claude branch is tested and verified, have the USER push master:
 
-```bash
+**Tell the user:**
+```
+Now please run these commands to push master to origin:
+
 git checkout master
 git push origin master
 ```
@@ -72,15 +75,9 @@ git push origin master
 - Ensures origin/master stays synchronized across all computers
 - Next session can safely reset to origin/master
 
-**If push fails:**
-- Check if you're on master branch
-- Verify master was merged from the claude branch earlier in the session
-- Retry with exponential backoff (2s, 4s, 8s, 16s) if network error
+**Important:** Claude cannot push master automatically due to security restrictions (only claude/* branches allowed). The user must do this step manually.
 
-Verify master push:
-```bash
-git status  # Should show: "Your branch is up to date with 'origin/master'"
-```
+**Wait for user confirmation** before proceeding to Step 7.
 
 ---
 
