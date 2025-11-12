@@ -4,17 +4,18 @@ CRM system for managing customer relationships
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox
+import ttkbootstrap as ttk
 import uuid
 from datetime import datetime
 from ..utilities.date_utils import get_today_db
 
 
-class CustomersModule(tk.Frame):
+class CustomersModule(ttk.Frame):
     """Customers CRM module"""
 
     def __init__(self, parent, cache_manager, current_user):
-        super().__init__(parent, bg='white')
+        super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
 
@@ -23,40 +24,40 @@ class CustomersModule(tk.Frame):
 
     def create_widgets(self):
         """Create customer widgets"""
-        toolbar = tk.Frame(self, bg='white')
+        toolbar = ttk.Frame(self)
         toolbar.pack(fill=tk.X, padx=20, pady=(0, 10))
 
-        tk.Button(toolbar, text="➕ New Customer", font=('Arial', 10, 'bold'),
-                 bg='#4CAF50', fg='white', cursor='hand2',
-                 command=self.add_customer, padx=15, pady=8).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(toolbar, text="➕ New Customer",
+                  bootstyle="success",
+                  command=self.add_customer).pack(side=tk.LEFT, padx=(0, 10))
 
-        tk.Button(toolbar, text="✏️ Edit", font=('Arial', 10),
-                 bg='#2196F3', fg='white', cursor='hand2',
-                 command=self.edit_customer, padx=15, pady=8).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(toolbar, text="✏️ Edit",
+                  bootstyle="primary",
+                  command=self.edit_customer).pack(side=tk.LEFT, padx=(0, 10))
 
-        tk.Button(toolbar, text="👁️ View Details", font=('Arial', 10),
-                 bg='#9C27B0', fg='white', cursor='hand2',
-                 command=self.view_customer, padx=15, pady=8).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(toolbar, text="👁️ View Details",
+                  bootstyle="info",
+                  command=self.view_customer).pack(side=tk.LEFT, padx=(0, 10))
 
-        tk.Button(toolbar, text="🗑️ Deactivate", font=('Arial', 10),
-                 bg='#f44336', fg='white', cursor='hand2',
-                 command=self.deactivate_customer, padx=15, pady=8).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(toolbar, text="🗑️ Deactivate",
+                  bootstyle="danger",
+                  command=self.deactivate_customer).pack(side=tk.LEFT, padx=(0, 10))
 
-        tk.Button(toolbar, text="🔄 Refresh", font=('Arial', 10),
-                 bg='#607D8B', fg='white', cursor='hand2',
-                 command=self.load_customers, padx=15, pady=8).pack(side=tk.LEFT)
+        ttk.Button(toolbar, text="🔄 Refresh",
+                  bootstyle="secondary",
+                  command=self.load_customers).pack(side=tk.LEFT)
 
         # Search
-        tk.Label(toolbar, text="Search:", font=('Arial', 10), bg='white').pack(side=tk.RIGHT, padx=(0,5))
+        ttk.Label(toolbar, text="Search:").pack(side=tk.RIGHT, padx=(0,5))
         self.search_var = tk.StringVar()
         self.search_var.trace('w', lambda *args: self.load_customers())
-        tk.Entry(toolbar, textvariable=self.search_var, font=('Arial', 10), width=20).pack(side=tk.RIGHT)
+        ttk.Entry(toolbar, textvariable=self.search_var, width=20).pack(side=tk.RIGHT)
 
         # Customer list
-        list_frame = tk.Frame(self, bg='white', relief=tk.SOLID, borderwidth=1)
+        list_frame = ttk.Frame(self)
         list_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
 
-        vsb = tk.Scrollbar(list_frame, orient="vertical")
+        vsb = ttk.Scrollbar(list_frame, orient="vertical")
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
 
         columns = ('Name', 'Contact', 'Phone', 'Email', 'Type', 'Terms', 'Status')
@@ -194,91 +195,91 @@ class CustomerDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
-        canvas = tk.Canvas(self, bg='white')
-        scrollbar = tk.Scrollbar(self, orient="vertical", command=canvas.yview)
-        frame = tk.Frame(canvas, bg='white', padx=20, pady=20)
+        canvas = tk.Canvas(self)
+        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        frame = ttk.Frame(canvas)
 
         frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
 
         # Customer Name
-        tk.Label(frame, text="Customer Name *", font=('Arial', 10, 'bold'), bg='white').grid(row=0, column=0, sticky='w', pady=(0,5))
-        self.name_entry = tk.Entry(frame, font=('Arial', 10), width=50)
-        self.name_entry.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0,15))
+        ttk.Label(frame, text="Customer Name *", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0,5), padx=(20,0))
+        self.name_entry = ttk.Entry(frame, font=('Arial', 10), width=50)
+        self.name_entry.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0,15), padx=(20,20))
 
         # Contact Person
-        tk.Label(frame, text="Contact Person *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=0, sticky='w', pady=(0,5))
-        self.contact_entry = tk.Entry(frame, font=('Arial', 10), width=24)
-        self.contact_entry.grid(row=3, column=0, sticky='ew', pady=(0,15))
+        ttk.Label(frame, text="Contact Person *", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky='w', pady=(0,5), padx=(20,0))
+        self.contact_entry = ttk.Entry(frame, font=('Arial', 10), width=24)
+        self.contact_entry.grid(row=3, column=0, sticky='ew', pady=(0,15), padx=(20,0))
 
         # Phone
-        tk.Label(frame, text="Phone *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=1, sticky='w', pady=(0,5), padx=(20,0))
-        self.phone_entry = tk.Entry(frame, font=('Arial', 10), width=20)
-        self.phone_entry.grid(row=3, column=1, sticky='ew', pady=(0,15), padx=(20,0))
+        ttk.Label(frame, text="Phone *", font=('Arial', 10, 'bold')).grid(row=2, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        self.phone_entry = ttk.Entry(frame, font=('Arial', 10), width=20)
+        self.phone_entry.grid(row=3, column=1, sticky='ew', pady=(0,15), padx=(20,20))
 
         # Email
-        tk.Label(frame, text="Email", font=('Arial', 10, 'bold'), bg='white').grid(row=4, column=0, sticky='w', pady=(0,5))
-        self.email_entry = tk.Entry(frame, font=('Arial', 10), width=50)
-        self.email_entry.grid(row=5, column=0, columnspan=2, sticky='ew', pady=(0,15))
+        ttk.Label(frame, text="Email", font=('Arial', 10, 'bold')).grid(row=4, column=0, sticky='w', pady=(0,5), padx=(20,0))
+        self.email_entry = ttk.Entry(frame, font=('Arial', 10), width=50)
+        self.email_entry.grid(row=5, column=0, columnspan=2, sticky='ew', pady=(0,15), padx=(20,20))
 
         # Delivery Address
-        tk.Label(frame, text="Delivery Address *", font=('Arial', 10, 'bold'), bg='white').grid(row=6, column=0, sticky='w', pady=(0,5))
+        ttk.Label(frame, text="Delivery Address *", font=('Arial', 10, 'bold')).grid(row=6, column=0, sticky='w', pady=(0,5), padx=(20,0))
         self.delivery_text = tk.Text(frame, font=('Arial', 10), width=50, height=3)
-        self.delivery_text.grid(row=7, column=0, columnspan=2, sticky='ew', pady=(0,15))
+        self.delivery_text.grid(row=7, column=0, columnspan=2, sticky='ew', pady=(0,15), padx=(20,20))
 
         # Billing Address
-        tk.Label(frame, text="Billing Address", font=('Arial', 10, 'bold'), bg='white').grid(row=8, column=0, sticky='w', pady=(0,5))
+        ttk.Label(frame, text="Billing Address", font=('Arial', 10, 'bold')).grid(row=8, column=0, sticky='w', pady=(0,5), padx=(20,0))
         self.billing_text = tk.Text(frame, font=('Arial', 10), width=50, height=3)
-        self.billing_text.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(0,15))
+        self.billing_text.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(0,15), padx=(20,20))
 
         # Customer Type
-        tk.Label(frame, text="Type", font=('Arial', 10, 'bold'), bg='white').grid(row=10, column=0, sticky='w', pady=(0,5))
+        ttk.Label(frame, text="Type", font=('Arial', 10, 'bold')).grid(row=10, column=0, sticky='w', pady=(0,5), padx=(20,0))
         self.type_var = tk.StringVar(value='pub')
         ttk.Combobox(frame, textvariable=self.type_var,
                     values=['pub', 'restaurant', 'shop', 'event', 'other'],
-                    width=21, state='readonly').grid(row=11, column=0, sticky='w', pady=(0,15))
+                    width=21, state='readonly').grid(row=11, column=0, sticky='w', pady=(0,15), padx=(20,0))
 
         # Payment Terms
-        tk.Label(frame, text="Payment Terms", font=('Arial', 10, 'bold'), bg='white').grid(row=10, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        ttk.Label(frame, text="Payment Terms", font=('Arial', 10, 'bold')).grid(row=10, column=1, sticky='w', pady=(0,5), padx=(20,0))
         self.terms_var = tk.StringVar(value='net_30')
         ttk.Combobox(frame, textvariable=self.terms_var,
                     values=['cash', 'net_7', 'net_14', 'net_30'],
-                    width=17, state='readonly').grid(row=11, column=1, sticky='w', pady=(0,15), padx=(20,0))
+                    width=17, state='readonly').grid(row=11, column=1, sticky='w', pady=(0,15), padx=(20,20))
 
         # Credit Limit
-        tk.Label(frame, text="Credit Limit (£)", font=('Arial', 10, 'bold'), bg='white').grid(row=12, column=0, sticky='w', pady=(0,5))
-        self.credit_entry = tk.Entry(frame, font=('Arial', 10), width=15)
+        ttk.Label(frame, text="Credit Limit (£)", font=('Arial', 10, 'bold')).grid(row=12, column=0, sticky='w', pady=(0,5), padx=(20,0))
+        self.credit_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
         self.credit_entry.insert(0, "1000.00")
-        self.credit_entry.grid(row=13, column=0, sticky='w', pady=(0,15))
+        self.credit_entry.grid(row=13, column=0, sticky='w', pady=(0,15), padx=(20,0))
 
         # Delivery Day
-        tk.Label(frame, text="Preferred Delivery Day", font=('Arial', 10, 'bold'), bg='white').grid(row=14, column=0, sticky='w', pady=(0,5))
+        ttk.Label(frame, text="Preferred Delivery Day", font=('Arial', 10, 'bold')).grid(row=14, column=0, sticky='w', pady=(0,5), padx=(20,0))
         self.day_var = tk.StringVar()
         ttk.Combobox(frame, textvariable=self.day_var,
                     values=['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
-                    width=21, state='readonly').grid(row=15, column=0, sticky='w', pady=(0,15))
+                    width=21, state='readonly').grid(row=15, column=0, sticky='w', pady=(0,15), padx=(20,0))
 
         # Delivery Time
-        tk.Label(frame, text="Preferred Time", font=('Arial', 10, 'bold'), bg='white').grid(row=14, column=1, sticky='w', pady=(0,5), padx=(20,0))
-        self.time_entry = tk.Entry(frame, font=('Arial', 10), width=15)
+        ttk.Label(frame, text="Preferred Time", font=('Arial', 10, 'bold')).grid(row=14, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        self.time_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
         self.time_entry.insert(0, "10:00")
-        self.time_entry.grid(row=15, column=1, sticky='w', pady=(0,15), padx=(20,0))
+        self.time_entry.grid(row=15, column=1, sticky='w', pady=(0,15), padx=(20,20))
 
         # Likes
-        tk.Label(frame, text="Likes (beer preferences)", font=('Arial', 10, 'bold'), bg='white').grid(row=16, column=0, sticky='w', pady=(0,5))
-        self.likes_entry = tk.Entry(frame, font=('Arial', 10), width=50)
-        self.likes_entry.grid(row=17, column=0, columnspan=2, sticky='ew', pady=(0,15))
+        ttk.Label(frame, text="Likes (beer preferences)", font=('Arial', 10, 'bold')).grid(row=16, column=0, sticky='w', pady=(0,5), padx=(20,0))
+        self.likes_entry = ttk.Entry(frame, font=('Arial', 10), width=50)
+        self.likes_entry.grid(row=17, column=0, columnspan=2, sticky='ew', pady=(0,15), padx=(20,20))
 
         # Dislikes
-        tk.Label(frame, text="Dislikes", font=('Arial', 10, 'bold'), bg='white').grid(row=18, column=0, sticky='w', pady=(0,5))
-        self.dislikes_entry = tk.Entry(frame, font=('Arial', 10), width=50)
-        self.dislikes_entry.grid(row=19, column=0, columnspan=2, sticky='ew', pady=(0,15))
+        ttk.Label(frame, text="Dislikes", font=('Arial', 10, 'bold')).grid(row=18, column=0, sticky='w', pady=(0,5), padx=(20,0))
+        self.dislikes_entry = ttk.Entry(frame, font=('Arial', 10), width=50)
+        self.dislikes_entry.grid(row=19, column=0, columnspan=2, sticky='ew', pady=(0,15), padx=(20,20))
 
         # Notes
-        tk.Label(frame, text="Notes", font=('Arial', 10, 'bold'), bg='white').grid(row=20, column=0, sticky='w', pady=(0,5))
+        ttk.Label(frame, text="Notes", font=('Arial', 10, 'bold')).grid(row=20, column=0, sticky='w', pady=(0,5), padx=(20,0))
         self.notes_text = tk.Text(frame, font=('Arial', 10), width=50, height=4)
-        self.notes_text.grid(row=21, column=0, columnspan=2, sticky='ew', pady=(0,15))
+        self.notes_text.grid(row=21, column=0, columnspan=2, sticky='ew', pady=(0,15), padx=(20,20))
 
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
@@ -287,13 +288,13 @@ class CustomerDialog(tk.Toplevel):
         scrollbar.pack(side="right", fill="y")
 
         # Buttons
-        button_frame = tk.Frame(self, bg='white', pady=10)
-        button_frame.pack(fill=tk.X, padx=20)
+        button_frame = ttk.Frame(self)
+        button_frame.pack(fill=tk.X, padx=20, pady=10)
 
-        tk.Button(button_frame, text="Cancel", font=('Arial', 10), bg='#757575', fg='white',
-                 command=self.destroy, padx=20, pady=8).pack(side=tk.RIGHT, padx=(10,0))
-        tk.Button(button_frame, text="Save Customer", font=('Arial', 10, 'bold'), bg='#4CAF50', fg='white',
-                 command=self.save, padx=20, pady=8).pack(side=tk.RIGHT)
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save Customer", bootstyle="success",
+                  command=self.save).pack(side=tk.RIGHT)
 
     def populate_fields(self):
         """Populate fields with customer data"""
@@ -376,11 +377,11 @@ class CustomerDetailsDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
-        frame = tk.Frame(self, bg='white', padx=30, pady=20)
+        frame = ttk.Frame(self, padding=(30, 20))
         frame.pack(fill=tk.BOTH, expand=True)
 
-        tk.Label(frame, text=self.customer.get('customer_name', 'Unknown'),
-                font=('Arial', 18, 'bold'), bg='white').pack(anchor='w', pady=(0,20))
+        ttk.Label(frame, text=self.customer.get('customer_name', 'Unknown'),
+                 font=('Arial', 18, 'bold')).pack(anchor='w', pady=(0,20))
 
         info = f"""
 Contact: {self.customer.get('contact_person', 'N/A')}
@@ -402,16 +403,16 @@ Dislikes: {self.customer.get('dislikes', 'None specified')}
 Status: {'Active' if self.customer.get('is_active') else 'Inactive'}
         """
 
-        tk.Label(frame, text=info.strip(), font=('Arial', 10), bg='white',
-                justify=tk.LEFT).pack(anchor='w', pady=(0,20))
+        ttk.Label(frame, text=info.strip(), font=('Arial', 10),
+                 justify=tk.LEFT).pack(anchor='w', pady=(0,20))
 
         if self.customer.get('notes'):
-            tk.Label(frame, text="Notes:", font=('Arial', 11, 'bold'),
-                    bg='white').pack(anchor='w', pady=(0,5))
+            ttk.Label(frame, text="Notes:", font=('Arial', 11, 'bold')).pack(anchor='w', pady=(0,5))
+            # Keep tk.Frame with specific background color for notes section
             notes_frame = tk.Frame(frame, bg='#f5f5f5', relief=tk.SOLID, borderwidth=1)
             notes_frame.pack(fill=tk.X)
             tk.Label(notes_frame, text=self.customer['notes'], font=('Arial', 10),
                     bg='#f5f5f5', justify=tk.LEFT, wraplength=500).pack(padx=10, pady=10, anchor='w')
 
-        tk.Button(self, text="Close", font=('Arial', 10), bg='#607D8B', fg='white',
-                 command=self.destroy, padx=20, pady=8).pack(pady=(0,20))
+        ttk.Button(self, text="Close", bootstyle="secondary",
+                  command=self.destroy).pack(pady=(0,20))

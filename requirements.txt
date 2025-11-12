@@ -12,6 +12,7 @@ google-auth-httplib2==0.2.0
 
 # GUI
 # tkinter is built-in to Python
+ttkbootstrap==1.10.1
 
 # PDF Generation (for later phases)
 reportlab>=4.0.7
@@ -27,8 +28,16 @@ pytz==2023.3
 pandas>=2.1.4
 openpyxl>=3.1.2
 
+# Data visualization
+matplotlib==3.8.2
+
 # HTTP requests
 requests==2.31.0
 
 # Packaging
 pyinstaller>=6.3.0
+
+# Development Tools (not included in final build)
+pytest==7.4.3
+black==23.12.1
+pylint==3.0.3

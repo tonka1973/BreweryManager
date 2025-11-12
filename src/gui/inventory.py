@@ -4,17 +4,18 @@ Tracks brewing materials and finished goods inventory
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox
+import ttkbootstrap as ttk
 import uuid
 from datetime import datetime
 from ..utilities.date_utils import get_today_db
 
 
-class InventoryModule(tk.Frame):
+class InventoryModule(ttk.Frame):
     """Inventory module for tracking materials and finished goods"""
 
     def __init__(self, parent, cache_manager, current_user):
-        super().__init__(parent, bg='white')
+        super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
         self.current_category = 'all'  # Track selected category
@@ -25,7 +26,7 @@ class InventoryModule(tk.Frame):
     def create_widgets(self):
         """Create inventory widgets"""
         # Category tabs/buttons
-        category_frame = tk.Frame(self, bg='white')
+        category_frame = ttk.Frame(self)
         category_frame.pack(fill=tk.X, padx=20, pady=(0, 10))
 
         categories = [
@@ -39,61 +40,58 @@ class InventoryModule(tk.Frame):
 
         self.category_buttons = {}
         for label, cat_id in categories:
-            btn = tk.Button(
+            btn = ttk.Button(
                 category_frame,
                 text=label,
-                font=('Arial', 10, 'bold'),
-                bg='#34495e',
-                fg='white',
-                activebackground='#4CAF50',
-                activeforeground='white',
+                bootstyle="secondary",
                 cursor='hand2',
-                relief=tk.FLAT,
-                bd=0,
-                padx=15,
-                pady=8,
                 command=lambda c=cat_id: self.switch_category(c)
             )
             btn.pack(side=tk.LEFT, padx=(0, 5))
             self.category_buttons[cat_id] = btn
 
         # Highlight "All" button by default
-        self.category_buttons['all'].config(bg='#4CAF50')
+        self.category_buttons['all'].configure(bootstyle="success")
 
         # Toolbar
-        toolbar = tk.Frame(self, bg='white')
+        toolbar = ttk.Frame(self)
         toolbar.pack(fill=tk.X, padx=20, pady=(10, 10))
 
-        add_btn = tk.Button(toolbar, text="➕ Add Material", font=('Arial', 10, 'bold'),
-                           bg='#4CAF50', fg='white', cursor='hand2',
-                           command=self.add_material, padx=15, pady=8)
+        add_btn = ttk.Button(toolbar, text="➕ Add Material",
+                           bootstyle="success",
+                           cursor='hand2',
+                           command=self.add_material)
         add_btn.pack(side=tk.LEFT, padx=(0, 10))
 
-        edit_btn = tk.Button(toolbar, text="✏️ Edit", font=('Arial', 10),
-                            bg='#2196F3', fg='white', cursor='hand2',
-                            command=self.edit_material, padx=15, pady=8)
+        edit_btn = ttk.Button(toolbar, text="✏️ Edit",
+                            bootstyle="info",
+                            cursor='hand2',
+                            command=self.edit_material)
         edit_btn.pack(side=tk.LEFT, padx=(0, 10))
 
-        stock_btn = tk.Button(toolbar, text="📦 Adjust Stock", font=('Arial', 10),
-                             bg='#FF9800', fg='white', cursor='hand2',
-                             command=self.adjust_stock, padx=15, pady=8)
+        stock_btn = ttk.Button(toolbar, text="📦 Adjust Stock",
+                             bootstyle="warning",
+                             cursor='hand2',
+                             command=self.adjust_stock)
         stock_btn.pack(side=tk.LEFT, padx=(0, 10))
 
-        delete_btn = tk.Button(toolbar, text="🗑️ Delete", font=('Arial', 10),
-                              bg='#f44336', fg='white', cursor='hand2',
-                              command=self.delete_material, padx=15, pady=8)
+        delete_btn = ttk.Button(toolbar, text="🗑️ Delete",
+                              bootstyle="danger",
+                              cursor='hand2',
+                              command=self.delete_material)
         delete_btn.pack(side=tk.LEFT, padx=(0, 10))
 
-        refresh_btn = tk.Button(toolbar, text="🔄 Refresh", font=('Arial', 10),
-                               bg='#607D8B', fg='white', cursor='hand2',
-                               command=self.load_materials, padx=15, pady=8)
+        refresh_btn = ttk.Button(toolbar, text="🔄 Refresh",
+                               bootstyle="secondary",
+                               cursor='hand2',
+                               command=self.load_materials)
         refresh_btn.pack(side=tk.LEFT)
 
         # Materials list
-        list_frame = tk.Frame(self, bg='white', relief=tk.SOLID, borderwidth=1)
+        list_frame = ttk.Frame(self, relief=tk.SOLID, borderwidth=1)
         list_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
 
-        vsb = tk.Scrollbar(list_frame, orient="vertical")
+        vsb = ttk.Scrollbar(list_frame, orient="vertical")
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
 
         columns = ('Material', 'Type', 'Stock', 'Unit', 'Reorder', 'Supplier', 'Cost/Unit')
@@ -121,9 +119,9 @@ class InventoryModule(tk.Frame):
         # Update button colors (highlight active)
         for cat, btn in self.category_buttons.items():
             if cat == category:
-                btn.config(bg='#4CAF50')
+                btn.configure(bootstyle="success")
             else:
-                btn.config(bg='#34495e')
+                btn.configure(bootstyle="secondary")
 
         # Reload materials with filter
         self.load_materials()
@@ -253,49 +251,49 @@ class MaterialDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
-        frame = tk.Frame(self, bg='white', padx=20, pady=20)
+        frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        tk.Label(frame, text="Material Name *", font=('Arial', 10, 'bold'), bg='white').grid(row=0, column=0, sticky='w', pady=(0,5))
-        self.name_entry = tk.Entry(frame, font=('Arial', 10), width=40)
+        ttk.Label(frame, text="Material Name *", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0,5))
+        self.name_entry = ttk.Entry(frame, font=('Arial', 10), width=40)
         self.name_entry.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0,15))
 
-        tk.Label(frame, text="Type *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=0, sticky='w', pady=(0,5))
+        ttk.Label(frame, text="Type *", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky='w', pady=(0,5))
         self.type_var = tk.StringVar(value='grain')
         types = ['grain', 'hops', 'yeast', 'adjunct', 'sundries']
         type_menu = ttk.Combobox(frame, textvariable=self.type_var, values=types, font=('Arial', 10), width=37, state='readonly')
         type_menu.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0,15))
 
-        tk.Label(frame, text="Current Stock *", font=('Arial', 10, 'bold'), bg='white').grid(row=4, column=0, sticky='w', pady=(0,5))
-        self.stock_entry = tk.Entry(frame, font=('Arial', 10), width=15)
+        ttk.Label(frame, text="Current Stock *", font=('Arial', 10, 'bold')).grid(row=4, column=0, sticky='w', pady=(0,5))
+        self.stock_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
         self.stock_entry.grid(row=5, column=0, sticky='w', pady=(0,15))
 
-        tk.Label(frame, text="Unit *", font=('Arial', 10, 'bold'), bg='white').grid(row=4, column=1, sticky='w', pady=(0,5), padx=(20,0))
-        self.unit_entry = tk.Entry(frame, font=('Arial', 10), width=15)
+        ttk.Label(frame, text="Unit *", font=('Arial', 10, 'bold')).grid(row=4, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        self.unit_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
         self.unit_entry.grid(row=5, column=1, sticky='w', pady=(0,15), padx=(20,0))
 
-        tk.Label(frame, text="Reorder Level", font=('Arial', 10, 'bold'), bg='white').grid(row=6, column=0, sticky='w', pady=(0,5))
-        self.reorder_entry = tk.Entry(frame, font=('Arial', 10), width=15)
+        ttk.Label(frame, text="Reorder Level", font=('Arial', 10, 'bold')).grid(row=6, column=0, sticky='w', pady=(0,5))
+        self.reorder_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
         self.reorder_entry.grid(row=7, column=0, sticky='w', pady=(0,15))
 
-        tk.Label(frame, text="Cost per Unit (£)", font=('Arial', 10, 'bold'), bg='white').grid(row=6, column=1, sticky='w', pady=(0,5), padx=(20,0))
-        self.cost_entry = tk.Entry(frame, font=('Arial', 10), width=15)
+        ttk.Label(frame, text="Cost per Unit (£)", font=('Arial', 10, 'bold')).grid(row=6, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        self.cost_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
         self.cost_entry.grid(row=7, column=1, sticky='w', pady=(0,15), padx=(20,0))
 
-        tk.Label(frame, text="Supplier", font=('Arial', 10, 'bold'), bg='white').grid(row=8, column=0, sticky='w', pady=(0,5))
-        self.supplier_entry = tk.Entry(frame, font=('Arial', 10), width=40)
+        ttk.Label(frame, text="Supplier", font=('Arial', 10, 'bold')).grid(row=8, column=0, sticky='w', pady=(0,5))
+        self.supplier_entry = ttk.Entry(frame, font=('Arial', 10), width=40)
         self.supplier_entry.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(0,15))
 
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
 
-        button_frame = tk.Frame(self, bg='white', pady=10)
-        button_frame.pack(fill=tk.X, padx=20, pady=(0,20))
+        button_frame = ttk.Frame(self, padding=(20, 10, 20, 20))
+        button_frame.pack(fill=tk.X)
 
-        tk.Button(button_frame, text="Cancel", font=('Arial', 10), bg='#757575', fg='white',
-                 command=self.destroy, padx=20, pady=8).pack(side=tk.RIGHT, padx=(10,0))
-        tk.Button(button_frame, text="Save", font=('Arial', 10, 'bold'), bg='#4CAF50', fg='white',
-                 command=self.save, padx=20, pady=8).pack(side=tk.RIGHT)
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save", bootstyle="success",
+                 command=self.save).pack(side=tk.RIGHT)
 
     def populate_fields(self):
         """Populate fields with material data"""
@@ -365,33 +363,33 @@ class StockAdjustDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
-        frame = tk.Frame(self, bg='white', padx=20, pady=20)
+        frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
         current = self.material.get('current_stock', 0)
-        tk.Label(frame, text=f"Current Stock: {current:.1f} {self.material.get('unit', '')}",
-                font=('Arial', 12, 'bold'), bg='white').pack(pady=(0,20))
+        ttk.Label(frame, text=f"Current Stock: {current:.1f} {self.material.get('unit', '')}",
+                font=('Arial', 12, 'bold')).pack(pady=(0,20))
 
-        tk.Label(frame, text="Adjustment Type", font=('Arial', 10, 'bold'), bg='white').pack(anchor='w', pady=(0,5))
+        ttk.Label(frame, text="Adjustment Type", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
         self.adj_type = tk.StringVar(value='add')
-        tk.Radiobutton(frame, text="Add Stock", variable=self.adj_type, value='add', bg='white', font=('Arial', 10)).pack(anchor='w')
-        tk.Radiobutton(frame, text="Remove Stock", variable=self.adj_type, value='remove', bg='white', font=('Arial', 10)).pack(anchor='w', pady=(0,15))
+        ttk.Radiobutton(frame, text="Add Stock", variable=self.adj_type, value='add').pack(anchor='w')
+        ttk.Radiobutton(frame, text="Remove Stock", variable=self.adj_type, value='remove').pack(anchor='w', pady=(0,15))
 
-        tk.Label(frame, text="Quantity", font=('Arial', 10, 'bold'), bg='white').pack(anchor='w', pady=(0,5))
-        self.qty_entry = tk.Entry(frame, font=('Arial', 11), width=15)
+        ttk.Label(frame, text="Quantity", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
+        self.qty_entry = ttk.Entry(frame, font=('Arial', 11), width=15)
         self.qty_entry.pack(anchor='w', pady=(0,15))
 
-        tk.Label(frame, text="Reason/Notes", font=('Arial', 10, 'bold'), bg='white').pack(anchor='w', pady=(0,5))
+        ttk.Label(frame, text="Reason/Notes", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
         self.notes_text = tk.Text(frame, font=('Arial', 10), width=40, height=4)
         self.notes_text.pack(pady=(0,15))
 
-        button_frame = tk.Frame(self, bg='white', pady=10)
-        button_frame.pack(fill=tk.X, padx=20)
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X)
 
-        tk.Button(button_frame, text="Cancel", font=('Arial', 10), bg='#757575', fg='white',
-                 command=self.destroy, padx=20, pady=8).pack(side=tk.RIGHT, padx=(10,0))
-        tk.Button(button_frame, text="Apply", font=('Arial', 10, 'bold'), bg='#FF9800', fg='white',
-                 command=self.apply_adjustment, padx=20, pady=8).pack(side=tk.RIGHT)
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Apply", bootstyle="warning",
+                 command=self.apply_adjustment).pack(side=tk.RIGHT)
 
     def apply_adjustment(self):
         """Apply stock adjustment"""

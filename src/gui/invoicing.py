@@ -4,17 +4,18 @@ Generate invoices and track payments
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+import ttkbootstrap as ttk
+from tkinter import messagebox
 import uuid
 from datetime import datetime, timedelta
 from ..utilities.date_utils import format_date_for_display, parse_display_date, get_today_display, get_today_db
 
 
-class InvoicingModule(tk.Frame):
+class InvoicingModule(ttk.Frame):
     """Invoicing module for invoice generation and payment tracking"""
 
     def __init__(self, parent, cache_manager, current_user):
-        super().__init__(parent, bg='white')
+        super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
 
@@ -23,27 +24,27 @@ class InvoicingModule(tk.Frame):
 
     def create_widgets(self):
         """Create invoicing widgets"""
-        toolbar = tk.Frame(self, bg='white')
+        toolbar = ttk.Frame(self)
         toolbar.pack(fill=tk.X, padx=20, pady=(0, 10))
 
-        tk.Button(toolbar, text="➕ Create Invoice", font=('Arial', 10, 'bold'),
-                 bg='#4CAF50', fg='white', cursor='hand2',
-                 command=self.create_invoice, padx=15, pady=8).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(toolbar, text="➕ Create Invoice",
+                  bootstyle="success",
+                  command=self.create_invoice).pack(side=tk.LEFT, padx=(0, 10))
 
-        tk.Button(toolbar, text="💰 Record Payment", font=('Arial', 10),
-                 bg='#2196F3', fg='white', cursor='hand2',
-                 command=self.record_payment, padx=15, pady=8).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(toolbar, text="💰 Record Payment",
+                  bootstyle="primary",
+                  command=self.record_payment).pack(side=tk.LEFT, padx=(0, 10))
 
-        tk.Button(toolbar, text="👁️ View Invoice", font=('Arial', 10),
-                 bg='#9C27B0', fg='white', cursor='hand2',
-                 command=self.view_invoice, padx=15, pady=8).pack(side=tk.LEFT, padx=(0, 10))
+        ttk.Button(toolbar, text="👁️ View Invoice",
+                  bootstyle="info",
+                  command=self.view_invoice).pack(side=tk.LEFT, padx=(0, 10))
 
-        tk.Button(toolbar, text="🔄 Refresh", font=('Arial', 10),
-                 bg='#607D8B', fg='white', cursor='hand2',
-                 command=self.load_invoices, padx=15, pady=8).pack(side=tk.LEFT)
+        ttk.Button(toolbar, text="🔄 Refresh",
+                  bootstyle="secondary",
+                  command=self.load_invoices).pack(side=tk.LEFT)
 
         # Filter
-        tk.Label(toolbar, text="Status:", font=('Arial', 10), bg='white').pack(side=tk.RIGHT, padx=(0,5))
+        ttk.Label(toolbar, text="Status:").pack(side=tk.RIGHT, padx=(0,5))
         self.filter_var = tk.StringVar(value='all')
         self.filter_var.trace('w', lambda *args: self.load_invoices())
         ttk.Combobox(toolbar, textvariable=self.filter_var,
@@ -51,10 +52,10 @@ class InvoicingModule(tk.Frame):
                     width=12, state='readonly').pack(side=tk.RIGHT, padx=(10,0))
 
         # Invoice list
-        list_frame = tk.Frame(self, bg='white', relief=tk.SOLID, borderwidth=1)
+        list_frame = ttk.Frame(self)
         list_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
 
-        vsb = tk.Scrollbar(list_frame, orient="vertical")
+        vsb = ttk.Scrollbar(list_frame, orient="vertical")
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
 
         columns = ('Invoice #', 'Date', 'Customer', 'Subtotal', 'VAT', 'Total', 'Paid', 'Outstanding', 'Status')
@@ -179,15 +180,14 @@ class InvoiceCreateDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
-        frame = tk.Frame(self, bg='white', padx=20, pady=20)
+        frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        tk.Label(frame, text="Create Invoice from Delivered Sales",
-                font=('Arial', 14, 'bold'), bg='white').pack(pady=(0,20))
+        ttk.Label(frame, text="Create Invoice from Delivered Sales",
+                 font=('Arial', 14, 'bold')).pack(pady=(0,20))
 
         # Customer selection
-        tk.Label(frame, text="Customer *", font=('Arial', 10, 'bold'),
-                bg='white').pack(anchor='w', pady=(0,5))
+        ttk.Label(frame, text="Customer *", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
         self.customer_var = tk.StringVar()
         self.cache.connect()
         customers = self.cache.get_all_records('customers', 'is_active = 1', 'customer_name')
@@ -200,13 +200,13 @@ class InvoiceCreateDialog(tk.Toplevel):
         customer_combo.bind('<<ComboboxSelected>>', self.load_sales)
 
         # Sales list
-        tk.Label(frame, text="Delivered Sales (not yet invoiced):",
-                font=('Arial', 10, 'bold'), bg='white').pack(anchor='w', pady=(0,5))
+        ttk.Label(frame, text="Delivered Sales (not yet invoiced):",
+                 font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
 
-        sales_frame = tk.Frame(frame, bg='white', relief=tk.SOLID, borderwidth=1)
+        sales_frame = ttk.Frame(frame)
         sales_frame.pack(fill=tk.BOTH, expand=True, pady=(0,15))
 
-        vsb = tk.Scrollbar(sales_frame, orient="vertical")
+        vsb = ttk.Scrollbar(sales_frame, orient="vertical")
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
 
         columns = ('Select', 'Date', 'Beer', 'Qty', 'Price', 'Total')
@@ -223,27 +223,25 @@ class InvoiceCreateDialog(tk.Toplevel):
         vsb.config(command=self.sales_tree.yview)
 
         # VAT Rate
-        vat_frame = tk.Frame(frame, bg='white')
+        vat_frame = ttk.Frame(frame)
         vat_frame.pack(fill=tk.X, pady=(10,0))
 
-        tk.Label(vat_frame, text="VAT Rate:", font=('Arial', 10, 'bold'),
-                bg='white').pack(side=tk.LEFT, padx=(0,10))
+        ttk.Label(vat_frame, text="VAT Rate:", font=('Arial', 10, 'bold')).pack(side=tk.LEFT, padx=(0,10))
         self.vat_var = tk.StringVar(value="20")
-        tk.Entry(vat_frame, textvariable=self.vat_var, font=('Arial', 10),
-                width=10).pack(side=tk.LEFT)
-        tk.Label(vat_frame, text="%", font=('Arial', 10),
-                bg='white').pack(side=tk.LEFT, padx=(5,0))
+        ttk.Entry(vat_frame, textvariable=self.vat_var, font=('Arial', 10),
+                 width=10).pack(side=tk.LEFT)
+        ttk.Label(vat_frame, text="%", font=('Arial', 10)).pack(side=tk.LEFT, padx=(5,0))
 
         # Buttons
-        button_frame = tk.Frame(self, bg='white', pady=10)
-        button_frame.pack(fill=tk.X, padx=20)
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X)
 
-        tk.Button(button_frame, text="Cancel", font=('Arial', 10),
-                 bg='#757575', fg='white', command=self.destroy,
-                 padx=20, pady=8).pack(side=tk.RIGHT, padx=(10,0))
-        tk.Button(button_frame, text="Create Invoice", font=('Arial', 10, 'bold'),
-                 bg='#4CAF50', fg='white', command=self.create,
-                 padx=20, pady=8).pack(side=tk.RIGHT)
+        ttk.Button(button_frame, text="Cancel",
+                  bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Create Invoice",
+                  bootstyle="success",
+                  command=self.create).pack(side=tk.RIGHT)
 
     def load_sales(self, event=None):
         """Load uninvoiced sales for customer"""
@@ -383,52 +381,48 @@ class PaymentDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
-        frame = tk.Frame(self, bg='white', padx=20, pady=20)
+        frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
         outstanding = self.invoice.get('amount_outstanding', 0)
-        tk.Label(frame, text=f"Outstanding: £{outstanding:.2f}",
-                font=('Arial', 14, 'bold'), bg='white',
-                fg='#f44336').pack(pady=(0,20))
+        ttk.Label(frame, text=f"Outstanding: £{outstanding:.2f}",
+                 font=('Arial', 14, 'bold'),
+                 bootstyle="danger").pack(pady=(0,20))
 
         # Payment Amount
-        tk.Label(frame, text="Payment Amount (£) *", font=('Arial', 10, 'bold'),
-                bg='white').pack(anchor='w', pady=(0,5))
-        self.amount_entry = tk.Entry(frame, font=('Arial', 11), width=20)
+        ttk.Label(frame, text="Payment Amount (£) *", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
+        self.amount_entry = ttk.Entry(frame, font=('Arial', 11), width=20)
         self.amount_entry.insert(0, f"{outstanding:.2f}")
         self.amount_entry.pack(anchor='w', pady=(0,15))
 
         # Payment Method
-        tk.Label(frame, text="Payment Method", font=('Arial', 10, 'bold'),
-                bg='white').pack(anchor='w', pady=(0,5))
+        ttk.Label(frame, text="Payment Method", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
         self.method_var = tk.StringVar(value='bank_transfer')
         ttk.Combobox(frame, textvariable=self.method_var,
                     values=['cash', 'cheque', 'bank_transfer', 'card', 'other'],
                     width=17, state='readonly').pack(anchor='w', pady=(0,15))
 
         # Payment Date
-        tk.Label(frame, text="Payment Date (DD/MM/YYYY)", font=('Arial', 10, 'bold'),
-                bg='white').pack(anchor='w', pady=(0,5))
-        self.date_entry = tk.Entry(frame, font=('Arial', 10), width=20)
+        ttk.Label(frame, text="Payment Date (DD/MM/YYYY)", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
+        self.date_entry = ttk.Entry(frame, font=('Arial', 10), width=20)
         self.date_entry.insert(0, get_today_display())
         self.date_entry.pack(anchor='w', pady=(0,15))
 
         # Reference
-        tk.Label(frame, text="Reference", font=('Arial', 10, 'bold'),
-                bg='white').pack(anchor='w', pady=(0,5))
-        self.ref_entry = tk.Entry(frame, font=('Arial', 10), width=30)
+        ttk.Label(frame, text="Reference", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
+        self.ref_entry = ttk.Entry(frame, font=('Arial', 10), width=30)
         self.ref_entry.pack(anchor='w', pady=(0,15))
 
         # Buttons
-        button_frame = tk.Frame(self, bg='white', pady=10)
-        button_frame.pack(fill=tk.X, padx=20)
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X)
 
-        tk.Button(button_frame, text="Cancel", font=('Arial', 10),
-                 bg='#757575', fg='white', command=self.destroy,
-                 padx=20, pady=8).pack(side=tk.RIGHT, padx=(10,0))
-        tk.Button(button_frame, text="Record Payment", font=('Arial', 10, 'bold'),
-                 bg='#4CAF50', fg='white', command=self.record,
-                 padx=20, pady=8).pack(side=tk.RIGHT)
+        ttk.Button(button_frame, text="Cancel",
+                  bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Record Payment",
+                  bootstyle="success",
+                  command=self.record).pack(side=tk.RIGHT)
 
     def record(self):
         """Record payment"""
@@ -510,11 +504,11 @@ class InvoiceViewDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
-        frame = tk.Frame(self, bg='white', padx=30, pady=20)
+        frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        tk.Label(frame, text=self.invoice.get('invoice_number', ''),
-                font=('Arial', 18, 'bold'), bg='white').pack(anchor='w', pady=(0,10))
+        ttk.Label(frame, text=self.invoice.get('invoice_number', ''),
+                 font=('Arial', 18, 'bold')).pack(anchor='w', pady=(0,10))
 
         # Customer
         customer_name = 'Unknown'
@@ -532,14 +526,14 @@ Due Date: {format_date_for_display(self.invoice.get('due_date')) or 'N/A'}
 Status: {self.invoice.get('payment_status', '').replace('_', ' ').title()}
         """
 
-        tk.Label(frame, text=info.strip(), font=('Arial', 10), bg='white',
-                justify=tk.LEFT).pack(anchor='w', pady=(0,20))
+        ttk.Label(frame, text=info.strip(), font=('Arial', 10),
+                 justify=tk.LEFT).pack(anchor='w', pady=(0,20))
 
         # Line items
-        tk.Label(frame, text="Items:", font=('Arial', 11, 'bold'),
-                bg='white').pack(anchor='w', pady=(0,10))
+        ttk.Label(frame, text="Items:", font=('Arial', 11, 'bold')).pack(anchor='w', pady=(0,10))
 
         for line in self.lines:
+            # Keep tk.Frame for colored line items background
             line_frame = tk.Frame(frame, bg='#e3f2fd')
             line_frame.pack(fill=tk.X, pady=2)
 
@@ -560,11 +554,13 @@ Amount Paid: £{self.invoice.get('amount_paid', 0):.2f}
 Outstanding: £{self.invoice.get('amount_outstanding', 0):.2f}
         """
 
+        # Keep tk.Frame for colored totals background
         totals_frame = tk.Frame(frame, bg='#fff3e0', relief=tk.SOLID, borderwidth=1)
         totals_frame.pack(fill=tk.X, pady=(20,0))
 
         tk.Label(totals_frame, text=totals.strip(), font=('Arial', 10, 'bold'),
                 bg='#fff3e0', justify=tk.RIGHT).pack(padx=10, pady=10, anchor='e')
 
-        tk.Button(self, text="Close", font=('Arial', 10), bg='#607D8B',
-                 fg='white', command=self.destroy, padx=20, pady=8).pack(pady=(0,20))
+        ttk.Button(self, text="Close",
+                  bootstyle="secondary",
+                  command=self.destroy).pack(pady=(0,20))

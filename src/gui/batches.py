@@ -4,17 +4,18 @@ Tracks batch production with gyle numbers and full traceability
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox
+import ttkbootstrap as ttk
 import uuid
 from datetime import datetime
 from ..utilities.date_utils import format_date_for_display, format_datetime_for_display, parse_display_date, get_today_display, get_today_db, get_now_db
 
 
-class BatchesModule(tk.Frame):
+class BatchesModule(ttk.Frame):
     """Batches module for production tracking"""
 
     def __init__(self, parent, cache_manager, current_user):
-        super().__init__(parent, bg='white')
+        super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
 
@@ -24,48 +25,48 @@ class BatchesModule(tk.Frame):
     def create_widgets(self):
         """Create batch widgets"""
         # Toolbar
-        toolbar = tk.Frame(self, bg='white')
+        toolbar = ttk.Frame(self)
         toolbar.pack(fill=tk.X, padx=20, pady=(0, 10))
 
-        add_btn = tk.Button(toolbar, text="➕ New Batch", font=('Arial', 10, 'bold'),
-                           bg='#4CAF50', fg='white', cursor='hand2',
-                           command=self.add_batch, padx=15, pady=8)
+        add_btn = ttk.Button(toolbar, text="➕ New Batch",
+                            bootstyle="success",
+                            command=self.add_batch)
         add_btn.pack(side=tk.LEFT, padx=(0, 10))
 
-        edit_btn = tk.Button(toolbar, text="✏️ Edit", font=('Arial', 10),
-                            bg='#2196F3', fg='white', cursor='hand2',
-                            command=self.edit_batch, padx=15, pady=8)
+        edit_btn = ttk.Button(toolbar, text="✏️ Edit",
+                             bootstyle="info",
+                             command=self.edit_batch)
         edit_btn.pack(side=tk.LEFT, padx=(0, 10))
 
-        view_btn = tk.Button(toolbar, text="👁️ View Details", font=('Arial', 10),
-                            bg='#9C27B0', fg='white', cursor='hand2',
-                            command=self.view_batch, padx=15, pady=8)
+        view_btn = ttk.Button(toolbar, text="👁️ View Details",
+                             bootstyle="secondary",
+                             command=self.view_batch)
         view_btn.pack(side=tk.LEFT, padx=(0, 10))
 
-        status_btn = tk.Button(toolbar, text="📊 Update Status", font=('Arial', 10),
-                              bg='#FF9800', fg='white', cursor='hand2',
-                              command=self.update_status, padx=15, pady=8)
+        status_btn = ttk.Button(toolbar, text="📊 Update Status",
+                               bootstyle="warning",
+                               command=self.update_status)
         status_btn.pack(side=tk.LEFT, padx=(0, 10))
 
-        refresh_btn = tk.Button(toolbar, text="🔄 Refresh", font=('Arial', 10),
-                               bg='#607D8B', fg='white', cursor='hand2',
-                               command=self.load_batches, padx=15, pady=8)
+        refresh_btn = ttk.Button(toolbar, text="🔄 Refresh",
+                                bootstyle="secondary",
+                                command=self.load_batches)
         refresh_btn.pack(side=tk.LEFT)
 
         # Filter by status
-        tk.Label(toolbar, text="Status:", font=('Arial', 10), bg='white').pack(side=tk.RIGHT, padx=(0,5))
+        ttk.Label(toolbar, text="Status:").pack(side=tk.RIGHT, padx=(0,5))
         self.filter_var = tk.StringVar(value='all')
         self.filter_var.trace('w', lambda *args: self.load_batches())
         filter_menu = ttk.Combobox(toolbar, textvariable=self.filter_var,
                                    values=['all', 'brewing', 'fermenting', 'conditioning', 'ready', 'packaged'],
-                                   width=12, state='readonly', font=('Arial', 10))
+                                   width=12, state='readonly')
         filter_menu.pack(side=tk.RIGHT, padx=(10,0))
 
         # Batches list
-        list_frame = tk.Frame(self, bg='white', relief=tk.SOLID, borderwidth=1)
+        list_frame = ttk.Frame(self, relief=tk.SOLID, borderwidth=1)
         list_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
 
-        vsb = tk.Scrollbar(list_frame, orient="vertical")
+        vsb = ttk.Scrollbar(list_frame, orient="vertical")
         vsb.pack(side=tk.RIGHT, fill=tk.Y)
 
         columns = ('Gyle', 'Recipe', 'Brew Date', 'ABV', 'Volume (L)', 'Status', 'Brewer')
@@ -213,11 +214,11 @@ class BatchDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
-        frame = tk.Frame(self, bg='white', padx=20, pady=20)
+        frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
         # Recipe selection
-        tk.Label(frame, text="Recipe *", font=('Arial', 10, 'bold'), bg='white').grid(row=0, column=0, sticky='w', pady=(0,5))
+        ttk.Label(frame, text="Recipe *", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0,5))
         self.recipe_var = tk.StringVar()
         self.cache.connect()
         recipes = self.cache.get_all_records('recipes', 'is_active = 1', 'recipe_name')
@@ -228,36 +229,36 @@ class BatchDialog(tk.Toplevel):
         recipe_menu.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0,15))
 
         # Gyle Number
-        tk.Label(frame, text="Gyle Number *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=0, sticky='w', pady=(0,5))
-        self.gyle_entry = tk.Entry(frame, font=('Arial', 10), width=20)
+        ttk.Label(frame, text="Gyle Number *", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky='w', pady=(0,5))
+        self.gyle_entry = ttk.Entry(frame, font=('Arial', 10), width=20)
         if self.mode == 'add':
             self.gyle_entry.insert(0, self.generate_gyle_number())
         self.gyle_entry.grid(row=3, column=0, sticky='w', pady=(0,15))
 
         # Brew Date
-        tk.Label(frame, text="Brew Date (DD/MM/YYYY) *", font=('Arial', 10, 'bold'), bg='white').grid(row=2, column=1, sticky='w', pady=(0,5), padx=(20,0))
-        self.brew_date_entry = tk.Entry(frame, font=('Arial', 10), width=15)
+        ttk.Label(frame, text="Brew Date (DD/MM/YYYY) *", font=('Arial', 10, 'bold')).grid(row=2, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        self.brew_date_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
         self.brew_date_entry.insert(0, get_today_display())
         self.brew_date_entry.grid(row=3, column=1, sticky='w', pady=(0,15), padx=(20,0))
 
         # Brewer Name
-        tk.Label(frame, text="Brewer Name *", font=('Arial', 10, 'bold'), bg='white').grid(row=4, column=0, sticky='w', pady=(0,5))
-        self.brewer_entry = tk.Entry(frame, font=('Arial', 10), width=20)
+        ttk.Label(frame, text="Brewer Name *", font=('Arial', 10, 'bold')).grid(row=4, column=0, sticky='w', pady=(0,5))
+        self.brewer_entry = ttk.Entry(frame, font=('Arial', 10), width=20)
         self.brewer_entry.insert(0, self.current_user.full_name)
         self.brewer_entry.grid(row=5, column=0, sticky='w', pady=(0,15))
 
         # Batch Size
-        tk.Label(frame, text="Batch Size (L) *", font=('Arial', 10, 'bold'), bg='white').grid(row=4, column=1, sticky='w', pady=(0,5), padx=(20,0))
-        self.size_entry = tk.Entry(frame, font=('Arial', 10), width=15)
+        ttk.Label(frame, text="Batch Size (L) *", font=('Arial', 10, 'bold')).grid(row=4, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        self.size_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
         self.size_entry.grid(row=5, column=1, sticky='w', pady=(0,15), padx=(20,0))
 
         # Measured ABV
-        tk.Label(frame, text="Measured ABV %", font=('Arial', 10, 'bold'), bg='white').grid(row=6, column=0, sticky='w', pady=(0,5))
-        self.abv_entry = tk.Entry(frame, font=('Arial', 10), width=15)
+        ttk.Label(frame, text="Measured ABV %", font=('Arial', 10, 'bold')).grid(row=6, column=0, sticky='w', pady=(0,5))
+        self.abv_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
         self.abv_entry.grid(row=7, column=0, sticky='w', pady=(0,15))
 
         # Status
-        tk.Label(frame, text="Status *", font=('Arial', 10, 'bold'), bg='white').grid(row=6, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        ttk.Label(frame, text="Status *", font=('Arial', 10, 'bold')).grid(row=6, column=1, sticky='w', pady=(0,5), padx=(20,0))
         self.status_var = tk.StringVar(value='brewing')
         status_menu = ttk.Combobox(frame, textvariable=self.status_var,
                                    values=['brewing', 'fermenting', 'conditioning', 'ready', 'packaged'],
@@ -265,7 +266,7 @@ class BatchDialog(tk.Toplevel):
         status_menu.grid(row=7, column=1, sticky='w', pady=(0,15), padx=(20,0))
 
         # Brewing Notes
-        tk.Label(frame, text="Brewing Notes", font=('Arial', 10, 'bold'), bg='white').grid(row=8, column=0, sticky='w', pady=(0,5))
+        ttk.Label(frame, text="Brewing Notes", font=('Arial', 10, 'bold')).grid(row=8, column=0, sticky='w', pady=(0,5))
         self.notes_text = tk.Text(frame, font=('Arial', 10), width=40, height=6)
         self.notes_text.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(0,15))
 
@@ -273,13 +274,13 @@ class BatchDialog(tk.Toplevel):
         frame.grid_columnconfigure(1, weight=1)
 
         # Buttons
-        button_frame = tk.Frame(self, bg='white', pady=10)
+        button_frame = ttk.Frame(self, padding=10)
         button_frame.pack(fill=tk.X, padx=20, pady=(0,20))
 
-        tk.Button(button_frame, text="Cancel", font=('Arial', 10), bg='#757575', fg='white',
-                 command=self.destroy, padx=20, pady=8).pack(side=tk.RIGHT, padx=(10,0))
-        tk.Button(button_frame, text="Save Batch", font=('Arial', 10, 'bold'), bg='#4CAF50', fg='white',
-                 command=self.save, padx=20, pady=8).pack(side=tk.RIGHT)
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save Batch", bootstyle="success",
+                  command=self.save).pack(side=tk.RIGHT)
 
     def generate_gyle_number(self):
         """Generate next gyle number"""
@@ -383,11 +384,11 @@ class BatchDetailsDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
-        frame = tk.Frame(self, bg='white', padx=30, pady=20)
+        frame = ttk.Frame(self, padding=30)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        tk.Label(frame, text=self.batch.get('gyle_number', 'Unknown'),
-                font=('Arial', 18, 'bold'), bg='white').pack(anchor='w', pady=(0,10))
+        ttk.Label(frame, text=self.batch.get('gyle_number', 'Unknown'),
+                 font=('Arial', 18, 'bold')).pack(anchor='w', pady=(0,10))
 
         recipe_name = 'Unknown'
         if self.batch.get('recipe_id'):
@@ -412,19 +413,19 @@ Ready Date: {format_date_for_display(self.batch.get('ready_date')) or 'Not ready
 Packaged Date: {format_date_for_display(self.batch.get('packaged_date')) or 'Not packaged'}
         """
 
-        tk.Label(frame, text=info.strip(), font=('Arial', 10), bg='white',
-                justify=tk.LEFT).pack(anchor='w', pady=(0,20))
+        ttk.Label(frame, text=info.strip(), font=('Arial', 10),
+                 justify=tk.LEFT).pack(anchor='w', pady=(0,20))
 
         if self.batch.get('brewing_notes'):
-            tk.Label(frame, text="Brewing Notes:", font=('Arial', 11, 'bold'),
-                    bg='white').pack(anchor='w', pady=(0,5))
+            ttk.Label(frame, text="Brewing Notes:", font=('Arial', 11, 'bold')).pack(anchor='w', pady=(0,5))
+            # Keep tk.Frame here for specific background color
             notes_frame = tk.Frame(frame, bg='#f5f5f5', relief=tk.SOLID, borderwidth=1)
             notes_frame.pack(fill=tk.X, pady=(0,20))
             tk.Label(notes_frame, text=self.batch['brewing_notes'], font=('Arial', 10),
                     bg='#f5f5f5', justify=tk.LEFT, wraplength=500).pack(padx=10, pady=10, anchor='w')
 
-        tk.Button(self, text="Close", font=('Arial', 10), bg='#607D8B', fg='white',
-                 command=self.destroy, padx=20, pady=8).pack(pady=(0,20))
+        ttk.Button(self, text="Close", bootstyle="secondary",
+                  command=self.destroy).pack(pady=(0,20))
 
 
 class StatusUpdateDialog(tk.Toplevel):
@@ -444,26 +445,26 @@ class StatusUpdateDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
-        frame = tk.Frame(self, bg='white', padx=20, pady=20)
+        frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        tk.Label(frame, text=f"Current Status: {self.batch.get('status', 'unknown').capitalize()}",
-                font=('Arial', 12, 'bold'), bg='white').pack(pady=(0,20))
+        ttk.Label(frame, text=f"Current Status: {self.batch.get('status', 'unknown').capitalize()}",
+                 font=('Arial', 12, 'bold')).pack(pady=(0,20))
 
-        tk.Label(frame, text="New Status", font=('Arial', 10, 'bold'), bg='white').pack(anchor='w', pady=(0,5))
+        ttk.Label(frame, text="New Status", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
         self.status_var = tk.StringVar(value=self.batch.get('status', 'brewing'))
         status_menu = ttk.Combobox(frame, textvariable=self.status_var,
                                    values=['brewing', 'fermenting', 'conditioning', 'ready', 'packaged'],
                                    width=25, state='readonly', font=('Arial', 10))
         status_menu.pack(anchor='w', pady=(0,20))
 
-        button_frame = tk.Frame(self, bg='white', pady=10)
+        button_frame = ttk.Frame(self, padding=10)
         button_frame.pack(fill=tk.X, padx=20)
 
-        tk.Button(button_frame, text="Cancel", font=('Arial', 10), bg='#757575', fg='white',
-                 command=self.destroy, padx=20, pady=8).pack(side=tk.RIGHT, padx=(10,0))
-        tk.Button(button_frame, text="Update", font=('Arial', 10, 'bold'), bg='#FF9800', fg='white',
-                 command=self.update, padx=20, pady=8).pack(side=tk.RIGHT)
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Update", bootstyle="warning",
+                  command=self.update).pack(side=tk.RIGHT)
 
     def update(self):
         """Update status"""

@@ -4,16 +4,17 @@ HMRC-compliant UK alcohol duty calculations with SPR and Draught Relief
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox
+import ttkbootstrap as ttk
 from datetime import datetime
 from src.config.constants import DUTY_RATES, DRAUGHT_RELIEF_BEER_CIDER, VAT_RATE
 
 
-class DutyModule(tk.Frame):
+class DutyModule(ttk.Frame):
     """Duty Calculator module for HMRC-compliant calculations"""
 
     def __init__(self, parent, cache_manager, current_user):
-        super().__init__(parent, bg='white')
+        super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
 
@@ -22,81 +23,74 @@ class DutyModule(tk.Frame):
     def create_widgets(self):
         """Create duty calculator widgets"""
         # Header
-        header = tk.Frame(self, bg='white')
+        header = ttk.Frame(self)
         header.pack(fill=tk.X, padx=20, pady=(0, 20))
 
-        tk.Label(header, text="UK Alcohol Duty Calculator",
-                font=('Arial', 16, 'bold'), bg='white',
-                fg='#2c3e50').pack(side=tk.LEFT)
+        ttk.Label(header, text="UK Alcohol Duty Calculator",
+                font=('Arial', 16, 'bold')).pack(side=tk.LEFT)
 
-        tk.Label(header, text="HMRC Compliant | February 2025 Rates",
-                font=('Arial', 9, 'italic'), bg='white',
-                fg='#7f8c8d').pack(side=tk.RIGHT)
+        ttk.Label(header, text="HMRC Compliant | February 2025 Rates",
+                font=('Arial', 9, 'italic')).pack(side=tk.RIGHT)
 
         # Two-column layout
-        content = tk.Frame(self, bg='white')
+        content = ttk.Frame(self)
         content.pack(fill=tk.BOTH, expand=True, padx=20)
 
         # Left: Calculator
-        left = tk.Frame(content, bg='white')
+        left = ttk.Frame(content)
         left.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10))
 
         self.create_calculator(left)
 
         # Right: Rates Reference
-        right = tk.Frame(content, bg='white')
+        right = ttk.Frame(content)
         right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(10, 0))
 
         self.create_rates_reference(right)
 
     def create_calculator(self, parent):
         """Create calculator section"""
-        calc_frame = tk.Frame(parent, bg='white', relief=tk.SOLID, borderwidth=1)
+        calc_frame = ttk.Frame(parent, relief=tk.SOLID, borderwidth=1)
         calc_frame.pack(fill=tk.BOTH, expand=True)
 
         # Title
-        tk.Label(calc_frame, text="Calculate Duty", font=('Arial', 13, 'bold'),
-                bg='white', fg='#2c3e50').pack(pady=15)
+        ttk.Label(calc_frame, text="Calculate Duty", font=('Arial', 13, 'bold')).pack(pady=15)
 
-        form = tk.Frame(calc_frame, bg='white', padx=20, pady=10)
+        form = ttk.Frame(calc_frame, padding=20)
         form.pack(fill=tk.BOTH, expand=True)
 
         # Volume
-        tk.Label(form, text="Volume (Litres) *", font=('Arial', 10, 'bold'),
-                bg='white').grid(row=0, column=0, sticky='w', pady=(0,5))
+        ttk.Label(form, text="Volume (Litres) *", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0,5))
         self.volume_entry = tk.Entry(form, font=('Arial', 11), width=20)
         self.volume_entry.grid(row=1, column=0, sticky='ew', pady=(0,15))
 
         # ABV
-        tk.Label(form, text="ABV % *", font=('Arial', 10, 'bold'),
-                bg='white').grid(row=2, column=0, sticky='w', pady=(0,5))
+        ttk.Label(form, text="ABV % *", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky='w', pady=(0,5))
         self.abv_entry = tk.Entry(form, font=('Arial', 11), width=20)
         self.abv_entry.grid(row=3, column=0, sticky='ew', pady=(0,15))
 
         # Draught
         self.draught_var = tk.IntVar(value=1)
         tk.Checkbutton(form, text="Draught (cask ≥20L)", variable=self.draught_var,
-                      font=('Arial', 10), bg='white',
+                      font=('Arial', 10),
                       command=self.calculate).grid(row=4, column=0, sticky='w', pady=(0,15))
 
         # SPR Rate
-        tk.Label(form, text="SPR Rate (£/hl) *", font=('Arial', 10, 'bold'),
-                bg='white').grid(row=5, column=0, sticky='w', pady=(0,5))
+        ttk.Label(form, text="SPR Rate (£/hl) *", font=('Arial', 10, 'bold')).grid(row=5, column=0, sticky='w', pady=(0,5))
         self.spr_entry = tk.Entry(form, font=('Arial', 11), width=20)
         self.spr_entry.insert(0, "4.87")
         self.spr_entry.grid(row=6, column=0, sticky='ew', pady=(0,15))
 
-        tk.Label(form, text="(Current small brewery rate)", font=('Arial', 9, 'italic'),
-                bg='white', fg='#7f8c8d').grid(row=7, column=0, sticky='w', pady=(0,15))
+        ttk.Label(form, text="(Current small brewery rate)", font=('Arial', 9, 'italic')).grid(row=7, column=0, sticky='w', pady=(0,15))
 
         # Calculate button
-        tk.Button(form, text="Calculate Duty", font=('Arial', 11, 'bold'),
-                 bg='#4CAF50', fg='white', cursor='hand2',
-                 command=self.calculate, padx=20, pady=10).grid(row=8, column=0, pady=(10,20))
+        ttk.Button(form, text="Calculate Duty",
+                  command=self.calculate,
+                  bootstyle="success").grid(row=8, column=0, pady=(10,20))
 
         form.grid_columnconfigure(0, weight=1)
 
-        # Results
+        # Results - keep as tk.Frame for dynamic color changes
         self.results_frame = tk.Frame(calc_frame, bg='#e8f5e9', relief=tk.SOLID, borderwidth=1)
         self.results_frame.pack(fill=tk.X, padx=20, pady=(0,20))
 
@@ -107,18 +101,16 @@ class DutyModule(tk.Frame):
 
     def create_rates_reference(self, parent):
         """Create rates reference section"""
-        ref_frame = tk.Frame(parent, bg='white', relief=tk.SOLID, borderwidth=1)
+        ref_frame = ttk.Frame(parent, relief=tk.SOLID, borderwidth=1)
         ref_frame.pack(fill=tk.BOTH, expand=True)
 
-        tk.Label(ref_frame, text="Duty Rates Reference", font=('Arial', 13, 'bold'),
-                bg='white', fg='#2c3e50').pack(pady=15)
+        ttk.Label(ref_frame, text="Duty Rates Reference", font=('Arial', 13, 'bold')).pack(pady=15)
 
-        info = tk.Frame(ref_frame, bg='white', padx=20, pady=10)
+        info = ttk.Frame(ref_frame, padding=20)
         info.pack(fill=tk.BOTH, expand=True)
 
         # Standard rates
-        tk.Label(info, text="Beer Rates (Feb 2025)", font=('Arial', 11, 'bold'),
-                bg='white', fg='#34495e').pack(anchor='w', pady=(0,10))
+        ttk.Label(info, text="Beer Rates (Feb 2025)", font=('Arial', 11, 'bold')).pack(anchor='w', pady=(0,10))
 
         rates_text = """
 Non-Draught:
@@ -139,10 +131,10 @@ Current rate varies by brewery size.
 Typical range: £4-£10 per hectolitre.
         """
 
-        tk.Label(info, text=rates_text.strip(), font=('Arial', 9),
-                bg='white', fg='#555', justify=tk.LEFT).pack(anchor='w', pady=(0,15))
+        ttk.Label(info, text=rates_text.strip(), font=('Arial', 9),
+                 justify=tk.LEFT).pack(anchor='w', pady=(0,15))
 
-        # Example
+        # Example - keep as tk.Frame for specific color
         example_frame = tk.Frame(info, bg='#fff3e0', relief=tk.SOLID, borderwidth=1)
         example_frame.pack(fill=tk.X, pady=(10,0))
 
@@ -251,19 +243,20 @@ class DutyBatchCalculator(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
-        frame = tk.Frame(self, bg='white', padx=30, pady=20)
+        frame = ttk.Frame(self, padding=30)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        tk.Label(frame, text=f"Batch: {self.batch.get('gyle_number', 'Unknown')}",
-                font=('Arial', 16, 'bold'), bg='white').pack(pady=(0,20))
+        ttk.Label(frame, text=f"Batch: {self.batch.get('gyle_number', 'Unknown')}",
+                font=('Arial', 16, 'bold')).pack(pady=(0,20))
 
-        self.info_label = tk.Label(frame, text="Calculating...",
-                                   font=('Arial', 10), bg='white',
+        self.info_label = ttk.Label(frame, text="Calculating...",
+                                   font=('Arial', 10),
                                    justify=tk.LEFT)
         self.info_label.pack(pady=20)
 
-        tk.Button(self, text="Close", font=('Arial', 10), bg='#607D8B',
-                 fg='white', command=self.destroy, padx=20, pady=8).pack(pady=(0,20))
+        ttk.Button(self, text="Close",
+                  command=self.destroy,
+                  bootstyle="secondary").pack(pady=(0,20))
 
     def calculate_duty(self):
         """Calculate duty for batch"""
