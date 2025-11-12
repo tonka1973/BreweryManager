@@ -26,13 +26,17 @@
   - Dashboard module
   - Recipes module
   - Inventory module
-  - Batches module
+  - Batches module (renamed to Production)
   - Customers module
   - Sales module
   - Invoicing module
   - Duty Calculator module
   - Label Printing module
-- [x] Committed and pushed all changes (2 commits)
+- [x] Added automatic dependency check to start.md workflow
+- [x] Fixed Recipe ingredient dialog (resizable, buttons visible)
+- [x] Renamed "Batches" to "Production" module
+- [x] Fixed Production batch dialog (resizable, removed status dropdown)
+- [x] Committed and pushed all changes (5 commits total)
 
 ## Major Enhancements Implemented
 
@@ -57,12 +61,13 @@
 - None - All conversions completed successfully
 
 ## Next Session TODO
-- Test the application with new theme system
-- Run full code quality checks (black, pylint, pytest)
-- Install new dependencies: `pip install -r requirements.txt`
-- Launch application and test theme toggle
-- Test all 9 modules in both light and dark themes
+- Continue testing all modules with new modern theme
+- Test theme toggle functionality on both computers
+- Test all dialog windows (resizable, proper sizing)
+- Gather user feedback on additional UI improvements
 - Consider adding more unit tests for core functionality
+- Explore additional ttkbootstrap themes if needed
 
 ---
 *Session started: 2025-11-12*
+*Session ended: 2025-11-12*
