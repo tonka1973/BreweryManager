@@ -203,8 +203,8 @@ class BatchDialog(tk.Toplevel):
         self.batch = batch
 
         self.title("New Batch" if mode == 'add' else "Edit Batch")
-        self.geometry("600x650")
-        self.resizable(False, False)
+        self.geometry("600x500")
+        self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
 
@@ -257,14 +257,6 @@ class BatchDialog(tk.Toplevel):
         self.abv_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
         self.abv_entry.grid(row=7, column=0, sticky='w', pady=(0,15))
 
-        # Status
-        ttk.Label(frame, text="Status *", font=('Arial', 10, 'bold')).grid(row=6, column=1, sticky='w', pady=(0,5), padx=(20,0))
-        self.status_var = tk.StringVar(value='brewing')
-        status_menu = ttk.Combobox(frame, textvariable=self.status_var,
-                                   values=['brewing', 'fermenting', 'conditioning', 'ready', 'packaged'],
-                                   width=12, state='readonly')
-        status_menu.grid(row=7, column=1, sticky='w', pady=(0,15), padx=(20,0))
-
         # Brewing Notes
         ttk.Label(frame, text="Brewing Notes", font=('Arial', 10, 'bold')).grid(row=8, column=0, sticky='w', pady=(0,5))
         self.notes_text = tk.Text(frame, font=('Arial', 10), width=40, height=6)
@@ -309,7 +301,6 @@ class BatchDialog(tk.Toplevel):
         self.size_entry.insert(0, str(self.batch.get('actual_batch_size', '')))
         if self.batch.get('measured_abv'):
             self.abv_entry.insert(0, str(self.batch['measured_abv']))
-        self.status_var.set(self.batch.get('status', 'brewing'))
         if self.batch.get('brewing_notes'):
             self.notes_text.insert('1.0', self.batch['brewing_notes'])
 
@@ -338,6 +329,9 @@ class BatchDialog(tk.Toplevel):
             messagebox.showerror("Error", "Invalid date format. Please use DD/MM/YYYY.")
             return
 
+        # For new batches, default to 'brewing'. For edits, preserve existing status
+        batch_status = 'brewing' if self.mode == 'add' else self.batch.get('status', 'brewing')
+
         data = {
             'recipe_id': self.recipe_list[recipe_name],
             'gyle_number': gyle,
@@ -345,7 +339,7 @@ class BatchDialog(tk.Toplevel):
             'brewer_name': self.brewer_entry.get().strip(),
             'actual_batch_size': batch_size,
             'measured_abv': abv if abv > 0 else None,
-            'status': self.status_var.get(),
+            'status': batch_status,
             'brewing_notes': self.notes_text.get('1.0', tk.END).strip(),
             'last_modified': get_now_db(),
             'created_by': self.current_user.username,
