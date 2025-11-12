@@ -1,0 +1,129 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "brewery-manager"
+version = "1.0.0"
+description = "Commercial Brewery Management System"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    {name = "Brewery Manager Team"}
+]
+
+[tool.black]
+# Black code formatter configuration
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # Exclude common directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | venv
+)/
+'''
+
+[tool.pylint.main]
+# Pylint configuration
+
+# Python version
+py-version = "3.11"
+
+# Files/directories to analyze
+ignore = [
+    "CVS",
+    ".git",
+    "__pycache__",
+    "venv",
+    ".venv",
+    "build",
+    "dist"
+]
+
+# Use multiple processes for faster checks
+jobs = 0  # Auto-detect CPU count
+
+# Pickle collected data for faster subsequent runs
+persistent = true
+
+[tool.pylint.messages_control]
+# Disable specific warnings
+
+disable = [
+    "C0103",  # Invalid name (sometimes needed for GUI widgets)
+    "C0114",  # Missing module docstring (not all modules need them)
+    "C0115",  # Missing class docstring (not all classes need them)
+    "C0116",  # Missing function docstring (not all functions need them)
+    "R0902",  # Too many instance attributes (common in GUI classes)
+    "R0913",  # Too many arguments (sometimes necessary)
+    "R0914",  # Too many local variables (common in GUI setup)
+    "R0915",  # Too many statements (common in GUI setup)
+    "W0212",  # Protected access (needed for some tkinter operations)
+    "W0718",  # Broad exception caught (sometimes needed for robustness)
+]
+
+[tool.pylint.format]
+# Code formatting
+
+max-line-length = 88  # Match black
+indent-string = "    "  # 4 spaces
+
+[tool.pylint.basic]
+# Naming conventions
+
+good-names = [
+    "i", "j", "k",  # Loop counters
+    "ex", "e",      # Exceptions
+    "x", "y",       # Coordinates
+    "db",           # Database
+    "id",           # Identifier
+    "ok",           # Boolean
+]
+
+[tool.pylint.design]
+# Design checks
+
+max-args = 8              # Maximum arguments in function/method
+max-attributes = 15       # Maximum attributes in class (GUI classes need many)
+max-bool-expr = 5         # Maximum boolean expressions in if statement
+max-branches = 15         # Maximum branches in function/method
+max-locals = 20           # Maximum local variables (GUI setup needs many)
+max-parents = 7           # Maximum parent classes
+max-public-methods = 25   # Maximum public methods in class
+max-returns = 6           # Maximum return statements in function/method
+max-statements = 60       # Maximum statements in function/method (GUI setup)
+min-public-methods = 1    # Minimum public methods in class
+
+[tool.pylint.similarities]
+# Check for similar code
+
+min-similarity-lines = 10     # Minimum lines of similar code to report
+ignore-comments = true        # Ignore comments when checking similarity
+ignore-docstrings = true      # Ignore docstrings when checking similarity
+ignore-imports = true         # Ignore imports when checking similarity
+
+[tool.pylint.string]
+# String checks
+
+check-quote-consistency = true  # Ensure consistent quote usage
+
+[tool.pylint.variables]
+# Variable checks
+
+init-import = false  # Don't allow initialization from imports
+
+[tool.pylint.logging]
+# Logging checks
+
+logging-format-style = "old"  # Use % formatting for logging

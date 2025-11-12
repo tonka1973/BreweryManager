@@ -4,7 +4,9 @@ Provides the GUI interface with login, navigation, and module display.
 """
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import messagebox
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
 import sys
 import os
 
@@ -12,6 +14,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from src.utilities.auth import AuthManager
+from src.utilities.theme_manager import get_theme_manager
 from src.data_access.sync_manager import SyncManager
 from src.data_access.sqlite_cache import SQLiteCacheManager
 from src.data_access.google_sheets_client import GoogleSheetsClient
@@ -31,13 +34,19 @@ from src.gui.labels import LabelsModule
 
 class BreweryMainWindow:
     """Main application window with login and navigation."""
-    
+
     def __init__(self):
         """Initialize the main window."""
-        self.root = tk.Tk()
-        self.root.title("Brewery Management System")
-        self.root.geometry("1200x800")
-        self.root.minsize(1000, 600)
+        # Initialize theme manager
+        self.theme_manager = get_theme_manager()
+
+        # Create root window with ttkbootstrap theme
+        self.root = ttk.Window(
+            title="Brewery Management System",
+            themename=self.theme_manager.current_theme,
+            size=(1200, 800),
+            minsize=(1000, 600)
+        )
         
         # Initialize data access layer
         self.cache_manager = SQLiteCacheManager()
@@ -240,9 +249,9 @@ class BreweryMainWindow:
         # Clear login screen
         if self.login_frame:
             self.login_frame.destroy()
-        
+
         # Create main container
-        self.main_frame = tk.Frame(self.root, bg='white')
+        self.main_frame = ttk.Frame(self.root)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
         
         # Create menu bar
@@ -264,7 +273,7 @@ class BreweryMainWindow:
         """Create the top menu bar."""
         menubar = tk.Menu(self.root)
         self.root.config(menu=menubar)
-        
+
         # File menu
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="File", menu=file_menu)
@@ -273,7 +282,12 @@ class BreweryMainWindow:
         file_menu.add_command(label="Settings", command=self.show_settings)
         file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.exit_application)
-        
+
+        # View menu
+        view_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="View", menu=view_menu)
+        view_menu.add_command(label="Toggle Dark Mode", command=self.toggle_theme)
+
         # Help menu
         help_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="Help", menu=help_menu)
@@ -282,21 +296,19 @@ class BreweryMainWindow:
     
     def create_sidebar(self):
         """Create the left sidebar with navigation buttons."""
-        self.sidebar = tk.Frame(self.main_frame, bg='#2c3e50', width=200)
-        self.sidebar.pack(side=tk.LEFT, fill=tk.Y)
-        self.sidebar.pack_propagate(False)
-        
+        self.sidebar = ttk.Frame(self.main_frame, style='dark.TFrame')
+        self.sidebar.pack(side=tk.LEFT, fill=tk.Y, ipadx=10)
+
         # Sidebar title
-        title_label = tk.Label(
+        title_label = ttk.Label(
             self.sidebar,
             text="Navigation",
             font=('Arial', 14, 'bold'),
-            bg='#2c3e50',
-            fg='white'
+            style='inverse.TLabel'
         )
         title_label.pack(pady=(20, 10))
-        
-        # Module buttons
+
+        # Module buttons with modern styling
         modules = [
             'Dashboard',
             'Brewery Inventory',
@@ -308,96 +320,79 @@ class BreweryMainWindow:
             'Duty Calculator',
             'Label Printing'
         ]
-        
+
         self.nav_buttons = {}
         for module in modules:
-            btn = tk.Button(
+            btn = ttk.Button(
                 self.sidebar,
                 text=module,
-                font=('Arial', 11),
-                bg='#34495e',
-                fg='white',
-                activebackground='#4CAF50',
-                activeforeground='white',
-                cursor='hand2',
-                relief=tk.FLAT,
-                bd=0,
+                style='secondary.TButton',
                 command=lambda m=module: self.switch_module(m)
             )
             btn.pack(fill=tk.X, padx=10, pady=5)
             self.nav_buttons[module] = btn
-        
+
         # User info at bottom
-        user_frame = tk.Frame(self.sidebar, bg='#2c3e50')
+        user_frame = ttk.Frame(self.sidebar, style='dark.TFrame')
         user_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=20)
-        
-        user_label = tk.Label(
+
+        user_label = ttk.Label(
             user_frame,
             text=f"👤 {self.current_user.username}\n({self.current_user.role})",
             font=('Arial', 9),
-            bg='#2c3e50',
-            fg='white',
+            style='inverse.TLabel',
             justify=tk.CENTER
         )
         user_label.pack()
-        
-        logout_btn = tk.Button(
+
+        logout_btn = ttk.Button(
             user_frame,
             text="Logout",
-            font=('Arial', 9),
-            bg='#e74c3c',
-            fg='white',
-            cursor='hand2',
+            bootstyle="danger",
             command=self.logout
         )
         logout_btn.pack(pady=(10, 0))
     
     def create_content_area(self):
         """Create the main content area for displaying modules."""
-        self.content_area = tk.Frame(self.main_frame, bg='white')
+        self.content_area = ttk.Frame(self.main_frame)
         self.content_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
     
     def create_status_bar(self):
         """Create the bottom status bar."""
-        self.status_bar = tk.Frame(self.root, bg='#ecf0f1', relief=tk.SUNKEN, bd=1)
-        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X)
-        
+        self.status_bar = ttk.Frame(self.root)
+        self.status_bar.pack(side=tk.BOTTOM, fill=tk.X, pady=2)
+
         # Connection status
-        self.status_connection = tk.Label(
+        self.status_connection = ttk.Label(
             self.status_bar,
             text="🟢 Online",
             font=('Arial', 9),
-            bg='#ecf0f1',
-            fg='#27ae60'
+            bootstyle="success"
         )
         self.status_connection.pack(side=tk.LEFT, padx=10, pady=5)
-        
+
         # User info
-        self.status_user = tk.Label(
+        self.status_user = ttk.Label(
             self.status_bar,
             text=f"User: {self.current_user.username} ({self.current_user.role})",
-            font=('Arial', 9),
-            bg='#ecf0f1'
+            font=('Arial', 9)
         )
         self.status_user.pack(side=tk.LEFT, padx=10, pady=5)
-        
+
         # Last sync time
-        self.status_sync = tk.Label(
+        self.status_sync = ttk.Label(
             self.status_bar,
             text="Last sync: Never",
-            font=('Arial', 9),
-            bg='#ecf0f1'
+            font=('Arial', 9)
         )
         self.status_sync.pack(side=tk.LEFT, padx=10, pady=5)
-        
+
         # Manual sync button
-        sync_button = tk.Button(
+        sync_button = ttk.Button(
             self.status_bar,
             text="🔄 Sync Now",
-            font=('Arial', 9),
-            bg='#3498db',
-            fg='white',
-            cursor='hand2',
+            bootstyle="info",
             command=self.manual_sync
         )
         sync_button.pack(side=tk.RIGHT, padx=10, pady=3)
@@ -406,28 +401,26 @@ class BreweryMainWindow:
         """Switch to a different module in the content area."""
         # Update current module
         self.current_module = module_name
-        
-        # Update button colors (highlight active)
+
+        # Update button styles (highlight active)
         for name, btn in self.nav_buttons.items():
             if name == module_name:
-                btn.config(bg='#4CAF50')
+                btn.config(bootstyle="success")
             else:
-                btn.config(bg='#34495e')
+                btn.config(bootstyle="secondary")
         
         # Clear content area
         for widget in self.content_area.winfo_children():
             widget.destroy()
-        
+
         # Create module header
-        header_frame = tk.Frame(self.content_area, bg='white')
+        header_frame = ttk.Frame(self.content_area)
         header_frame.pack(fill=tk.X, padx=20, pady=(20, 10))
-        
-        module_title = tk.Label(
+
+        module_title = ttk.Label(
             header_frame,
             text=module_name,
-            font=('Arial', 20, 'bold'),
-            bg='white',
-            fg='#2c3e50'
+            font=('Arial', 20, 'bold')
         )
         module_title.pack(anchor=tk.W)
         
@@ -475,15 +468,14 @@ class BreweryMainWindow:
             module.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
         else:
             # Fallback for unknown modules
-            content_frame = tk.Frame(self.content_area, bg='white')
+            content_frame = ttk.Frame(self.content_area)
             content_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
-            error_label = tk.Label(
+            error_label = ttk.Label(
                 content_frame,
                 text=f"Module '{module_name}' not found.",
                 font=('Arial', 14),
-                bg='white',
-                fg='#e74c3c'
+                bootstyle="danger"
             )
             error_label.pack(pady=50)
     
@@ -491,11 +483,11 @@ class BreweryMainWindow:
         """Update the status bar information."""
         # Check connection status
         is_online = self.sync_manager.check_connection()
-        
+
         if is_online:
-            self.status_connection.config(text="🟢 Online", fg='#27ae60')
+            self.status_connection.config(text="🟢 Online", bootstyle="success")
         else:
-            self.status_connection.config(text="🔴 Offline", fg='#e74c3c')
+            self.status_connection.config(text="🔴 Offline", bootstyle="danger")
         
         # Update last sync time
         last_sync = self.sync_manager.get_last_sync_time()
@@ -577,6 +569,23 @@ class BreweryMainWindow:
             "Phase 4: Windows Installer (Final)"
         )
     
+    def toggle_theme(self):
+        """Toggle between light and dark theme."""
+        # Toggle theme mode
+        new_theme = self.theme_manager.toggle_mode()
+
+        # Apply new theme to window
+        self.root.style.theme_use(new_theme)
+
+        # Show confirmation message
+        mode = "Dark" if self.theme_manager.is_dark_mode() else "Light"
+        messagebox.showinfo(
+            "Theme Changed",
+            f"Theme switched to {mode} mode!\n\n"
+            f"Using theme: {new_theme}\n\n"
+            "Some components may require restart for full effect."
+        )
+
     def exit_application(self):
         """Exit the application."""
         if messagebox.askyesno("Exit", "Are you sure you want to exit?"):
