@@ -127,9 +127,44 @@ Let me know when you've run this command.
 
 ---
 
-## STEP 8: Check Current Git Status
+## STEP 8: Check for Database Migrations
 
-After dependencies are handled, run:
+**After dependencies are handled, check if any migration scripts exist:**
+
+Run this command to look for migration scripts in recent commits:
+```bash
+git diff HEAD~10..HEAD --name-only | grep migrate
+```
+
+**If it shows any `migrate_*.py` files:**
+
+Tell the user:
+```
+⚠️  IMPORTANT: Database schema has been updated!
+
+A migration script was found: [filename]
+
+Please run this command BEFORE launching the application:
+
+python src/data_access/[migration_script_name].py
+
+This will add new columns/tables to your database.
+Without this, the program will crash when trying to use the new features!
+
+Let me know when you've run the migration script.
+```
+
+**If no migration scripts are found:**
+- Skip this message and continue to next step
+
+**Common migration scripts:**
+- `migrate_batches_schema.py` - Adds O.G./F.G./ABV tracking fields
+
+---
+
+## STEP 9: Check Current Git Status
+
+After dependencies and migrations are handled, run:
 ```bash
 git branch --show-current
 git status
@@ -138,7 +173,7 @@ git log --oneline -3
 
 ---
 
-## STEP 9: Create Session Log
+## STEP 10: Create Session Log
 
 Create a file named `SESSION_LOG_YYYY-MM-DD_<session-id>.md` with this content:
 
@@ -175,7 +210,7 @@ Create a file named `SESSION_LOG_YYYY-MM-DD_<session-id>.md` with this content:
 
 ---
 
-## STEP 10: Report Status and Ask What to Work On
+## STEP 11: Report Status and Ask What to Work On
 
 Say something like:
 
@@ -236,7 +271,7 @@ Once added to COMPUTER_PATHS.md, proceed with the normal workflow using the new 
 
 ---
 
-## STEP 11: Provide Program Start Commands
+## STEP 12: Provide Program Start Commands
 
 After completing the session setup, provide the user with commands to start testing the application:
 
