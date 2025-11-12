@@ -35,7 +35,8 @@ class InventoryModule(ttk.Frame):
             ('Hops', 'hops'),
             ('Yeast', 'yeast'),
             ('Adjunct', 'adjunct'),
-            ('Sundries', 'sundries')
+            ('Sundries', 'sundries'),
+            ('Containers', 'containers')
         ]
 
         self.category_buttons = {}
@@ -123,8 +124,11 @@ class InventoryModule(ttk.Frame):
             else:
                 btn.configure(bootstyle="secondary")
 
-        # Reload materials with filter
-        self.load_materials()
+        # Load appropriate view
+        if category == 'containers':
+            self.load_containers()
+        else:
+            self.load_materials()
 
     def load_materials(self):
         """Load materials from database"""
@@ -165,11 +169,71 @@ class InventoryModule(ttk.Frame):
         self.tree.tag_configure('low', background='#ffebee')
         self.tree.tag_configure('ok', background='#e8f5e9')
 
+    def load_containers(self):
+        """Load containers (casks, bottles, cans) from database"""
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        self.cache.connect()
+
+        # Load casks
+        casks = self.cache.get_all_records('casks_empty', order_by='cask_size')
+        for cask in casks:
+            values = (
+                f"{cask.get('cask_size', '')} ({cask.get('cask_size_litres', 0):.1f}L)",
+                'Cask',
+                str(cask.get('quantity_in_stock', 0)),
+                'units',
+                '',  # No reorder level for containers
+                '',  # No supplier
+                ''   # No cost
+            )
+            self.tree.insert('', 'end', values=values, tags=('container', 'cask', cask['cask_id']))
+
+        # Load bottles
+        bottles = self.cache.get_all_records('bottles_empty', order_by='bottle_size_ml')
+        for bottle in bottles:
+            values = (
+                f"Bottle {bottle.get('bottle_size_ml', 0)}ml",
+                'Bottle',
+                str(bottle.get('quantity_in_stock', 0)),
+                'units',
+                '',
+                '',
+                ''
+            )
+            self.tree.insert('', 'end', values=values, tags=('container', 'bottle', bottle['bottle_id']))
+
+        # Load cans
+        cans = self.cache.get_all_records('cans_empty', order_by='can_size_ml')
+        for can in cans:
+            size_display = f"{can.get('can_size_ml', 0)/1000:.1f}L" if can.get('can_size_ml', 0) >= 1000 else f"{can.get('can_size_ml', 0)}ml"
+            values = (
+                f"Can {size_display}",
+                'Can',
+                str(can.get('quantity_in_stock', 0)),
+                'units',
+                '',
+                '',
+                ''
+            )
+            self.tree.insert('', 'end', values=values, tags=('container', 'can', can['can_id']))
+
+        self.cache.close()
+
+        # Tag all containers with neutral color
+        self.tree.tag_configure('container', background='#e3f2fd')
+
     def add_material(self):
-        """Add new material"""
-        dialog = MaterialDialog(self, self.cache, self.current_user, mode='add')
-        self.wait_window(dialog)
-        self.load_materials()
+        """Add new material or container"""
+        if self.current_category == 'containers':
+            dialog = ContainerDialog(self, self.cache, self.current_user, mode='add')
+            self.wait_window(dialog)
+            self.load_containers()
+        else:
+            dialog = MaterialDialog(self, self.cache, self.current_user, mode='add')
+            self.wait_window(dialog)
+            self.load_materials()
 
     def edit_material(self):
         """Edit selected material"""
@@ -194,39 +258,82 @@ class InventoryModule(ttk.Frame):
         """Adjust stock levels"""
         selection = self.tree.selection()
         if not selection:
-            messagebox.showwarning("No Selection", "Please select a material.")
+            messagebox.showwarning("No Selection", "Please select an item.")
             return
 
         tags = self.tree.item(selection[0], 'tags')
-        material_id = tags[1] if len(tags) > 1 else None
 
-        self.cache.connect()
-        materials = self.cache.get_all_records('inventory_materials', f"material_id = '{material_id}'")
-        self.cache.close()
+        if self.current_category == 'containers':
+            # Handle container adjustment
+            container_type = tags[1] if len(tags) > 1 else None  # 'cask', 'bottle', 'can'
+            container_id = tags[2] if len(tags) > 2 else None
 
-        if materials:
-            dialog = StockAdjustDialog(self, self.cache, self.current_user, materials[0])
-            self.wait_window(dialog)
-            self.load_materials()
+            self.cache.connect()
+            if container_type == 'cask':
+                table = 'casks_empty'
+                id_field = 'cask_id'
+            elif container_type == 'bottle':
+                table = 'bottles_empty'
+                id_field = 'bottle_id'
+            elif container_type == 'can':
+                table = 'cans_empty'
+                id_field = 'can_id'
+            else:
+                self.cache.close()
+                return
 
-    def delete_material(self):
-        """Delete material"""
-        selection = self.tree.selection()
-        if not selection:
-            messagebox.showwarning("No Selection", "Please select a material.")
-            return
+            containers = self.cache.get_all_records(table, f"{id_field} = '{container_id}'")
+            self.cache.close()
 
-        result = messagebox.askyesno("Confirm Delete", "Delete this material?")
-        if result:
-            tags = self.tree.item(selection[0], 'tags')
+            if containers:
+                dialog = ContainerAdjustDialog(self, self.cache, self.current_user, containers[0], container_type, table, id_field)
+                self.wait_window(dialog)
+                self.load_containers()
+        else:
+            # Handle material adjustment
             material_id = tags[1] if len(tags) > 1 else None
 
             self.cache.connect()
-            self.cache.delete_record('inventory_materials', material_id, 'material_id')
+            materials = self.cache.get_all_records('inventory_materials', f"material_id = '{material_id}'")
             self.cache.close()
 
-            messagebox.showinfo("Success", "Material deleted.")
-            self.load_materials()
+            if materials:
+                dialog = StockAdjustDialog(self, self.cache, self.current_user, materials[0])
+                self.wait_window(dialog)
+                self.load_materials()
+
+    def delete_material(self):
+        """Delete material or container"""
+        selection = self.tree.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select an item.")
+            return
+
+        result = messagebox.askyesno("Confirm Delete", "Delete this item?")
+        if result:
+            tags = self.tree.item(selection[0], 'tags')
+
+            self.cache.connect()
+            if self.current_category == 'containers':
+                container_type = tags[1] if len(tags) > 1 else None
+                container_id = tags[2] if len(tags) > 2 else None
+
+                if container_type == 'cask':
+                    self.cache.delete_record('casks_empty', container_id, 'cask_id')
+                elif container_type == 'bottle':
+                    self.cache.delete_record('bottles_empty', container_id, 'bottle_id')
+                elif container_type == 'can':
+                    self.cache.delete_record('cans_empty', container_id, 'can_id')
+
+                self.cache.close()
+                messagebox.showinfo("Success", "Container deleted.")
+                self.load_containers()
+            else:
+                material_id = tags[1] if len(tags) > 1 else None
+                self.cache.delete_record('inventory_materials', material_id, 'material_id')
+                self.cache.close()
+                messagebox.showinfo("Success", "Material deleted.")
+                self.load_materials()
 
 
 class MaterialDialog(tk.Toplevel):
@@ -432,4 +539,285 @@ class StockAdjustDialog(tk.Toplevel):
         self.cache.close()
 
         messagebox.showinfo("Success", f"Stock updated to {new_stock:.1f}")
+        self.destroy()
+
+
+class ContainerDialog(tk.Toplevel):
+    """Dialog for adding new containers"""
+
+    def __init__(self, parent, cache_manager, current_user, mode='add'):
+        super().__init__(parent)
+        self.cache = cache_manager
+        self.current_user = current_user
+        self.mode = mode
+
+        self.title("Add Container")
+        self.geometry("450x400")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.grab_set()
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        """Create dialog widgets"""
+        frame = ttk.Frame(self, padding=20)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(frame, text="Container Type *", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0,5))
+        self.type_var = tk.StringVar(value='cask')
+        type_menu = ttk.Combobox(frame, textvariable=self.type_var, values=['cask', 'bottle', 'can'],
+                                font=('Arial', 10), width=37, state='readonly')
+        type_menu.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0,15))
+        type_menu.bind('<<ComboboxSelected>>', self.on_type_change)
+
+        ttk.Label(frame, text="Container Size *", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky='w', pady=(0,5))
+        self.size_var = tk.StringVar()
+        self.size_menu = ttk.Combobox(frame, textvariable=self.size_var, font=('Arial', 10), width=37, state='readonly')
+        self.size_menu.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0,15))
+
+        ttk.Label(frame, text="Initial Quantity *", font=('Arial', 10, 'bold')).grid(row=4, column=0, sticky='w', pady=(0,5))
+        self.qty_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
+        self.qty_entry.grid(row=5, column=0, sticky='w', pady=(0,15))
+        self.qty_entry.insert(0, "0")
+
+        ttk.Label(frame, text="Condition", font=('Arial', 10, 'bold')).grid(row=6, column=0, sticky='w', pady=(0,5))
+        self.condition_var = tk.StringVar(value='Good')
+        condition_menu = ttk.Combobox(frame, textvariable=self.condition_var,
+                                     values=['Good', 'Fair', 'Poor', 'Needs Repair'],
+                                     font=('Arial', 10), width=37, state='readonly')
+        condition_menu.grid(row=7, column=0, columnspan=2, sticky='ew', pady=(0,15))
+
+        ttk.Label(frame, text="Notes", font=('Arial', 10, 'bold')).grid(row=8, column=0, sticky='w', pady=(0,5))
+        self.notes_text = tk.Text(frame, font=('Arial', 10), width=40, height=3)
+        self.notes_text.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(0,15))
+
+        frame.grid_columnconfigure(0, weight=1)
+
+        button_frame = ttk.Frame(self, padding=(20, 10, 20, 20))
+        button_frame.pack(fill=tk.X)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save", bootstyle="success",
+                 command=self.save).pack(side=tk.RIGHT)
+
+        # Initialize size options
+        self.on_type_change()
+
+    def on_type_change(self, event=None):
+        """Update size options based on container type"""
+        container_type = self.type_var.get()
+
+        if container_type == 'cask':
+            sizes = ['Pin (4.5 gallons / 20.5L)', 'Firkin (9 gallons / 40.9L)', 'Kilderkin (18 gallons / 81.8L)']
+        elif container_type == 'bottle':
+            sizes = ['330ml', '500ml', '568ml']
+        elif container_type == 'can':
+            sizes = ['330ml', '500ml', '568ml', '5L']
+        else:
+            sizes = []
+
+        self.size_menu['values'] = sizes
+        if sizes:
+            self.size_var.set(sizes[0])
+
+    def save(self):
+        """Save container"""
+        container_type = self.type_var.get()
+        size_str = self.size_var.get()
+
+        if not size_str:
+            messagebox.showerror("Error", "Please select a container size.")
+            return
+
+        try:
+            qty = int(self.qty_entry.get())
+        except ValueError:
+            messagebox.showerror("Error", "Quantity must be a whole number.")
+            return
+
+        if qty < 0:
+            messagebox.showerror("Error", "Quantity cannot be negative.")
+            return
+
+        self.cache.connect()
+
+        # Prepare data based on container type
+        if container_type == 'cask':
+            # Extract cask size and litres from selection
+            if 'Pin' in size_str:
+                cask_size = 'Pin'
+                cask_size_litres = 20.5
+            elif 'Firkin' in size_str:
+                cask_size = 'Firkin'
+                cask_size_litres = 40.9
+            elif 'Kilderkin' in size_str:
+                cask_size = 'Kilderkin'
+                cask_size_litres = 81.8
+            else:
+                messagebox.showerror("Error", "Invalid cask size.")
+                self.cache.close()
+                return
+
+            # Check if this cask size already exists
+            existing = self.cache.get_all_records('casks_empty', f"cask_size = '{cask_size}'")
+            if existing:
+                messagebox.showwarning("Already Exists", f"{cask_size} casks already exist. Use 'Adjust Stock' to change quantity.")
+                self.cache.close()
+                return
+
+            data = {
+                'cask_id': str(uuid.uuid4()),
+                'cask_size': cask_size,
+                'cask_size_litres': cask_size_litres,
+                'quantity_in_stock': qty,
+                'condition': self.condition_var.get(),
+                'last_updated': get_today_db(),
+                'notes': self.notes_text.get('1.0', tk.END).strip(),
+                'sync_status': 'pending'
+            }
+            self.cache.insert_record('casks_empty', data)
+
+        elif container_type == 'bottle':
+            bottle_size_ml = int(size_str.replace('ml', ''))
+
+            # Check if this bottle size already exists
+            existing = self.cache.get_all_records('bottles_empty', f"bottle_size_ml = {bottle_size_ml}")
+            if existing:
+                messagebox.showwarning("Already Exists", f"{bottle_size_ml}ml bottles already exist. Use 'Adjust Stock' to change quantity.")
+                self.cache.close()
+                return
+
+            data = {
+                'bottle_id': str(uuid.uuid4()),
+                'bottle_size_ml': bottle_size_ml,
+                'quantity_in_stock': qty,
+                'condition': self.condition_var.get(),
+                'last_updated': get_today_db(),
+                'notes': self.notes_text.get('1.0', tk.END).strip(),
+                'sync_status': 'pending'
+            }
+            self.cache.insert_record('bottles_empty', data)
+
+        elif container_type == 'can':
+            # Parse can size (handle both ml and L)
+            if 'L' in size_str and 'ml' not in size_str:
+                can_size_ml = int(float(size_str.replace('L', '')) * 1000)
+            else:
+                can_size_ml = int(size_str.replace('ml', ''))
+
+            # Check if this can size already exists
+            existing = self.cache.get_all_records('cans_empty', f"can_size_ml = {can_size_ml}")
+            if existing:
+                size_display = f"{can_size_ml/1000:.1f}L" if can_size_ml >= 1000 else f"{can_size_ml}ml"
+                messagebox.showwarning("Already Exists", f"{size_display} cans already exist. Use 'Adjust Stock' to change quantity.")
+                self.cache.close()
+                return
+
+            data = {
+                'can_id': str(uuid.uuid4()),
+                'can_size_ml': can_size_ml,
+                'quantity_in_stock': qty,
+                'condition': self.condition_var.get(),
+                'last_updated': get_today_db(),
+                'notes': self.notes_text.get('1.0', tk.END).strip(),
+                'sync_status': 'pending'
+            }
+            self.cache.insert_record('cans_empty', data)
+
+        self.cache.close()
+
+        messagebox.showinfo("Success", "Container added!")
+        self.destroy()
+
+
+class ContainerAdjustDialog(tk.Toplevel):
+    """Dialog for adjusting container quantities"""
+
+    def __init__(self, parent, cache_manager, current_user, container, container_type, table, id_field):
+        super().__init__(parent)
+        self.cache = cache_manager
+        self.current_user = current_user
+        self.container = container
+        self.container_type = container_type
+        self.table = table
+        self.id_field = id_field
+
+        # Get container name for title
+        if container_type == 'cask':
+            name = f"{container.get('cask_size', '')} ({container.get('cask_size_litres', 0):.1f}L)"
+        elif container_type == 'bottle':
+            name = f"Bottle {container.get('bottle_size_ml', 0)}ml"
+        elif container_type == 'can':
+            size_ml = container.get('can_size_ml', 0)
+            name = f"Can {size_ml/1000:.1f}L" if size_ml >= 1000 else f"Can {size_ml}ml"
+        else:
+            name = "Container"
+
+        self.title(f"Adjust Stock: {name}")
+        self.geometry("400x300")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.grab_set()
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        """Create widgets"""
+        frame = ttk.Frame(self, padding=20)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        current = self.container.get('quantity_in_stock', 0)
+        ttk.Label(frame, text=f"Current Stock: {current} units",
+                font=('Arial', 12, 'bold')).pack(pady=(0,20))
+
+        ttk.Label(frame, text="Adjustment Type", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
+        self.adj_type = tk.StringVar(value='add')
+        ttk.Radiobutton(frame, text="Add Stock", variable=self.adj_type, value='add').pack(anchor='w')
+        ttk.Radiobutton(frame, text="Remove Stock", variable=self.adj_type, value='remove').pack(anchor='w', pady=(0,15))
+
+        ttk.Label(frame, text="Quantity", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
+        self.qty_entry = ttk.Entry(frame, font=('Arial', 11), width=15)
+        self.qty_entry.pack(anchor='w', pady=(0,15))
+
+        ttk.Label(frame, text="Reason/Notes", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
+        self.notes_text = tk.Text(frame, font=('Arial', 10), width=40, height=3)
+        self.notes_text.pack(pady=(0,15))
+
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Apply", bootstyle="warning",
+                 command=self.apply_adjustment).pack(side=tk.RIGHT)
+
+    def apply_adjustment(self):
+        """Apply stock adjustment"""
+        try:
+            qty = int(self.qty_entry.get())
+        except ValueError:
+            messagebox.showerror("Error", "Quantity must be a whole number.")
+            return
+
+        current = self.container.get('quantity_in_stock', 0)
+        if self.adj_type.get() == 'add':
+            new_stock = current + qty
+        else:
+            new_stock = current - qty
+
+        if new_stock < 0:
+            messagebox.showerror("Error", "Stock cannot be negative.")
+            return
+
+        # Update container stock
+        self.cache.connect()
+        container_id = self.container[self.id_field]
+        self.cache.update_record(self.table, container_id,
+                                {'quantity_in_stock': new_stock, 'last_updated': get_today_db(),
+                                 'sync_status': 'pending'}, self.id_field)
+        self.cache.close()
+
+        messagebox.showinfo("Success", f"Stock updated to {new_stock} units")
         self.destroy()

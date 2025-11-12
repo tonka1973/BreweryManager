@@ -342,6 +342,32 @@ class SQLiteCacheManager:
                     sync_status TEXT DEFAULT 'synced'
                 )
             ''')
+
+            # Bottles Empty table
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS bottles_empty (
+                    bottle_id TEXT PRIMARY KEY,
+                    bottle_size_ml INTEGER,
+                    quantity_in_stock INTEGER DEFAULT 0,
+                    condition TEXT,
+                    last_updated TEXT,
+                    notes TEXT,
+                    sync_status TEXT DEFAULT 'synced'
+                )
+            ''')
+
+            # Cans Empty table
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS cans_empty (
+                    can_id TEXT PRIMARY KEY,
+                    can_size_ml INTEGER,
+                    quantity_in_stock INTEGER DEFAULT 0,
+                    condition TEXT,
+                    last_updated TEXT,
+                    notes TEXT,
+                    sync_status TEXT DEFAULT 'synced'
+                )
+            ''')
             
             # Fermentation Logs table
             self.cursor.execute('''
