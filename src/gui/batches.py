@@ -485,11 +485,14 @@ class PackageDialog(tk.Toplevel):
             if recipes:
                 recipe_name = recipes[0]['recipe_name']
 
+        og = self.batch.get('original_gravity')
+        og_text = f"{og:.3f}" if og else "Not set"
+
         info_text = f"""Gyle: {self.batch.get('gyle_number', 'N/A')}
 Recipe: {recipe_name}
 Brew Date: {format_date_for_display(self.batch.get('brew_date', ''))}
 Batch Size: {self.batch.get('actual_batch_size', 0):.0f}L
-O.G.: {self.batch.get('original_gravity', 0):.3f}"""
+O.G.: {og_text}"""
 
         ttk.Label(header_frame, text=info_text, font=('Arial', 10), justify=tk.LEFT).pack(anchor='w')
 
@@ -695,6 +698,13 @@ O.G.: {self.batch.get('original_gravity', 0):.3f}"""
 
         # Calculate ABV
         og = self.batch.get('original_gravity')
+        if not og:
+            messagebox.showerror("Error",
+                "Original Gravity (O.G.) is not set for this batch.\n\n"
+                "This batch was created before the O.G. tracking feature was added.\n"
+                "Please edit the batch to add the O.G. before packaging.")
+            return
+
         actual_abv = calculate_abv_from_gravity(og, fg)
 
         if actual_abv is None:
@@ -787,14 +797,22 @@ class EditPackagedBatchDialog(tk.Toplevel):
             if recipes:
                 recipe_name = recipes[0]['recipe_name']
 
+        og = self.batch.get('original_gravity')
+        actual_abv = self.batch.get('actual_abv')
+        duty_abv = self.batch.get('duty_abv')
+
+        og_text = f"{og:.3f}" if og else "Not set"
+        actual_abv_text = f"{actual_abv:.1f}%" if actual_abv else "Not set"
+        duty_abv_text = f"{duty_abv:.1f}%" if duty_abv else "Not set"
+
         info_text = f"""Gyle: {self.batch.get('gyle_number', 'N/A')}
 Recipe: {recipe_name}
 Brew Date: {format_date_for_display(self.batch.get('brew_date', ''))}
 Brewer: {self.batch.get('brewer_name', 'N/A')}
 Batch Size: {self.batch.get('actual_batch_size', 0):.0f}L
-Current O.G.: {self.batch.get('original_gravity', 0):.3f}
-Current Actual ABV: {self.batch.get('actual_abv', 0):.2f}%
-Current Duty ABV: {self.batch.get('duty_abv', 0):.2f}%"""
+Current O.G.: {og_text}
+Current Actual ABV: {actual_abv_text}
+Current Duty ABV: {duty_abv_text}"""
 
         ttk.Label(header_frame, text=info_text, font=('Arial', 10), justify=tk.LEFT).pack(anchor='w')
 
@@ -997,6 +1015,13 @@ Current Duty ABV: {self.batch.get('duty_abv', 0):.2f}%"""
 
         # Calculate new ABV
         og = self.batch.get('original_gravity')
+        if not og:
+            messagebox.showerror("Error",
+                "Original Gravity (O.G.) is not set for this batch.\n\n"
+                "This batch was created before the O.G. tracking feature was added.\n"
+                "Please edit the batch to add the O.G. before updating packaging.")
+            return
+
         new_actual_abv = calculate_abv_from_gravity(og, fg)
 
         if new_actual_abv is None:
