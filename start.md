@@ -74,11 +74,17 @@ git fetch origin
 git checkout master
 git reset --hard origin/master
 git merge origin/claude/<MOST-RECENT-BRANCH-NAME> --no-edit
+git push origin master
 ```
 
 **Replace:**
 - `<PATH-FROM-COMPUTER_PATHS.MD>` with the correct path from STEP 1
 - `<MOST-RECENT-BRANCH-NAME>` with the branch from STEP 3
+
+**What this does:**
+- Resets local master to match origin/master (discards any old unpushed work)
+- Merges the most recent claude branch into master
+- **Pushes master to origin** - this keeps origin/master up-to-date and prevents conflicts
 
 Tell them: "Let me know when you've run these commands!"
 
