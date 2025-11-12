@@ -4,6 +4,8 @@ Calculation Utilities for Brewery Management System
 Contains formulas and calculations used throughout the application.
 """
 
+import math
+
 
 def calculate_abv_from_gravity(og, fg):
     """
@@ -18,14 +20,17 @@ def calculate_abv_from_gravity(og, fg):
 
     Returns:
         float: ABV percentage (e.g., 4.5) or None if inputs invalid
+               Result is rounded DOWN to 1 decimal place per HMRC duty requirements.
 
     Example:
         >>> calculate_abv_from_gravity(1.045, 1.010)
-        4.41
+        4.4
+        >>> # If calculation gives 7.59%, it becomes 7.5% for duty purposes
 
     Note:
         This uses the official HMRC formula for alcohol duty calculations.
         The factor lookup table is based on gravity difference ranges.
+        HMRC requires rounding DOWN to nearest 1 decimal place (e.g., 7.59% → 7.5%).
     """
     if not og or not fg or og <= fg:
         return None
@@ -61,4 +66,7 @@ def calculate_abv_from_gravity(og, fg):
 
     # Calculate ABV: (OG - FG) × 1000 × factor
     abv = diff * factor
-    return round(abv, 2)
+
+    # HMRC requirement: Round DOWN to 1 decimal place for duty purposes
+    # Example: 7.59% becomes 7.5%, not 7.6%
+    return math.floor(abv * 10) / 10
