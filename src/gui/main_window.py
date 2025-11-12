@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from src.utilities.auth import AuthManager
 from src.utilities.theme_manager import get_theme_manager
+from src.utilities.window_manager import WindowManager, set_window_manager
 from src.data_access.sync_manager import SyncManager
 from src.data_access.sqlite_cache import SQLiteCacheManager
 from src.data_access.google_sheets_client import GoogleSheetsClient
@@ -40,14 +41,18 @@ class BreweryMainWindow:
         # Initialize theme manager
         self.theme_manager = get_theme_manager()
 
-        # Create root window with ttkbootstrap theme
+        # Create root window with ttkbootstrap theme (temporary size)
         self.root = ttk.Window(
             title="Brewery Management System",
             themename=self.theme_manager.current_theme,
             size=(1200, 800),
             minsize=(1000, 600)
         )
-        
+
+        # Initialize window manager for screen-aware sizing
+        self.window_manager = WindowManager(self.root)
+        set_window_manager(self.window_manager)  # Make it globally accessible
+
         # Initialize data access layer
         self.cache_manager = SQLiteCacheManager()
         self.cache_manager.connect()
@@ -75,20 +80,11 @@ class BreweryMainWindow:
         self.content_area = None
         self.status_bar = None
         
-        # Center window on screen
-        self.center_window()
-        
+        # Setup window with screen-aware sizing and position
+        self.window_manager.setup_main_window(self.root, save_on_close=True)
+
         # Start with login screen
         self.create_login_screen()
-    
-    def center_window(self):
-        """Center the window on the screen."""
-        self.root.update_idletasks()
-        width = self.root.winfo_width()
-        height = self.root.winfo_height()
-        x = (self.root.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.root.winfo_screenheight() // 2) - (height // 2)
-        self.root.geometry(f'{width}x{height}+{x}+{y}')
     
     def create_login_screen(self):
         """Create the login screen interface."""

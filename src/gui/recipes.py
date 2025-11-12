@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 from ..utilities.date_utils import format_date_for_display, format_datetime_for_display, get_today_db, get_now_db
+from ..utilities.window_manager import get_window_manager
 
 
 class RecipesModule(ttk.Frame):
@@ -509,13 +510,21 @@ class RecipeDialog(tk.Toplevel):
         self.recipe = recipe
 
         self.title("Add Recipe" if mode == 'add' else "Edit Recipe")
-        self.geometry("700x600")
-        self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
 
         # Store ingredients list
         self.ingredients = []
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'recipe_dialog', width_pct=0.5, height_pct=0.7,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("700x600")
+            self.resizable(True, True)
 
         self.create_widgets()
 
@@ -886,10 +895,18 @@ class RecipeDetailsDialog(tk.Toplevel):
         self.ingredients = ingredients
 
         self.title(f"Recipe: {recipe.get('recipe_name', 'Unknown')}")
-        self.geometry("700x600")
-        self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'recipe_details_dialog', width_pct=0.5, height_pct=0.7,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("700x600")
+            self.resizable(True, True)
 
         self.create_widgets()
 
@@ -1020,10 +1037,18 @@ class IngredientDialog(tk.Toplevel):
         self.inventory_items = {}  # Store inventory items by type
 
         self.title("Add Ingredient" if mode == 'add' else "Edit Ingredient")
-        self.geometry("500x600")
-        self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'ingredient_dialog', width_pct=0.35, height_pct=0.6,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("500x600")
+            self.resizable(True, True)
 
         self.create_widgets()
         self.load_inventory_items()

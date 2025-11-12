@@ -9,6 +9,7 @@ import ttkbootstrap as ttk
 import uuid
 from datetime import datetime
 from ..utilities.date_utils import format_date_for_display, format_datetime_for_display, parse_display_date, get_today_display, get_today_db, get_now_db
+from ..utilities.window_manager import get_window_manager
 
 
 class BatchesModule(ttk.Frame):
@@ -203,10 +204,18 @@ class BatchDialog(tk.Toplevel):
         self.batch = batch
 
         self.title("New Batch" if mode == 'add' else "Edit Batch")
-        self.geometry("600x500")
-        self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'batch_dialog', width_pct=0.4, height_pct=0.55,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            # Fallback to hardcoded size
+            self.geometry("600x500")
+            self.resizable(True, True)
 
         self.create_widgets()
         if mode == 'edit' and batch:
