@@ -368,7 +368,73 @@ class SQLiteCacheManager:
                     sync_status TEXT DEFAULT 'synced'
                 )
             ''')
-            
+
+            # Container Types table (unified container management)
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS container_types (
+                    container_type_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    size_litres REAL NOT NULL,
+                    category TEXT,
+                    quantity_available INTEGER DEFAULT 0,
+                    active INTEGER DEFAULT 1,
+                    created_date TEXT,
+                    last_modified TEXT,
+                    sync_status TEXT DEFAULT 'synced'
+                )
+            ''')
+
+            # Products table (finished goods tracking)
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS products (
+                    product_id TEXT PRIMARY KEY,
+                    gyle_number TEXT NOT NULL,
+                    batch_id TEXT,
+                    recipe_id TEXT,
+                    product_name TEXT,
+                    style TEXT,
+                    container_type TEXT,
+                    container_size_l REAL,
+                    quantity_total INTEGER,
+                    quantity_in_stock INTEGER,
+                    quantity_sold INTEGER DEFAULT 0,
+                    abv REAL,
+                    date_packaged TEXT,
+                    date_in_stock TEXT,
+                    status TEXT,
+                    is_name_locked INTEGER DEFAULT 0,
+                    created_date TEXT,
+                    created_by TEXT,
+                    last_modified TEXT,
+                    sync_status TEXT DEFAULT 'synced',
+                    FOREIGN KEY (batch_id) REFERENCES batches(batch_id),
+                    FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id)
+                )
+            ''')
+
+            # Product Sales table (for recall tracking)
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS product_sales (
+                    product_sale_id TEXT PRIMARY KEY,
+                    product_id TEXT NOT NULL,
+                    gyle_number TEXT NOT NULL,
+                    sale_id TEXT,
+                    customer_id TEXT,
+                    invoice_id TEXT,
+                    quantity_sold INTEGER,
+                    date_sold TEXT,
+                    date_delivered TEXT,
+                    delivery_address TEXT,
+                    container_type TEXT,
+                    created_date TEXT,
+                    sync_status TEXT DEFAULT 'synced',
+                    FOREIGN KEY (product_id) REFERENCES products(product_id),
+                    FOREIGN KEY (sale_id) REFERENCES sales(sale_id),
+                    FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
+                    FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id)
+                )
+            ''')
+
             # Fermentation Logs table
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS fermentation_logs (
