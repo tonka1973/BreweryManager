@@ -31,6 +31,12 @@
   - Stock validation and deduction
   - Product name locking after first sale
   - product_sales records for recall traceability
+- [x] Updated Brewery Inventory module to manage container_types
+  - Modified to use unified container_types table
+  - Added ContainerTypeDialog for adding new container types
+  - Added ContainerTypeAdjustDialog for stock adjustments (set/add/subtract)
+  - Containers now marked inactive instead of deleted
+  - Migration creates 10 default container types for new installations
 
 ## Issues Encountered
 - Initial issue: Migration script not found on Brewery computer
@@ -40,14 +46,13 @@
 ## Next Session TODO
 - **CRITICAL:** Run Products module migration: `python src/data_access/migrate_products_module.py`
 - Test complete workflow end-to-end:
-  1. Package a batch (should create products)
+  1. Package a batch (should create products and deduct containers)
   2. View products in Products module
   3. Create a sale (should deduct from products)
-  4. View sales history for recall
+  4. View sales history for recall (double-click product)
   5. Process a return
-- Update Brewery Inventory to manage container_types
-- Add UI for adding/editing container types in Inventory
-- Consider: Auto-populate container_types on first run with common types
+  6. Test container type management in Inventory
+- Fix resize grip in Duty module (user reported missing corner resize tab)
 
 ---
 *Session started: November 13, 2025*
