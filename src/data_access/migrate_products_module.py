@@ -173,6 +173,42 @@ def migrate():
 
         if cask_count == 0 and bottle_count == 0 and can_count == 0:
             print("   No existing container data to migrate")
+            print("\n6. Creating default container types...")
+
+            # Add common container types for new installations
+            import uuid
+            from datetime import datetime
+            now = datetime.now().isoformat()
+
+            default_containers = [
+                {'name': 'Pin', 'size_litres': 20.5, 'category': 'Cask', 'qty': 0},
+                {'name': 'Firkin', 'size_litres': 40.9, 'category': 'Cask', 'qty': 0},
+                {'name': 'Kilderkin', 'size_litres': 81.8, 'category': 'Cask', 'qty': 0},
+                {'name': 'Barrel', 'size_litres': 163.6, 'category': 'Cask', 'qty': 0},
+                {'name': '30L Keg', 'size_litres': 30.0, 'category': 'Keg', 'qty': 0},
+                {'name': '50L Keg', 'size_litres': 50.0, 'category': 'Keg', 'qty': 0},
+                {'name': '330ml Bottle', 'size_litres': 0.33, 'category': 'Bottle', 'qty': 0},
+                {'name': '500ml Bottle', 'size_litres': 0.5, 'category': 'Bottle', 'qty': 0},
+                {'name': '330ml Can', 'size_litres': 0.33, 'category': 'Can', 'qty': 0},
+                {'name': '500ml Can', 'size_litres': 0.5, 'category': 'Can', 'qty': 0},
+            ]
+
+            for container in default_containers:
+                cursor.execute('''
+                    INSERT INTO container_types
+                    (container_type_id, name, size_litres, category, quantity_available, active, created_date, last_modified, sync_status)
+                    VALUES (?, ?, ?, ?, ?, 1, ?, ?, 'pending')
+                ''', (
+                    str(uuid.uuid4()),
+                    container['name'],
+                    container['size_litres'],
+                    container['category'],
+                    container['qty'],
+                    now,
+                    now
+                ))
+
+            print(f"   ✓ Created {len(default_containers)} default container types")
 
         # Commit all changes
         conn.commit()

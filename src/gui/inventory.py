@@ -171,54 +171,26 @@ class InventoryModule(ttk.Frame):
         self.tree.tag_configure('ok', background='#e8f5e9')
 
     def load_containers(self):
-        """Load containers (casks, bottles, cans) from database"""
+        """Load containers from container_types table"""
         for item in self.tree.get_children():
             self.tree.delete(item)
 
         self.cache.connect()
 
-        # Load casks
-        casks = self.cache.get_all_records('casks_empty', order_by='cask_size')
-        for cask in casks:
+        # Load from unified container_types table
+        containers = self.cache.get_all_records('container_types', 'active = 1', order_by='category, name')
+
+        for container in containers:
             values = (
-                f"{cask.get('cask_size', '')} ({cask.get('cask_size_litres', 0):.1f}L)",
-                'Cask',
-                str(cask.get('quantity_in_stock', 0)),
+                f"{container.get('name', '')} ({container.get('size_litres', 0):.1f}L)",
+                container.get('category', 'Container'),
+                str(container.get('quantity_available', 0)),
                 'units',
                 '',  # No reorder level for containers
                 '',  # No supplier
                 ''   # No cost
             )
-            self.tree.insert('', 'end', values=values, tags=('container', 'cask', cask['cask_id']))
-
-        # Load bottles
-        bottles = self.cache.get_all_records('bottles_empty', order_by='bottle_size_ml')
-        for bottle in bottles:
-            values = (
-                f"Bottle {bottle.get('bottle_size_ml', 0)}ml",
-                'Bottle',
-                str(bottle.get('quantity_in_stock', 0)),
-                'units',
-                '',
-                '',
-                ''
-            )
-            self.tree.insert('', 'end', values=values, tags=('container', 'bottle', bottle['bottle_id']))
-
-        # Load cans
-        cans = self.cache.get_all_records('cans_empty', order_by='can_size_ml')
-        for can in cans:
-            size_display = f"{can.get('can_size_ml', 0)/1000:.1f}L" if can.get('can_size_ml', 0) >= 1000 else f"{can.get('can_size_ml', 0)}ml"
-            values = (
-                f"Can {size_display}",
-                'Can',
-                str(can.get('quantity_in_stock', 0)),
-                'units',
-                '',
-                '',
-                ''
-            )
-            self.tree.insert('', 'end', values=values, tags=('container', 'can', can['can_id']))
+            self.tree.insert('', 'end', values=values, tags=('container', container['container_type_id']))
 
         self.cache.close()
 
@@ -228,7 +200,7 @@ class InventoryModule(ttk.Frame):
     def add_material(self):
         """Add new material or container"""
         if self.current_category == 'containers':
-            dialog = ContainerDialog(self, self.cache, self.current_user, mode='add')
+            dialog = ContainerTypeDialog(self, self.cache, self.current_user, mode='add')
             self.wait_window(dialog)
             self.load_containers()
         else:
@@ -265,29 +237,16 @@ class InventoryModule(ttk.Frame):
         tags = self.tree.item(selection[0], 'tags')
 
         if self.current_category == 'containers':
-            # Handle container adjustment
-            container_type = tags[1] if len(tags) > 1 else None  # 'cask', 'bottle', 'can'
-            container_id = tags[2] if len(tags) > 2 else None
+            # Handle container adjustment from container_types table
+            container_type_id = tags[1] if len(tags) > 1 else None
 
             self.cache.connect()
-            if container_type == 'cask':
-                table = 'casks_empty'
-                id_field = 'cask_id'
-            elif container_type == 'bottle':
-                table = 'bottles_empty'
-                id_field = 'bottle_id'
-            elif container_type == 'can':
-                table = 'cans_empty'
-                id_field = 'can_id'
-            else:
-                self.cache.close()
-                return
-
-            containers = self.cache.get_all_records(table, f"{id_field} = '{container_id}'")
+            containers = self.cache.get_all_records('container_types',
+                f"container_type_id = '{container_type_id}'")
             self.cache.close()
 
             if containers:
-                dialog = ContainerAdjustDialog(self, self.cache, self.current_user, containers[0], container_type, table, id_field)
+                dialog = ContainerTypeAdjustDialog(self, self.cache, self.current_user, containers[0])
                 self.wait_window(dialog)
                 self.load_containers()
         else:
@@ -316,18 +275,16 @@ class InventoryModule(ttk.Frame):
 
             self.cache.connect()
             if self.current_category == 'containers':
-                container_type = tags[1] if len(tags) > 1 else None
-                container_id = tags[2] if len(tags) > 2 else None
+                container_type_id = tags[1] if len(tags) > 1 else None
 
-                if container_type == 'cask':
-                    self.cache.delete_record('casks_empty', container_id, 'cask_id')
-                elif container_type == 'bottle':
-                    self.cache.delete_record('bottles_empty', container_id, 'bottle_id')
-                elif container_type == 'can':
-                    self.cache.delete_record('cans_empty', container_id, 'can_id')
+                # Mark as inactive instead of deleting (for data integrity)
+                self.cache.update_record('container_types', container_type_id, {
+                    'active': 0,
+                    'last_modified': datetime.now().isoformat()
+                }, 'container_type_id')
 
                 self.cache.close()
-                messagebox.showinfo("Success", "Container deleted.")
+                messagebox.showinfo("Success", "Container type deactivated.")
                 self.load_containers()
             else:
                 material_id = tags[1] if len(tags) > 1 else None
@@ -850,6 +807,204 @@ class ContainerAdjustDialog(tk.Toplevel):
         self.cache.update_record(self.table, container_id,
                                 {'quantity_in_stock': new_stock, 'last_updated': get_today_db(),
                                  'sync_status': 'pending'}, self.id_field)
+        self.cache.close()
+
+        messagebox.showinfo("Success", f"Stock updated to {new_stock} units")
+        self.destroy()
+
+# NEW: Container Type Management Dialogs for unified container_types table
+
+class ContainerTypeDialog(tk.Toplevel):
+    """Dialog for adding new container types to container_types table"""
+
+    def __init__(self, parent, cache_manager, current_user, mode='add'):
+        super().__init__(parent)
+        self.cache = cache_manager
+        self.current_user = current_user
+        self.mode = mode
+
+        self.title("Add Container Type")
+        self.transient(parent)
+        self.grab_set()
+        self.geometry("500x400")
+        self.resizable(True, True)
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        """Create dialog widgets"""
+        frame = ttk.Frame(self, padding=20)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        ttk.Label(frame, text="Container Name *", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0,5))
+        ttk.Label(frame, text="e.g., 'Firkin', '500ml Bottle', '30L Keg'", font=('Arial', 8, 'italic'),
+                 foreground='#666').grid(row=1, column=0, sticky='w', pady=(0,5))
+        self.name_entry = ttk.Entry(frame, font=('Arial', 10), width=40)
+        self.name_entry.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0,15))
+
+        ttk.Label(frame, text="Size (Litres) *", font=('Arial', 10, 'bold')).grid(row=3, column=0, sticky='w', pady=(0,5))
+        ttk.Label(frame, text="e.g., '40.9' for Firkin, '0.5' for 500ml", font=('Arial', 8, 'italic'),
+                 foreground='#666').grid(row=4, column=0, sticky='w', pady=(0,5))
+        self.size_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
+        self.size_entry.grid(row=5, column=0, sticky='w', pady=(0,15))
+
+        ttk.Label(frame, text="Category", font=('Arial', 10, 'bold')).grid(row=3, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        self.category_var = tk.StringVar(value='Cask')
+        category_menu = ttk.Combobox(frame, textvariable=self.category_var,
+                                     values=['Cask', 'Keg', 'Bottle', 'Can', 'Other'],
+                                     font=('Arial', 10), width=15, state='readonly')
+        category_menu.grid(row=5, column=1, sticky='w', pady=(0,15), padx=(20,0))
+
+        ttk.Label(frame, text="Initial Quantity *", font=('Arial', 10, 'bold')).grid(row=6, column=0, sticky='w', pady=(0,5))
+        self.qty_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
+        self.qty_entry.grid(row=7, column=0, sticky='w', pady=(0,15))
+        self.qty_entry.insert(0, "0")
+
+        frame.grid_columnconfigure(0, weight=1)
+
+        button_frame = ttk.Frame(self, padding=(20, 10, 20, 20))
+        button_frame.pack(fill=tk.X)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save", bootstyle="success",
+                 command=self.save).pack(side=tk.RIGHT)
+
+    def save(self):
+        """Save container type"""
+        name = self.name_entry.get().strip()
+        size_str = self.size_entry.get().strip()
+        category = self.category_var.get()
+
+        if not name or not size_str:
+            messagebox.showerror("Error", "Please fill in all required fields.")
+            return
+
+        try:
+            size_litres = float(size_str)
+            if size_litres <= 0:
+                raise ValueError()
+        except ValueError:
+            messagebox.showerror("Error", "Size must be a positive number.")
+            return
+
+        try:
+            qty = int(self.qty_entry.get())
+            if qty < 0:
+                raise ValueError()
+        except ValueError:
+            messagebox.showerror("Error", "Quantity must be a non-negative number.")
+            return
+
+        self.cache.connect()
+
+        # Check if this container type already exists
+        existing = self.cache.get_all_records('container_types',
+            f"name = '{name}' AND active = 1")
+        if existing:
+            messagebox.showwarning("Already Exists",
+                f"Container type '{name}' already exists. Use 'Adjust Stock' to change quantity.")
+            self.cache.close()
+            return
+
+        data = {
+            'container_type_id': str(uuid.uuid4()),
+            'name': name,
+            'size_litres': size_litres,
+            'category': category,
+            'quantity_available': qty,
+            'active': 1,
+            'created_date': datetime.now().isoformat(),
+            'last_modified': datetime.now().isoformat(),
+            'sync_status': 'pending'
+        }
+        self.cache.insert_record('container_types', data)
+        self.cache.close()
+
+        messagebox.showinfo("Success", f"Container type '{name}' added!")
+        self.destroy()
+
+
+class ContainerTypeAdjustDialog(tk.Toplevel):
+    """Dialog for adjusting container type quantities"""
+
+    def __init__(self, parent, cache_manager, current_user, container_type):
+        super().__init__(parent)
+        self.cache = cache_manager
+        self.current_user = current_user
+        self.container_type = container_type
+
+        self.title(f"Adjust Stock: {container_type.get('name', 'Unknown')}")
+        self.transient(parent)
+        self.grab_set()
+        self.geometry("400x300")
+
+        self.create_widgets()
+
+    def create_widgets(self):
+        """Create widgets"""
+        frame = ttk.Frame(self, padding=20)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        # Display current info
+        ttk.Label(frame, text=f"Container: {self.container_type.get('name', '')}",
+                 font=('Arial', 12, 'bold')).pack(anchor='w', pady=(0,5))
+        ttk.Label(frame, text=f"Size: {self.container_type.get('size_litres', 0):.1f}L",
+                 font=('Arial', 10)).pack(anchor='w', pady=(0,5))
+        ttk.Label(frame, text=f"Current Stock: {self.container_type.get('quantity_available', 0)} units",
+                 font=('Arial', 10)).pack(anchor='w', pady=(0,20))
+
+        ttk.Label(frame, text="Adjustment Type:", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
+        self.adjustment_var = tk.StringVar(value='set')
+        ttk.Radiobutton(frame, text="Set to exact amount", variable=self.adjustment_var,
+                       value='set').pack(anchor='w')
+        ttk.Radiobutton(frame, text="Add to current stock", variable=self.adjustment_var,
+                       value='add').pack(anchor='w')
+        ttk.Radiobutton(frame, text="Subtract from current stock", variable=self.adjustment_var,
+                       value='subtract').pack(anchor='w', pady=(0,15))
+
+        ttk.Label(frame, text="Quantity:", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
+        self.qty_entry = ttk.Entry(frame, font=('Arial', 11), width=15)
+        self.qty_entry.pack(anchor='w', pady=(0,20))
+        self.qty_entry.insert(0, str(self.container_type.get('quantity_available', 0)))
+        self.qty_entry.focus()
+
+        button_frame = ttk.Frame(self, padding=(20, 10, 20, 20))
+        button_frame.pack(fill=tk.X)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Update Stock", bootstyle="success",
+                 command=self.update_stock).pack(side=tk.RIGHT)
+
+    def update_stock(self):
+        """Update stock level"""
+        try:
+            qty = int(self.qty_entry.get())
+        except ValueError:
+            messagebox.showerror("Error", "Please enter a valid number.")
+            return
+
+        current_stock = self.container_type.get('quantity_available', 0)
+        adjustment_type = self.adjustment_var.get()
+
+        if adjustment_type == 'set':
+            new_stock = qty
+        elif adjustment_type == 'add':
+            new_stock = current_stock + qty
+        else:  # subtract
+            new_stock = current_stock - qty
+
+        if new_stock < 0:
+            messagebox.showerror("Error", "Stock cannot be negative.")
+            return
+
+        self.cache.connect()
+        self.cache.update_record('container_types', self.container_type['container_type_id'], {
+            'quantity_available': new_stock,
+            'last_modified': datetime.now().isoformat(),
+            'sync_status': 'pending'
+        }, 'container_type_id')
         self.cache.close()
 
         messagebox.showinfo("Success", f"Stock updated to {new_stock} units")
