@@ -1,5 +1,5 @@
 """
-Duty Calculator Module for Brewery Management System
+Duty Module for Brewery Management System
 HMRC-compliant UK alcohol duty calculations with SPR and Draught Relief
 """
 
@@ -11,7 +11,7 @@ from src.config.constants import DUTY_RATES, DRAUGHT_RELIEF_BEER_CIDER, VAT_RATE
 
 
 class DutyModule(ttk.Frame):
-    """Duty Calculator module for HMRC-compliant calculations"""
+    """Duty module for HMRC-compliant calculations"""
 
     def __init__(self, parent, cache_manager, current_user):
         super().__init__(parent)

@@ -310,10 +310,10 @@ class BreweryMainWindow:
             'Brewery Inventory',
             'Recipes',
             'Production',
+            'Duty',
             'Customers',
             'Sales',
             'Invoicing',
-            'Duty Calculator',
             'Label Printing'
         ]
 
@@ -439,10 +439,10 @@ class BreweryMainWindow:
             'Brewery Inventory': InventoryModule,
             'Recipes': RecipesModule,
             'Production': BatchesModule,
+            'Duty': DutyModule,
             'Customers': CustomersModule,
             'Sales': SalesModule,
             'Invoicing': InvoicingModule,
-            'Duty Calculator': DutyModule,
             'Label Printing': LabelsModule
         }
 
