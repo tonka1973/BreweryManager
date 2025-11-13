@@ -219,17 +219,24 @@ class SaleDialog(tk.Toplevel):
         ttk.Combobox(frame, textvariable=self.customer_var,
                     values=list(self.customer_list.keys()), width=37, state='readonly').grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0,15))
 
-        # Batch
-        ttk.Label(frame, text="Batch (Gyle) *", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky='w', pady=(0,5))
-        self.batch_var = tk.StringVar()
+        # Product (from Products module)
+        ttk.Label(frame, text="Product *", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky='w', pady=(0,5))
+        self.product_var = tk.StringVar()
         self.cache.connect()
-        batches = self.cache.get_all_records('batches', "status IN ('ready', 'packaged')", 'gyle_number DESC')
+        products = self.cache.get_all_records('products', "quantity_in_stock > 0", 'gyle_number DESC')
         self.cache.close()
-        self.batch_list = {b['gyle_number']: b for b in batches}
-        batch_combo = ttk.Combobox(frame, textvariable=self.batch_var,
-                                   values=list(self.batch_list.keys()), width=37, state='readonly')
-        batch_combo.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0,15))
-        batch_combo.bind('<<ComboboxSelected>>', self.on_batch_selected)
+        # Display format: "Gyle #XXX - Product Name (Container Type) - X in stock"
+        self.product_list = {}
+        product_displays = []
+        for p in products:
+            display = f"Gyle {p['gyle_number']} - {p['product_name']} ({p['container_type']}) - {p['quantity_in_stock']} in stock"
+            self.product_list[display] = p
+            product_displays.append(display)
+
+        product_combo = ttk.Combobox(frame, textvariable=self.product_var,
+                                     values=product_displays, width=37, state='readonly')
+        product_combo.grid(row=3, column=0, columnspan=2, sticky='ew', pady=(0,15))
+        product_combo.bind('<<ComboboxSelected>>', self.on_product_selected)
 
         # Beer Name (auto-filled)
         ttk.Label(frame, text="Beer Name", font=('Arial', 10, 'bold')).grid(row=4, column=0, sticky='w', pady=(0,5))
@@ -290,21 +297,27 @@ class SaleDialog(tk.Toplevel):
         ttk.Button(button_frame, text="Save Sale", bootstyle='success',
                  command=self.save).pack(side=tk.RIGHT)
 
-    def on_batch_selected(self, event=None):
-        """Auto-fill beer name when batch selected"""
-        gyle = self.batch_var.get()
-        if gyle in self.batch_list:
-            batch = self.batch_list[gyle]
-            recipe_id = batch.get('recipe_id')
-            if recipe_id:
-                self.cache.connect()
-                recipes = self.cache.get_all_records('recipes', f"recipe_id = '{recipe_id}'")
-                self.cache.close()
-                if recipes:
-                    self.beer_entry.config(state='normal')
-                    self.beer_entry.delete(0, tk.END)
-                    self.beer_entry.insert(0, recipes[0]['recipe_name'])
-                    self.beer_entry.config(state='readonly')
+    def on_product_selected(self, event=None):
+        """Auto-fill beer name and container type when product selected"""
+        product_display = self.product_var.get()
+        if product_display in self.product_list:
+            product = self.product_list[product_display]
+            # Auto-fill beer name
+            self.beer_entry.config(state='normal')
+            self.beer_entry.delete(0, tk.END)
+            self.beer_entry.insert(0, product.get('product_name', ''))
+            self.beer_entry.config(state='readonly')
+
+            # Auto-set container type (try to match, otherwise leave as is)
+            container_map = {
+                'Pin': 'pin',
+                'Firkin': 'firkin',
+                'Kilderkin': 'kilderkin',
+                'Barrel': 'kilderkin'
+            }
+            container = product.get('container_type', '')
+            if container in container_map:
+                self.container_var.set(container_map[container])
 
     def populate_fields(self):
         """Populate fields with sale data"""
@@ -316,7 +329,8 @@ class SaleDialog(tk.Toplevel):
             if customers:
                 self.customer_var.set(customers[0]['customer_name'])
 
-        self.batch_var.set(self.sale.get('gyle_number', ''))
+        # For edit mode, try to find matching product
+        # Note: editing sales is complex with products, so this is simplified
         self.beer_entry.config(state='normal')
         self.beer_entry.delete(0, tk.END)
         self.beer_entry.insert(0, self.sale.get('beer_name', ''))
@@ -342,16 +356,25 @@ class SaleDialog(tk.Toplevel):
             messagebox.showerror("Error", "Please select a customer.")
             return
 
-        gyle = self.batch_var.get()
-        if not gyle or gyle not in self.batch_list:
-            messagebox.showerror("Error", "Please select a batch.")
+        # Get selected product
+        product_display = self.product_var.get()
+        if not product_display or product_display not in self.product_list:
+            messagebox.showerror("Error", "Please select a product.")
             return
+
+        product = self.product_list[product_display]
 
         try:
             qty = int(self.qty_entry.get())
             price = float(self.price_entry.get())
         except ValueError:
             messagebox.showerror("Error", "Invalid quantity or price.")
+            return
+
+        # Validate quantity against stock
+        if qty > product.get('quantity_in_stock', 0):
+            messagebox.showerror("Error",
+                f"Insufficient stock! Only {product.get('quantity_in_stock', 0)} available.")
             return
 
         # Convert dates from display format to database format
@@ -367,16 +390,24 @@ class SaleDialog(tk.Toplevel):
                 messagebox.showerror("Error", "Invalid delivery date format. Please use DD/MM/YYYY.")
                 return
 
-        batch = self.batch_list[gyle]
         container_sizes = {'pin': 20.5, 'firkin': 40.9, 'kilderkin': 81.8,
                           '30l_keg': 30.0, '50l_keg': 50.0,
                           'bottle_330ml': 0.33, 'bottle_500ml': 0.50}
         container_size = container_sizes.get(self.container_var.get(), 40.9)
 
-        data = {
+        # Get customer for delivery address
+        self.cache.connect()
+        customers = self.cache.get_all_records('customers',
+            f"customer_id = '{self.customer_list[customer_name]}'")
+        customer_address = customers[0].get('address', '') if customers else ''
+
+        # Create sale record
+        sale_id = str(uuid.uuid4()) if self.mode == 'add' else self.sale['sale_id']
+        sale_data = {
+            'sale_id': sale_id,
             'customer_id': self.customer_list[customer_name],
-            'batch_id': batch['batch_id'],
-            'gyle_number': gyle,
+            'batch_id': product.get('batch_id'),
+            'gyle_number': product.get('gyle_number'),
             'beer_name': self.beer_entry.get(),
             'container_type': self.container_var.get(),
             'container_size': container_size,
@@ -393,12 +424,45 @@ class SaleDialog(tk.Toplevel):
             'sync_status': 'pending'
         }
 
-        self.cache.connect()
         if self.mode == 'add':
-            data['sale_id'] = str(uuid.uuid4())
-            self.cache.insert_record('sales', data)
+            self.cache.insert_record('sales', sale_data)
+
+            # Deduct from product stock
+            new_qty_in_stock = product['quantity_in_stock'] - qty
+            new_qty_sold = product.get('quantity_sold', 0) + qty
+            new_status = 'Sold Out' if new_qty_in_stock == 0 else ('Partially Sold' if new_qty_sold > 0 else 'In Stock')
+
+            self.cache.update_record('products', product['product_id'], {
+                'quantity_in_stock': new_qty_in_stock,
+                'quantity_sold': new_qty_sold,
+                'status': new_status,
+                'is_name_locked': 1,  # Lock name after first sale
+                'last_modified': get_today_db(),
+                'sync_status': 'pending'
+            }, 'product_id')
+
+            # Create product_sales record for recall tracking
+            product_sale_data = {
+                'product_sale_id': str(uuid.uuid4()),
+                'product_id': product['product_id'],
+                'gyle_number': product['gyle_number'],
+                'sale_id': sale_id,
+                'customer_id': self.customer_list[customer_name],
+                'invoice_id': None,  # Will be linked when invoice created
+                'quantity_sold': qty,
+                'date_sold': sale_date_db,
+                'date_delivered': delivery_date_db,
+                'delivery_address': customer_address,
+                'container_type': product.get('container_type'),
+                'created_date': get_today_db(),
+                'sync_status': 'pending'
+            }
+            self.cache.insert_record('product_sales', product_sale_data)
+
         else:
-            self.cache.update_record('sales', self.sale['sale_id'], data, 'sale_id')
+            # Edit mode - just update sale record (don't modify product stock)
+            self.cache.update_record('sales', self.sale['sale_id'], sale_data, 'sale_id')
+
         self.cache.close()
 
         messagebox.showinfo("Success", "Sale saved!")

@@ -737,16 +737,53 @@ O.G.: {og_text}"""
         self.cache.connect()
         self.cache.update_record('batches', self.batch['batch_id'], data, 'batch_id')
 
-        # TODO: Deduct containers from brewery inventory when implemented
-        # TODO: Add to finished goods inventory when table created
-        # for container in self.selected_containers:
-        #     self.cache.execute(f"UPDATE containers SET stock_level = stock_level - {container['qty']}")
-        #     self.cache.insert_record('finished_goods', {
-        #         'gyle_number': self.batch['gyle_number'],
-        #         'container_type': container['name'],
-        #         'quantity': container['qty'],
-        #         'date_packaged': package_date_db
-        #     })
+        # Get recipe details for product info
+        recipe_name = "Unknown Product"
+        recipe_style = ""
+        if self.batch.get('recipe_id'):
+            recipes = self.cache.get_all_records('recipes', f"recipe_id = '{self.batch['recipe_id']}'")
+            if recipes:
+                recipe_name = recipes[0].get('recipe_name', 'Unknown Product')
+                recipe_style = recipes[0].get('style', '')
+
+        # Create product records and deduct from container inventory
+        for container in self.selected_containers:
+            # Create product record
+            product_id = str(uuid.uuid4())
+            product_data = {
+                'product_id': product_id,
+                'gyle_number': self.batch.get('gyle_number'),
+                'batch_id': self.batch.get('batch_id'),
+                'recipe_id': self.batch.get('recipe_id'),
+                'product_name': recipe_name,
+                'style': recipe_style,
+                'container_type': container['name'],
+                'container_size_l': container['volume'],
+                'quantity_total': container['qty'],
+                'quantity_in_stock': container['qty'],
+                'quantity_sold': 0,
+                'abv': actual_abv,
+                'date_packaged': package_date_db,
+                'date_in_stock': package_date_db,
+                'status': 'In Stock',
+                'is_name_locked': 0,
+                'created_date': get_now_db(),
+                'created_by': self.current_user.username,
+                'last_modified': get_now_db(),
+                'sync_status': 'pending'
+            }
+            self.cache.insert_record('products', product_data)
+
+            # Deduct from container_types inventory
+            container_types = self.cache.get_all_records('container_types',
+                f"name = '{container['name']}'")
+            if container_types:
+                container_type = container_types[0]
+                new_qty = max(0, container_type.get('quantity_available', 0) - container['qty'])
+                self.cache.update_record('container_types', container_type['container_type_id'], {
+                    'quantity_available': new_qty,
+                    'last_modified': get_now_db()
+                }, 'container_type_id')
 
         self.cache.close()
 
@@ -1040,11 +1077,11 @@ Current Duty ABV: {duty_abv_text}"""
         # New duty ABV
         new_duty_abv = max(expected_abv, new_actual_abv)
 
-        # TODO: Transaction handling when brewery inventory and finished goods exist
-        # 1. Reverse old container transactions (add back to brewery inventory)
-        # 2. Delete old finished goods entries
-        # 3. Deduct new containers from brewery inventory
-        # 4. Insert new finished goods entries
+        # NOTE: Editing packaged batches updates batch ABV but does NOT modify existing products
+        # Products should be managed separately in the Products module:
+        # 1. Update product ABV manually in Products module if needed
+        # 2. Container changes require manual product management (add/delete products)
+        # This prevents accidental changes to products that may have already been sold
 
         # Update batch record with new values
         data = {
@@ -1061,5 +1098,9 @@ Current Duty ABV: {duty_abv_text}"""
         self.cache.close()
 
         messagebox.showinfo("Success",
-            f"Batch updated!\n\nNew Actual ABV: {new_actual_abv:.2f}%\nNew Duty ABV: {new_duty_abv:.2f}%")
+            f"Batch updated!\n\n"
+            f"New Actual ABV: {new_actual_abv:.2f}%\n"
+            f"New Duty ABV: {new_duty_abv:.2f}%\n\n"
+            f"Note: Existing products NOT updated.\n"
+            f"Update products manually in Products module if needed.")
         self.destroy()
