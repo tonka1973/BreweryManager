@@ -14,7 +14,8 @@
 ## Tasks Completed This Session
 - [x] Session setup completed
 - [x] Database migration executed (Batches schema with O.G./F.G./ABV fields)
-- [ ] (Additional tasks will be added as we work)
+- [x] Renamed "Duty Calculator" module to "Duty"
+- [x] Reordered navigation: moved Duty tab to position 5 (below Production)
 
 ## Issues Encountered
 - Initial issue: Migration script not found on Brewery computer
