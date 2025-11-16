@@ -89,6 +89,12 @@ class InventoryModule(ttk.Frame):
                                command=self.load_materials)
         refresh_btn.pack(side=tk.LEFT)
 
+        logbook_btn = ttk.Button(toolbar, text="📖 Logbook",
+                                bootstyle="info",
+                                cursor='hand2',
+                                command=self.open_logbook)
+        logbook_btn.pack(side=tk.LEFT, padx=(10, 0))
+
         # Materials list
         list_frame = ttk.Frame(self, relief=tk.SOLID, borderwidth=1)
         list_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
@@ -292,6 +298,11 @@ class InventoryModule(ttk.Frame):
                 self.cache.close()
                 messagebox.showinfo("Success", "Material deleted.")
                 self.load_materials()
+
+    def open_logbook(self):
+        """Open inventory logbook dialog"""
+        dialog = InventoryLogbookDialog(self, self.cache, self.current_user)
+        self.wait_window(dialog)
 
 
 class MaterialDialog(tk.Toplevel):
@@ -1009,3 +1020,149 @@ class ContainerTypeAdjustDialog(tk.Toplevel):
 
         messagebox.showinfo("Success", f"Stock updated to {new_stock} units")
         self.destroy()
+
+
+class InventoryLogbookDialog(tk.Toplevel):
+    """Dialog for viewing inventory transaction history"""
+
+    def __init__(self, parent, cache_manager, current_user):
+        super().__init__(parent)
+        self.cache = cache_manager
+        self.current_user = current_user
+
+        self.title("Inventory Logbook - Transaction History")
+        self.transient(parent)
+        self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'logbook_dialog', width_pct=0.7, height_pct=0.75,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            self.geometry("1000x700")
+            self.resizable(True, True)
+
+        self.create_widgets()
+        self.load_transactions()
+
+    def create_widgets(self):
+        """Create dialog widgets"""
+        frame = ttk.Frame(self, padding=20)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        # Header
+        ttk.Label(frame, text="Inventory Transaction History",
+                 font=('Arial', 14, 'bold')).pack(pady=(0, 10))
+
+        # Filter frame
+        filter_frame = ttk.Frame(frame)
+        filter_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(filter_frame, text="Filter by Type:", font=('Arial', 10)).pack(side=tk.LEFT, padx=(0, 5))
+        self.filter_var = tk.StringVar(value='all')
+        filter_combo = ttk.Combobox(filter_frame, textvariable=self.filter_var,
+                                    values=['all', 'add', 'remove'],
+                                    width=12, state='readonly')
+        filter_combo.pack(side=tk.LEFT, padx=(0, 20))
+        filter_combo.bind('<<ComboboxSelected>>', lambda e: self.load_transactions())
+
+        refresh_btn = ttk.Button(filter_frame, text="🔄 Refresh",
+                                bootstyle="secondary",
+                                command=self.load_transactions)
+        refresh_btn.pack(side=tk.LEFT)
+
+        # Transactions list
+        list_frame = ttk.Frame(frame, relief=tk.SOLID, borderwidth=1)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        vsb = ttk.Scrollbar(list_frame, orient="vertical")
+        vsb.pack(side=tk.RIGHT, fill=tk.Y)
+
+        columns = ('Date', 'Type', 'Material', 'Quantity Change', 'New Balance', 'Reference', 'User', 'Notes')
+        self.tree = ttk.Treeview(list_frame, columns=columns, show='headings',
+                                yscrollcommand=vsb.set)
+
+        for col in columns:
+            self.tree.heading(col, text=col)
+
+        self.tree.column('Date', width=100)
+        self.tree.column('Type', width=70)
+        self.tree.column('Material', width=180)
+        self.tree.column('Quantity Change', width=120)
+        self.tree.column('New Balance', width=100)
+        self.tree.column('Reference', width=150)
+        self.tree.column('User', width=100)
+        self.tree.column('Notes', width=200)
+
+        self.tree.pack(fill=tk.BOTH, expand=True)
+        vsb.config(command=self.tree.yview)
+
+        # Tag configurations
+        self.tree.tag_configure('add', background='#e8f5e9')  # Green for additions
+        self.tree.tag_configure('remove', background='#ffebee')  # Red for removals
+
+        # Close button
+        button_frame = ttk.Frame(self, padding=(20, 0, 20, 20))
+        button_frame.pack(fill=tk.X)
+
+        ttk.Button(button_frame, text="Close", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT)
+
+    def load_transactions(self):
+        """Load transactions from database"""
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        # Build where clause
+        filter_type = self.filter_var.get()
+        where = None if filter_type == 'all' else f"transaction_type = '{filter_type}'"
+
+        self.cache.connect()
+        transactions = self.cache.get_all_records('inventory_transactions', where,
+                                                  order_by='transaction_date DESC, transaction_id DESC')
+
+        for trans in transactions:
+            # Get material name
+            material_name = 'Unknown'
+            material_id = trans.get('material_id')
+            if material_id:
+                materials = self.cache.get_all_records('inventory_materials',
+                    f"material_id = '{material_id}'")
+                if materials:
+                    material_name = materials[0].get('material_name', 'Unknown')
+
+            # Format date
+            date_str = trans.get('transaction_date', '')
+            if date_str:
+                try:
+                    # Handle both date formats (YYYY-MM-DD and DD/MM/YYYY)
+                    if '-' in date_str and len(date_str.split('-')[0]) == 4:
+                        # Format is YYYY-MM-DD, convert to DD/MM/YYYY
+                        parts = date_str.split('-')
+                        date_str = f"{parts[2]}/{parts[1]}/{parts[0]}"
+                except:
+                    pass  # Keep original if conversion fails
+
+            trans_type = trans.get('transaction_type', '').capitalize()
+            quantity_change = trans.get('quantity_change', 0)
+            new_balance = trans.get('new_balance', 0)
+            reference = trans.get('reference', '')
+            username = trans.get('username', '')
+            notes = trans.get('notes', '')
+
+            values = (
+                date_str,
+                trans_type,
+                material_name,
+                f"{quantity_change:+.1f}",  # Show + or - sign
+                f"{new_balance:.1f}",
+                reference,
+                username,
+                notes
+            )
+
+            tag = trans.get('transaction_type', 'add')
+            self.tree.insert('', 'end', values=values, tags=(tag,))
+
+        self.cache.close()

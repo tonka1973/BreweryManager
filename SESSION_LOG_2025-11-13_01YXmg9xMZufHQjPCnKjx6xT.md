@@ -21,6 +21,12 @@
   - Creates transaction records for full traceability
   - Shows warning if insufficient stock (partial deduction)
   - Added debugging messages to show what ingredients were processed
+- [x] Added Inventory Logbook feature
+  - New "Logbook" button in Brewery Inventory toolbar
+  - Displays all transaction history (ins and outs)
+  - Shows date, type, material, quantity change, balance, reference, user, notes
+  - Filter by transaction type (all, add, remove)
+  - Color-coded: green for additions, red for removals
 
 ## Issues Encountered
 - Fixed bug: Ingredient deduction was looking in wrong database tables
