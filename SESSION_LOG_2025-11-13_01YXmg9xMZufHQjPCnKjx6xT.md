@@ -23,7 +23,10 @@
   - Added debugging messages to show what ingredients were processed
 
 ## Issues Encountered
-- None yet
+- Fixed bug: Ingredient deduction was looking in wrong database tables
+  - Recipes module saves to `recipe_ingredients` table
+  - Deduction code was looking in `recipe_grains`, `recipe_hops`, etc.
+  - Updated deduction code to read from correct table
 
 ## Next Session TODO
 - (Will be updated at end of session)
