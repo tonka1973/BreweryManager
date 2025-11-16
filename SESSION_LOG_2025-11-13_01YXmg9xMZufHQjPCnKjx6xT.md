@@ -20,6 +20,7 @@
   - Ingredients (grains, hops, yeast, adjuncts) now automatically deducted
   - Creates transaction records for full traceability
   - Shows warning if insufficient stock (partial deduction)
+  - Added debugging messages to show what ingredients were processed
 
 ## Issues Encountered
 - None yet

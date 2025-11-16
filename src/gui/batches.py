@@ -457,9 +457,11 @@ class BatchDialog(tk.Toplevel):
 
         deducted_items = []
         insufficient_stock_items = []
+        total_ingredients_found = 0
 
         for table_name, id_field in ingredient_tables:
             ingredients = self.cache.get_all_records(table_name, f"recipe_id = '{recipe_id}'")
+            total_ingredients_found += len(ingredients)
 
             for ingredient in ingredients:
                 material_id = ingredient.get('material_id')
@@ -518,11 +520,15 @@ class BatchDialog(tk.Toplevel):
                 "\n".join(insufficient_stock_items) +
                 "\n\nPlease update inventory manually.")
 
-        # Show confirmation of deducted items (optional, can be removed if too verbose)
-        # if deducted_items:
-        #     messagebox.showinfo("Inventory Updated",
-        #         f"The following ingredients were deducted from inventory:\n\n" +
-        #         "\n".join(deducted_items))
+        # Show status message about what was processed
+        if total_ingredients_found == 0:
+            messagebox.showinfo("No Ingredients Found",
+                f"This recipe has no ingredients linked.\n\n"
+                f"Please add ingredients to the recipe in the Recipes module.")
+        elif deducted_items:
+            messagebox.showinfo("Inventory Updated",
+                f"The following ingredients were deducted from inventory:\n\n" +
+                "\n".join(deducted_items))
 
 
 class PackageDialog(tk.Toplevel):
