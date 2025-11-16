@@ -27,6 +27,10 @@
   - Recipes module saves to `recipe_ingredients` table
   - Deduction code was looking in `recipe_grains`, `recipe_hops`, etc.
   - Updated deduction code to read from correct table
+- Fixed bug: Unit conversion not happening when deducting ingredients
+  - Recipe stored "700g" but inventory was in "kg", tried to deduct 700kg
+  - Added convert_units() function to handle g↔kg, mL↔L, oz↔lb conversions
+  - Now properly converts recipe units to inventory units before deducting
 
 ## Next Session TODO
 - (Will be updated at end of session)

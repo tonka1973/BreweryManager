@@ -459,6 +459,7 @@ class BatchDialog(tk.Toplevel):
             inventory_item_id = ingredient.get('inventory_item_id')
             quantity_needed = ingredient.get('quantity', 0)
             ingredient_name = ingredient.get('ingredient_name', 'Unknown')
+            ingredient_unit = ingredient.get('unit', '')
 
             if not inventory_item_id or quantity_needed <= 0:
                 continue
@@ -474,16 +475,25 @@ class BatchDialog(tk.Toplevel):
             material = materials[0]
             material_name = material.get('material_name', ingredient_name)
             current_stock = material.get('current_stock', 0)
-            unit = material.get('unit', ingredient.get('unit', ''))
+            inventory_unit = material.get('unit', '')
+
+            # Convert ingredient quantity to inventory unit
+            converted_quantity = self.convert_units(quantity_needed, ingredient_unit, inventory_unit)
+
+            if converted_quantity is None:
+                # Unable to convert units - skip this ingredient
+                insufficient_stock_items.append(
+                    f"{material_name}: Cannot convert {ingredient_unit} to {inventory_unit}")
+                continue
 
             # Check if sufficient stock
-            if current_stock < quantity_needed:
+            if current_stock < converted_quantity:
                 insufficient_stock_items.append(
-                    f"{material_name}: Need {quantity_needed:.1f}{unit}, only {current_stock:.1f}{unit} available")
+                    f"{material_name}: Need {converted_quantity:.1f}{inventory_unit} ({quantity_needed:.1f}{ingredient_unit}), only {current_stock:.1f}{inventory_unit} available")
                 continue
 
             # Deduct from inventory
-            new_stock = current_stock - quantity_needed
+            new_stock = current_stock - converted_quantity
             self.cache.update_record('inventory_materials', inventory_item_id, {
                 'current_stock': new_stock,
                 'last_updated': get_today_db(),
@@ -496,7 +506,7 @@ class BatchDialog(tk.Toplevel):
                 'transaction_date': get_today_db(),
                 'transaction_type': 'remove',
                 'material_id': inventory_item_id,
-                'quantity_change': -quantity_needed,
+                'quantity_change': -converted_quantity,
                 'new_balance': new_stock,
                 'reference': f'Batch {gyle_number}',
                 'username': self.current_user.username,
@@ -505,7 +515,7 @@ class BatchDialog(tk.Toplevel):
             }
             self.cache.insert_record('inventory_transactions', trans_data)
 
-            deducted_items.append(f"{material_name}: {quantity_needed:.1f}{unit}")
+            deducted_items.append(f"{material_name}: {quantity_needed:.1f}{ingredient_unit} ({converted_quantity:.1f}{inventory_unit})")
 
         # Show warning if any items had insufficient stock
         if insufficient_stock_items:
@@ -523,6 +533,49 @@ class BatchDialog(tk.Toplevel):
             messagebox.showinfo("Inventory Updated",
                 f"The following ingredients were deducted from inventory:\n\n" +
                 "\n".join(deducted_items))
+
+    def convert_units(self, quantity, from_unit, to_unit):
+        """Convert quantity from one unit to another. Returns None if conversion not possible."""
+        # If units are the same, no conversion needed
+        if from_unit == to_unit:
+            return quantity
+
+        # Normalize unit strings (lowercase, strip)
+        from_unit = from_unit.lower().strip()
+        to_unit = to_unit.lower().strip()
+
+        if from_unit == to_unit:
+            return quantity
+
+        # Define conversion factors to base units (kg for weight, L for volume)
+        weight_conversions = {
+            'kg': 1.0,
+            'g': 0.001,
+            'lb': 0.453592,
+            'oz': 0.0283495
+        }
+
+        volume_conversions = {
+            'l': 1.0,
+            'ml': 0.001,
+        }
+
+        # Try weight conversion
+        if from_unit in weight_conversions and to_unit in weight_conversions:
+            # Convert from_unit to kg, then kg to to_unit
+            in_kg = quantity * weight_conversions[from_unit]
+            result = in_kg / weight_conversions[to_unit]
+            return result
+
+        # Try volume conversion
+        if from_unit in volume_conversions and to_unit in volume_conversions:
+            # Convert from_unit to L, then L to to_unit
+            in_litres = quantity * volume_conversions[from_unit]
+            result = in_litres / volume_conversions[to_unit]
+            return result
+
+        # Cannot convert between different measurement types (e.g., weight to volume)
+        return None
 
 
 class PackageDialog(tk.Toplevel):
