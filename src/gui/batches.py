@@ -435,12 +435,94 @@ class BatchDialog(tk.Toplevel):
         if self.mode == 'add':
             data['batch_id'] = str(uuid.uuid4())
             self.cache.insert_record('batches', data)
+
+            # Deduct ingredients from inventory
+            self.deduct_ingredients_from_inventory(recipe['recipe_id'], gyle)
         else:
             self.cache.update_record('batches', self.batch['batch_id'], data, 'batch_id')
         self.cache.close()
 
         messagebox.showinfo("Success", "Batch saved!")
         self.destroy()
+
+    def deduct_ingredients_from_inventory(self, recipe_id, gyle_number):
+        """Deduct recipe ingredients from brewery inventory when creating a batch"""
+        # Get all recipe ingredients
+        ingredient_tables = [
+            ('recipe_grains', 'grain_id'),
+            ('recipe_hops', 'hop_id'),
+            ('recipe_yeast', 'yeast_id'),
+            ('recipe_adjuncts', 'adjunct_id')
+        ]
+
+        deducted_items = []
+        insufficient_stock_items = []
+
+        for table_name, id_field in ingredient_tables:
+            ingredients = self.cache.get_all_records(table_name, f"recipe_id = '{recipe_id}'")
+
+            for ingredient in ingredients:
+                material_id = ingredient.get('material_id')
+                quantity_needed = ingredient.get('quantity', 0)
+
+                if not material_id or quantity_needed <= 0:
+                    continue
+
+                # Get material from inventory
+                materials = self.cache.get_all_records('inventory_materials',
+                    f"material_id = '{material_id}'")
+
+                if not materials:
+                    continue
+
+                material = materials[0]
+                material_name = material.get('material_name', 'Unknown')
+                current_stock = material.get('current_stock', 0)
+                unit = material.get('unit', '')
+
+                # Check if sufficient stock
+                if current_stock < quantity_needed:
+                    insufficient_stock_items.append(
+                        f"{material_name}: Need {quantity_needed:.1f}{unit}, only {current_stock:.1f}{unit} available")
+                    continue
+
+                # Deduct from inventory
+                new_stock = current_stock - quantity_needed
+                self.cache.update_record('inventory_materials', material_id, {
+                    'current_stock': new_stock,
+                    'last_updated': get_today_db(),
+                    'sync_status': 'pending'
+                }, 'material_id')
+
+                # Create transaction record
+                trans_data = {
+                    'transaction_id': str(uuid.uuid4()),
+                    'transaction_date': get_today_db(),
+                    'transaction_type': 'remove',
+                    'material_id': material_id,
+                    'quantity_change': -quantity_needed,
+                    'new_balance': new_stock,
+                    'reference': f'Batch {gyle_number}',
+                    'username': self.current_user.username,
+                    'notes': f'Ingredients used for batch {gyle_number}',
+                    'sync_status': 'pending'
+                }
+                self.cache.insert_record('inventory_transactions', trans_data)
+
+                deducted_items.append(f"{material_name}: {quantity_needed:.1f}{unit}")
+
+        # Show warning if any items had insufficient stock
+        if insufficient_stock_items:
+            messagebox.showwarning("Insufficient Stock",
+                "The following items had insufficient stock and were NOT deducted:\n\n" +
+                "\n".join(insufficient_stock_items) +
+                "\n\nPlease update inventory manually.")
+
+        # Show confirmation of deducted items (optional, can be removed if too verbose)
+        # if deducted_items:
+        #     messagebox.showinfo("Inventory Updated",
+        #         f"The following ingredients were deducted from inventory:\n\n" +
+        #         "\n".join(deducted_items))
 
 
 class PackageDialog(tk.Toplevel):

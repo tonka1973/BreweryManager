@@ -15,7 +15,11 @@
 - [x] Session setup completed
 - [x] Merged previous session work from Brewery computer
 - [x] Database migration executed (Products module tables created)
-- [ ] (Will be updated as we work)
+- [x] Fixed ingredient deduction bug in batch creation
+  - Added automatic ingredient deduction from brewery inventory when creating new batches
+  - Ingredients (grains, hops, yeast, adjuncts) now automatically deducted
+  - Creates transaction records for full traceability
+  - Shows warning if insufficient stock (partial deduction)
 
 ## Issues Encountered
 - None yet
