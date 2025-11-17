@@ -824,7 +824,459 @@ class ReportsModule(ttk.Frame):
             "This will create a detailed workbook with all data for this return period."
         )
 
+    # ================================================================
+    # DATA LOADING METHODS FOR NEW TABS
+    # ================================================================
 
+    def load_sales_report(self):
+        """Load sales data based on selected period"""
+        period = self.sales_period.get()
+
+        # Calculate date range
+        today = datetime.now()
+        if period == 'Last 7 Days':
+            start_date = (today - timedelta(days=7)).strftime('%Y-%m-%d')
+        elif period == 'Last 30 Days':
+            start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        elif period == 'Last 90 Days':
+            start_date = (today - timedelta(days=90)).strftime('%Y-%m-%d')
+        elif period == 'Year to Date':
+            start_date = f"{today.year}-01-01"
+        else:  # All Time
+            start_date = '2000-01-01'
+
+        self.cache.connect()
+        cursor = self.cache.cursor
+
+        # Summary statistics
+        cursor.execute('''
+            SELECT
+                COUNT(DISTINCT sale_id) as total_orders,
+                SUM(quantity) as total_quantity,
+                SUM(total_litres) as total_litres,
+                SUM(line_total) as total_revenue
+            FROM sales
+            WHERE sale_date >= ?
+                AND status IN ('reserved', 'delivered', 'invoiced')
+        ''', (start_date,))
+
+        summary = cursor.fetchone()
+        total_orders = summary[0] or 0
+        total_litres = summary[1] or 0.0
+        total_revenue = summary[2] or 0.0
+        avg_order = (total_revenue / total_orders) if total_orders > 0 else 0.0
+
+        # Update summary cards
+        self.sales_summary_cards['total_revenue'].config(text=f"£{total_revenue:,.2f}")
+        self.sales_summary_cards['total_volume'].config(text=f"{total_litres:,.1f} L")
+        self.sales_summary_cards['total_orders'].config(text=f"{total_orders:,}")
+        self.sales_summary_cards['avg_order'].config(text=f"£{avg_order:,.2f}")
+
+        # Sales by product
+        self.sales_by_product_tree.delete(*self.sales_by_product_tree.get_children())
+
+        cursor.execute('''
+            SELECT
+                beer_name,
+                container_type,
+                SUM(quantity) as qty,
+                SUM(total_litres) as litres,
+                SUM(line_total) as revenue
+            FROM sales
+            WHERE sale_date >= ?
+                AND status IN ('reserved', 'delivered', 'invoiced')
+            GROUP BY beer_name, container_type
+            ORDER BY revenue DESC
+        ''', (start_date,))
+
+        products = {}
+        for row in cursor.fetchall():
+            beer_name = row[0] or 'Unknown'
+            container = row[1] or 'Unknown'
+            qty = row[2] or 0
+            litres = row[3] or 0.0
+            revenue = row[4] or 0.0
+            avg_price_per_litre = (revenue / litres) if litres > 0 else 0.0
+
+            if beer_name not in products:
+                products[beer_name] = {
+                    'total_qty': 0,
+                    'total_litres': 0,
+                    'total_revenue': 0,
+                    'containers': []
+                }
+
+            products[beer_name]['total_qty'] += qty
+            products[beer_name]['total_litres'] += litres
+            products[beer_name]['total_revenue'] += revenue
+            products[beer_name]['containers'].append((container, qty, litres, revenue, avg_price_per_litre))
+
+        for beer_name, data in sorted(products.items(), key=lambda x: x[1]['total_revenue'], reverse=True):
+            avg_price = (data['total_revenue'] / data['total_litres']) if data['total_litres'] > 0 else 0
+            parent = self.sales_by_product_tree.insert('', 'end', text=beer_name, values=(
+                'ALL',
+                f"{data['total_qty']:,}",
+                f"{data['total_litres']:,.1f}",
+                f"£{data['total_revenue']:,.2f}",
+                f"£{avg_price:.2f}/L"
+            ))
+
+            for container, qty, litres, revenue, price_per_l in data['containers']:
+                self.sales_by_product_tree.insert(parent, 'end', text='', values=(
+                    container,
+                    f"{qty:,}",
+                    f"{litres:,.1f}",
+                    f"£{revenue:,.2f}",
+                    f"£{price_per_l:.2f}/L"
+                ))
+
+        # Sales by customer
+        self.sales_by_customer_tree.delete(*self.sales_by_customer_tree.get_children())
+
+        cursor.execute('''
+            SELECT
+                c.customer_name,
+                COUNT(DISTINCT s.sale_id) as orders,
+                SUM(s.total_litres) as litres,
+                SUM(s.line_total) as revenue
+            FROM sales s
+            JOIN customers c ON s.customer_id = c.customer_id
+            WHERE s.sale_date >= ?
+                AND s.status IN ('reserved', 'delivered', 'invoiced')
+            GROUP BY c.customer_name
+            ORDER BY revenue DESC
+        ''', (start_date,))
+
+        for row in cursor.fetchall():
+            self.sales_by_customer_tree.insert('', 'end', values=(
+                row[0],
+                f"{row[1]:,}",
+                f"{row[2]:,.1f} L",
+                f"£{row[3]:,.2f}"
+            ))
+
+        self.cache.close()
+
+    def load_inventory_report(self):
+        """Load inventory data based on selected filter"""
+        filter_mode = self.inventory_filter.get()
+
+        self.cache.connect()
+        cursor = self.cache.cursor
+
+        # Clear existing data
+        self.inventory_tree.delete(*self.inventory_tree.get_children())
+
+        # Finished Goods (Products from sales table)
+        if filter_mode in ['All Stock', 'Finished Goods Only']:
+            # Get products with stock (from Products module logic)
+            # This would join with actual product inventory if you track it
+            # For now, show recent batches as available stock
+
+            cursor.execute('''
+                SELECT
+                    r.recipe_name,
+                    b.gyle_number,
+                    b.actual_batch_size,
+                    JULIANDAY('now') - JULIANDAY(b.packaged_date) as age_days,
+                    b.measured_abv
+                FROM batches b
+                JOIN recipes r ON b.recipe_id = r.recipe_id
+                WHERE b.status = 'Packaged'
+                    AND b.packaged_date >= date('now', '-90 days')
+                ORDER BY b.packaged_date DESC
+            ''')
+
+            total_stock_litres = 0
+            total_value = 0
+            product_count = 0
+
+            for row in cursor.fetchall():
+                recipe_name = row[0] or 'Unknown'
+                gyle = row[1] or ''
+                litres = row[2] or 0
+                age_days = int(row[3] or 0)
+
+                # Estimate value (you'd use actual pricing logic)
+                est_value_per_litre = 2.50  # Placeholder
+                est_value = litres * est_value_per_litre
+
+                # Status based on age
+                if age_days < 14:
+                    status = '✅ Fresh'
+                elif age_days < 30:
+                    status = '⚠️ Aging'
+                else:
+                    status = '🔴 Old Stock'
+
+                self.inventory_tree.insert('', 'end', values=(
+                    f"{recipe_name} ({gyle})",
+                    '1 batch',
+                    f"{litres:.1f} L",
+                    f"{age_days} days",
+                    f"£{est_value:.2f}",
+                    status
+                ))
+
+                total_stock_litres += litres
+                total_value += est_value
+                product_count += 1
+
+        # Raw Materials
+        if filter_mode in ['All Stock', 'Raw Materials Only']:
+            cursor.execute('''
+                SELECT
+                    material_name,
+                    current_stock,
+                    unit,
+                    cost_per_unit,
+                    reorder_level
+                FROM inventory_materials
+                WHERE current_stock > 0
+                ORDER BY material_type, material_name
+            ''')
+
+            for row in cursor.fetchall():
+                name = row[0]
+                stock = row[1] or 0
+                unit = row[2] or 'kg'
+                cost = row[3] or 0
+                reorder = row[4] or 0
+
+                value = stock * cost
+
+                if reorder > 0 and stock <= reorder:
+                    status = '🔴 Low Stock'
+                elif reorder > 0 and stock <= reorder * 1.5:
+                    status = '⚠️ Getting Low'
+                else:
+                    status = '✅ In Stock'
+
+                self.inventory_tree.insert('', 'end', values=(
+                    name,
+                    f"{stock:.1f}",
+                    unit,
+                    '-',
+                    f"£{value:.2f}",
+                    status
+                ))
+
+        # Update summary cards (using finished goods data)
+        self.inventory_summary_cards['total_stock'].config(text=f"{total_stock_litres:,.1f} L")
+        self.inventory_summary_cards['stock_value'].config(text=f"£{total_value:,.2f}")
+        self.inventory_summary_cards['products'].config(text=f"{product_count}")
+        self.inventory_summary_cards['low_stock'].config(text="0")  # Would calculate from inventory
+
+        self.cache.close()
+
+    def load_production_report(self):
+        """Load production data based on selected period"""
+        period = self.production_period.get()
+
+        # Calculate date range
+        today = datetime.now()
+        if period == 'Last 30 Days':
+            start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        elif period == 'Last 90 Days':
+            start_date = (today - timedelta(days=90)).strftime('%Y-%m-%d')
+        elif period == 'Year to Date':
+            start_date = f"{today.year}-01-01"
+        else:  # All Time
+            start_date = '2000-01-01'
+
+        self.cache.connect()
+        cursor = self.cache.cursor
+
+        # Summary statistics
+        cursor.execute('''
+            SELECT
+                COUNT(*) as total_batches,
+                SUM(COALESCE(fermented_volume, actual_batch_size, 0)) as total_volume,
+                SUM(packaged_volume) as packaged_volume,
+                SUM(waste_volume) as waste_volume
+            FROM batches
+            WHERE packaged_date >= ?
+                AND status = 'Packaged'
+        ''', (start_date,))
+
+        summary = cursor.fetchone()
+        total_batches = summary[0] or 0
+        total_volume = summary[1] or 0.0
+        packaged_volume = summary[2] or 0.0
+        waste_volume = summary[3] or 0.0
+
+        avg_waste_pct = ((waste_volume / total_volume) * 100) if total_volume > 0 else 0
+
+        # Update summary cards
+        self.production_summary_cards['total_batches'].config(text=f"{total_batches:,}")
+        self.production_summary_cards['total_volume'].config(text=f"{total_volume:,.1f} L")
+        self.production_summary_cards['avg_efficiency'].config(text=f"{avg_waste_pct:.1f}%")
+        self.production_summary_cards['packaged_volume'].config(text=f"{packaged_volume:,.1f} L")
+
+        # Production by style
+        self.production_by_style_tree.delete(*self.production_by_style_tree.get_children())
+
+        cursor.execute('''
+            SELECT
+                r.style,
+                COUNT(*) as batches,
+                SUM(COALESCE(b.fermented_volume, b.actual_batch_size, 0)) as volume,
+                AVG(b.measured_abv) as avg_abv
+            FROM batches b
+            JOIN recipes r ON b.recipe_id = r.recipe_id
+            WHERE b.packaged_date >= ?
+                AND b.status = 'Packaged'
+            GROUP BY r.style
+            ORDER BY volume DESC
+        ''', (start_date,))
+
+        for row in cursor.fetchall():
+            self.production_by_style_tree.insert('', 'end', values=(
+                row[0] or 'Unknown',
+                f"{row[1]:,}",
+                f"{row[2]:,.1f} L",
+                f"{row[3]:.1f}%"
+            ))
+
+        # Production by brewer
+        self.production_by_brewer_tree.delete(*self.production_by_brewer_tree.get_children())
+
+        cursor.execute('''
+            SELECT
+                brewer_name,
+                COUNT(*) as batches,
+                SUM(COALESCE(fermented_volume, actual_batch_size, 0)) as volume
+            FROM batches
+            WHERE packaged_date >= ?
+                AND status = 'Packaged'
+                AND brewer_name IS NOT NULL
+            GROUP BY brewer_name
+            ORDER BY volume DESC
+        ''', (start_date,))
+
+        for row in cursor.fetchall():
+            self.production_by_brewer_tree.insert('', 'end', values=(
+                row[0],
+                f"{row[1]:,}",
+                f"{row[2]:,.1f} L"
+            ))
+
+        # Packaging breakdown
+        self.production_packaging_tree.delete(*self.production_packaging_tree.get_children())
+
+        cursor.execute('''
+            SELECT
+                container_type,
+                SUM(quantity) as total_quantity,
+                SUM(total_duty_volume) as total_litres
+            FROM batch_packaging_lines
+            WHERE packaging_date >= ?
+            GROUP BY container_type
+            ORDER BY total_litres DESC
+        ''', (start_date,))
+
+        for row in cursor.fetchall():
+            self.production_packaging_tree.insert('', 'end', values=(
+                row[0],
+                f"{row[1]:,}",
+                f"{row[2]:,.1f} L"
+            ))
+
+        self.cache.close()
+
+    def load_financial_report(self):
+        """Load financial data - P&L statement"""
+        period = self.financial_period.get()
+
+        # Calculate date range
+        today = datetime.now()
+        if period == 'Last 30 Days':
+            start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        elif period == 'Last 90 Days':
+            start_date = (today - timedelta(days=90)).strftime('%Y-%m-%d')
+        elif period == 'Year to Date':
+            start_date = f"{today.year}-01-01"
+        else:  # Custom Range - for now use YTD
+            start_date = f"{today.year}-01-01"
+
+        self.cache.connect()
+        cursor = self.cache.cursor
+
+        # Revenue from sales
+        cursor.execute('''
+            SELECT SUM(line_total)
+            FROM sales
+            WHERE sale_date >= ?
+                AND status IN ('delivered', 'invoiced')
+        ''', (start_date,))
+
+        revenue = cursor.fetchone()[0] or 0.0
+
+        # Cost of Goods Sold (simplified - based on ingredient costs)
+        # This is a placeholder - real COGS would track actual batch costs
+        cogs = revenue * 0.25  # Estimate 25% ingredient cost
+
+        # Duty paid (from duty returns)
+        cursor.execute('''
+            SELECT SUM(net_duty_payable)
+            FROM duty_returns
+            WHERE duty_month >= ?
+        ''', (start_date[:7],))  # YYYY-MM format
+
+        duty_paid = cursor.fetchone()[0] or 0.0
+
+        # Gross profit
+        gross_profit = revenue - cogs - duty_paid
+
+        # Update summary cards
+        self.financial_summary_cards['revenue'].config(text=f"£{revenue:,.2f}")
+        self.financial_summary_cards['cogs'].config(text=f"£{cogs:,.2f}")
+        self.financial_summary_cards['duty'].config(text=f"£{duty_paid:,.2f}")
+        self.financial_summary_cards['profit'].config(text=f"£{gross_profit:,.2f}")
+
+        # Build P&L tree
+        self.financial_tree.delete(*self.financial_tree.get_children())
+
+        # Revenue section
+        revenue_node = self.financial_tree.insert('', 'end', text='REVENUE', values=(
+            '', f"£{revenue:,.2f}", '100.0%'
+        ), tags=('bold',))
+
+        # Cost of Sales
+        cogs_pct = (cogs / revenue * 100) if revenue > 0 else 0
+        cogs_node = self.financial_tree.insert('', 'end', text='COST OF SALES', values=(
+            '', f"£{cogs:,.2f}", f"{cogs_pct:.1f}%"
+        ), tags=('bold',))
+
+        self.financial_tree.insert(cogs_node, 'end', text='  Ingredients', values=(
+            'Materials', f"£{cogs:,.2f}", f"{cogs_pct:.1f}%"
+        ))
+
+        # Gross Profit Before Duty
+        gross_before_duty = revenue - cogs
+        gross_before_duty_pct = (gross_before_duty / revenue * 100) if revenue > 0 else 0
+        self.financial_tree.insert('', 'end', text='GROSS PROFIT (Before Duty)', values=(
+            '', f"£{gross_before_duty:,.2f}", f"{gross_before_duty_pct:.1f}%"
+        ), tags=('highlight',))
+
+        # Duty
+        duty_pct = (duty_paid / revenue * 100) if revenue > 0 else 0
+        duty_node = self.financial_tree.insert('', 'end', text='HMRC DUTY', values=(
+            '', f"£{duty_paid:,.2f}", f"{duty_pct:.1f}%"
+        ), tags=('bold',))
+
+        # Net Gross Profit
+        profit_pct = (gross_profit / revenue * 100) if revenue > 0 else 0
+        self.financial_tree.insert('', 'end', text='NET GROSS PROFIT', values=(
+            '', f"£{gross_profit:,.2f}", f"{profit_pct:.1f}%"
+        ), tags=('total',))
+
+        # Configure tags for styling
+        self.financial_tree.tag_configure('bold', font=('Helvetica', 10, 'bold'))
+        self.financial_tree.tag_configure('highlight', background='#e8f4f8')
+        self.financial_tree.tag_configure('total', font=('Helvetica', 11, 'bold'), background='#d4edda')
+
+        self.cache.close()
 class DutyReturnDetailsDialog(tk.Toplevel):
     """Dialog to show full breakdown of a duty return"""
 
@@ -1425,457 +1877,3 @@ class AnnualSummaryDialog(tk.Toplevel):
             report += f"{month}:  Production £{prod_duty:>8.2f}  |  Reclaim £{reclaim:>8.2f}  |  Net £{net:>8.2f}\n"
 
         self.summary_text.insert(END, report)
-
-    # ================================================================
-    # DATA LOADING METHODS FOR NEW TABS
-    # ================================================================
-
-    def load_sales_report(self):
-        """Load sales data based on selected period"""
-        period = self.sales_period.get()
-
-        # Calculate date range
-        today = datetime.now()
-        if period == 'Last 7 Days':
-            start_date = (today - timedelta(days=7)).strftime('%Y-%m-%d')
-        elif period == 'Last 30 Days':
-            start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
-        elif period == 'Last 90 Days':
-            start_date = (today - timedelta(days=90)).strftime('%Y-%m-%d')
-        elif period == 'Year to Date':
-            start_date = f"{today.year}-01-01"
-        else:  # All Time
-            start_date = '2000-01-01'
-
-        self.cache.connect()
-        cursor = self.cache.cursor
-
-        # Summary statistics
-        cursor.execute('''
-            SELECT
-                COUNT(DISTINCT sale_id) as total_orders,
-                SUM(quantity) as total_quantity,
-                SUM(total_litres) as total_litres,
-                SUM(line_total) as total_revenue
-            FROM sales
-            WHERE sale_date >= ?
-                AND status IN ('reserved', 'delivered', 'invoiced')
-        ''', (start_date,))
-
-        summary = cursor.fetchone()
-        total_orders = summary[0] or 0
-        total_litres = summary[1] or 0.0
-        total_revenue = summary[2] or 0.0
-        avg_order = (total_revenue / total_orders) if total_orders > 0 else 0.0
-
-        # Update summary cards
-        self.sales_summary_cards['total_revenue'].config(text=f"£{total_revenue:,.2f}")
-        self.sales_summary_cards['total_volume'].config(text=f"{total_litres:,.1f} L")
-        self.sales_summary_cards['total_orders'].config(text=f"{total_orders:,}")
-        self.sales_summary_cards['avg_order'].config(text=f"£{avg_order:,.2f}")
-
-        # Sales by product
-        self.sales_by_product_tree.delete(*self.sales_by_product_tree.get_children())
-
-        cursor.execute('''
-            SELECT
-                beer_name,
-                container_type,
-                SUM(quantity) as qty,
-                SUM(total_litres) as litres,
-                SUM(line_total) as revenue
-            FROM sales
-            WHERE sale_date >= ?
-                AND status IN ('reserved', 'delivered', 'invoiced')
-            GROUP BY beer_name, container_type
-            ORDER BY revenue DESC
-        ''', (start_date,))
-
-        products = {}
-        for row in cursor.fetchall():
-            beer_name = row[0] or 'Unknown'
-            container = row[1] or 'Unknown'
-            qty = row[2] or 0
-            litres = row[3] or 0.0
-            revenue = row[4] or 0.0
-            avg_price_per_litre = (revenue / litres) if litres > 0 else 0.0
-
-            if beer_name not in products:
-                products[beer_name] = {
-                    'total_qty': 0,
-                    'total_litres': 0,
-                    'total_revenue': 0,
-                    'containers': []
-                }
-
-            products[beer_name]['total_qty'] += qty
-            products[beer_name]['total_litres'] += litres
-            products[beer_name]['total_revenue'] += revenue
-            products[beer_name]['containers'].append((container, qty, litres, revenue, avg_price_per_litre))
-
-        for beer_name, data in sorted(products.items(), key=lambda x: x[1]['total_revenue'], reverse=True):
-            avg_price = (data['total_revenue'] / data['total_litres']) if data['total_litres'] > 0 else 0
-            parent = self.sales_by_product_tree.insert('', 'end', text=beer_name, values=(
-                'ALL',
-                f"{data['total_qty']:,}",
-                f"{data['total_litres']:,.1f}",
-                f"£{data['total_revenue']:,.2f}",
-                f"£{avg_price:.2f}/L"
-            ))
-
-            for container, qty, litres, revenue, price_per_l in data['containers']:
-                self.sales_by_product_tree.insert(parent, 'end', text='', values=(
-                    container,
-                    f"{qty:,}",
-                    f"{litres:,.1f}",
-                    f"£{revenue:,.2f}",
-                    f"£{price_per_l:.2f}/L"
-                ))
-
-        # Sales by customer
-        self.sales_by_customer_tree.delete(*self.sales_by_customer_tree.get_children())
-
-        cursor.execute('''
-            SELECT
-                c.customer_name,
-                COUNT(DISTINCT s.sale_id) as orders,
-                SUM(s.total_litres) as litres,
-                SUM(s.line_total) as revenue
-            FROM sales s
-            JOIN customers c ON s.customer_id = c.customer_id
-            WHERE s.sale_date >= ?
-                AND s.status IN ('reserved', 'delivered', 'invoiced')
-            GROUP BY c.customer_name
-            ORDER BY revenue DESC
-        ''', (start_date,))
-
-        for row in cursor.fetchall():
-            self.sales_by_customer_tree.insert('', 'end', values=(
-                row[0],
-                f"{row[1]:,}",
-                f"{row[2]:,.1f} L",
-                f"£{row[3]:,.2f}"
-            ))
-
-        self.cache.close()
-
-    def load_inventory_report(self):
-        """Load inventory data based on selected filter"""
-        filter_mode = self.inventory_filter.get()
-
-        self.cache.connect()
-        cursor = self.cache.cursor
-
-        # Clear existing data
-        self.inventory_tree.delete(*self.inventory_tree.get_children())
-
-        # Finished Goods (Products from sales table)
-        if filter_mode in ['All Stock', 'Finished Goods Only']:
-            # Get products with stock (from Products module logic)
-            # This would join with actual product inventory if you track it
-            # For now, show recent batches as available stock
-
-            cursor.execute('''
-                SELECT
-                    r.recipe_name,
-                    b.gyle_number,
-                    b.actual_batch_size,
-                    JULIANDAY('now') - JULIANDAY(b.packaged_date) as age_days,
-                    b.measured_abv
-                FROM batches b
-                JOIN recipes r ON b.recipe_id = r.recipe_id
-                WHERE b.status = 'Packaged'
-                    AND b.packaged_date >= date('now', '-90 days')
-                ORDER BY b.packaged_date DESC
-            ''')
-
-            total_stock_litres = 0
-            total_value = 0
-            product_count = 0
-
-            for row in cursor.fetchall():
-                recipe_name = row[0] or 'Unknown'
-                gyle = row[1] or ''
-                litres = row[2] or 0
-                age_days = int(row[3] or 0)
-
-                # Estimate value (you'd use actual pricing logic)
-                est_value_per_litre = 2.50  # Placeholder
-                est_value = litres * est_value_per_litre
-
-                # Status based on age
-                if age_days < 14:
-                    status = '✅ Fresh'
-                elif age_days < 30:
-                    status = '⚠️ Aging'
-                else:
-                    status = '🔴 Old Stock'
-
-                self.inventory_tree.insert('', 'end', values=(
-                    f"{recipe_name} ({gyle})",
-                    '1 batch',
-                    f"{litres:.1f} L",
-                    f"{age_days} days",
-                    f"£{est_value:.2f}",
-                    status
-                ))
-
-                total_stock_litres += litres
-                total_value += est_value
-                product_count += 1
-
-        # Raw Materials
-        if filter_mode in ['All Stock', 'Raw Materials Only']:
-            cursor.execute('''
-                SELECT
-                    material_name,
-                    current_stock,
-                    unit,
-                    cost_per_unit,
-                    reorder_level
-                FROM inventory_materials
-                WHERE current_stock > 0
-                ORDER BY material_type, material_name
-            ''')
-
-            for row in cursor.fetchall():
-                name = row[0]
-                stock = row[1] or 0
-                unit = row[2] or 'kg'
-                cost = row[3] or 0
-                reorder = row[4] or 0
-
-                value = stock * cost
-
-                if reorder > 0 and stock <= reorder:
-                    status = '🔴 Low Stock'
-                elif reorder > 0 and stock <= reorder * 1.5:
-                    status = '⚠️ Getting Low'
-                else:
-                    status = '✅ In Stock'
-
-                self.inventory_tree.insert('', 'end', values=(
-                    name,
-                    f"{stock:.1f}",
-                    unit,
-                    '-',
-                    f"£{value:.2f}",
-                    status
-                ))
-
-        # Update summary cards (using finished goods data)
-        self.inventory_summary_cards['total_stock'].config(text=f"{total_stock_litres:,.1f} L")
-        self.inventory_summary_cards['stock_value'].config(text=f"£{total_value:,.2f}")
-        self.inventory_summary_cards['products'].config(text=f"{product_count}")
-        self.inventory_summary_cards['low_stock'].config(text="0")  # Would calculate from inventory
-
-        self.cache.close()
-
-    def load_production_report(self):
-        """Load production data based on selected period"""
-        period = self.production_period.get()
-
-        # Calculate date range
-        today = datetime.now()
-        if period == 'Last 30 Days':
-            start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
-        elif period == 'Last 90 Days':
-            start_date = (today - timedelta(days=90)).strftime('%Y-%m-%d')
-        elif period == 'Year to Date':
-            start_date = f"{today.year}-01-01"
-        else:  # All Time
-            start_date = '2000-01-01'
-
-        self.cache.connect()
-        cursor = self.cache.cursor
-
-        # Summary statistics
-        cursor.execute('''
-            SELECT
-                COUNT(*) as total_batches,
-                SUM(COALESCE(fermented_volume, actual_batch_size, 0)) as total_volume,
-                SUM(packaged_volume) as packaged_volume,
-                SUM(waste_volume) as waste_volume
-            FROM batches
-            WHERE packaged_date >= ?
-                AND status = 'Packaged'
-        ''', (start_date,))
-
-        summary = cursor.fetchone()
-        total_batches = summary[0] or 0
-        total_volume = summary[1] or 0.0
-        packaged_volume = summary[2] or 0.0
-        waste_volume = summary[3] or 0.0
-
-        avg_waste_pct = ((waste_volume / total_volume) * 100) if total_volume > 0 else 0
-
-        # Update summary cards
-        self.production_summary_cards['total_batches'].config(text=f"{total_batches:,}")
-        self.production_summary_cards['total_volume'].config(text=f"{total_volume:,.1f} L")
-        self.production_summary_cards['avg_efficiency'].config(text=f"{avg_waste_pct:.1f}%")
-        self.production_summary_cards['packaged_volume'].config(text=f"{packaged_volume:,.1f} L")
-
-        # Production by style
-        self.production_by_style_tree.delete(*self.production_by_style_tree.get_children())
-
-        cursor.execute('''
-            SELECT
-                r.style,
-                COUNT(*) as batches,
-                SUM(COALESCE(b.fermented_volume, b.actual_batch_size, 0)) as volume,
-                AVG(b.measured_abv) as avg_abv
-            FROM batches b
-            JOIN recipes r ON b.recipe_id = r.recipe_id
-            WHERE b.packaged_date >= ?
-                AND b.status = 'Packaged'
-            GROUP BY r.style
-            ORDER BY volume DESC
-        ''', (start_date,))
-
-        for row in cursor.fetchall():
-            self.production_by_style_tree.insert('', 'end', values=(
-                row[0] or 'Unknown',
-                f"{row[1]:,}",
-                f"{row[2]:,.1f} L",
-                f"{row[3]:.1f}%"
-            ))
-
-        # Production by brewer
-        self.production_by_brewer_tree.delete(*self.production_by_brewer_tree.get_children())
-
-        cursor.execute('''
-            SELECT
-                brewer_name,
-                COUNT(*) as batches,
-                SUM(COALESCE(fermented_volume, actual_batch_size, 0)) as volume
-            FROM batches
-            WHERE packaged_date >= ?
-                AND status = 'Packaged'
-                AND brewer_name IS NOT NULL
-            GROUP BY brewer_name
-            ORDER BY volume DESC
-        ''', (start_date,))
-
-        for row in cursor.fetchall():
-            self.production_by_brewer_tree.insert('', 'end', values=(
-                row[0],
-                f"{row[1]:,}",
-                f"{row[2]:,.1f} L"
-            ))
-
-        # Packaging breakdown
-        self.production_packaging_tree.delete(*self.production_packaging_tree.get_children())
-
-        cursor.execute('''
-            SELECT
-                container_type,
-                SUM(quantity) as total_quantity,
-                SUM(total_duty_volume) as total_litres
-            FROM batch_packaging_lines
-            WHERE packaging_date >= ?
-            GROUP BY container_type
-            ORDER BY total_litres DESC
-        ''', (start_date,))
-
-        for row in cursor.fetchall():
-            self.production_packaging_tree.insert('', 'end', values=(
-                row[0],
-                f"{row[1]:,}",
-                f"{row[2]:,.1f} L"
-            ))
-
-        self.cache.close()
-
-    def load_financial_report(self):
-        """Load financial data - P&L statement"""
-        period = self.financial_period.get()
-
-        # Calculate date range
-        today = datetime.now()
-        if period == 'Last 30 Days':
-            start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
-        elif period == 'Last 90 Days':
-            start_date = (today - timedelta(days=90)).strftime('%Y-%m-%d')
-        elif period == 'Year to Date':
-            start_date = f"{today.year}-01-01"
-        else:  # Custom Range - for now use YTD
-            start_date = f"{today.year}-01-01"
-
-        self.cache.connect()
-        cursor = self.cache.cursor
-
-        # Revenue from sales
-        cursor.execute('''
-            SELECT SUM(line_total)
-            FROM sales
-            WHERE sale_date >= ?
-                AND status IN ('delivered', 'invoiced')
-        ''', (start_date,))
-
-        revenue = cursor.fetchone()[0] or 0.0
-
-        # Cost of Goods Sold (simplified - based on ingredient costs)
-        # This is a placeholder - real COGS would track actual batch costs
-        cogs = revenue * 0.25  # Estimate 25% ingredient cost
-
-        # Duty paid (from duty returns)
-        cursor.execute('''
-            SELECT SUM(net_duty_payable)
-            FROM duty_returns
-            WHERE duty_month >= ?
-        ''', (start_date[:7],))  # YYYY-MM format
-
-        duty_paid = cursor.fetchone()[0] or 0.0
-
-        # Gross profit
-        gross_profit = revenue - cogs - duty_paid
-
-        # Update summary cards
-        self.financial_summary_cards['revenue'].config(text=f"£{revenue:,.2f}")
-        self.financial_summary_cards['cogs'].config(text=f"£{cogs:,.2f}")
-        self.financial_summary_cards['duty'].config(text=f"£{duty_paid:,.2f}")
-        self.financial_summary_cards['profit'].config(text=f"£{gross_profit:,.2f}")
-
-        # Build P&L tree
-        self.financial_tree.delete(*self.financial_tree.get_children())
-
-        # Revenue section
-        revenue_node = self.financial_tree.insert('', 'end', text='REVENUE', values=(
-            '', f"£{revenue:,.2f}", '100.0%'
-        ), tags=('bold',))
-
-        # Cost of Sales
-        cogs_pct = (cogs / revenue * 100) if revenue > 0 else 0
-        cogs_node = self.financial_tree.insert('', 'end', text='COST OF SALES', values=(
-            '', f"£{cogs:,.2f}", f"{cogs_pct:.1f}%"
-        ), tags=('bold',))
-
-        self.financial_tree.insert(cogs_node, 'end', text='  Ingredients', values=(
-            'Materials', f"£{cogs:,.2f}", f"{cogs_pct:.1f}%"
-        ))
-
-        # Gross Profit Before Duty
-        gross_before_duty = revenue - cogs
-        gross_before_duty_pct = (gross_before_duty / revenue * 100) if revenue > 0 else 0
-        self.financial_tree.insert('', 'end', text='GROSS PROFIT (Before Duty)', values=(
-            '', f"£{gross_before_duty:,.2f}", f"{gross_before_duty_pct:.1f}%"
-        ), tags=('highlight',))
-
-        # Duty
-        duty_pct = (duty_paid / revenue * 100) if revenue > 0 else 0
-        duty_node = self.financial_tree.insert('', 'end', text='HMRC DUTY', values=(
-            '', f"£{duty_paid:,.2f}", f"{duty_pct:.1f}%"
-        ), tags=('bold',))
-
-        # Net Gross Profit
-        profit_pct = (gross_profit / revenue * 100) if revenue > 0 else 0
-        self.financial_tree.insert('', 'end', text='NET GROSS PROFIT', values=(
-            '', f"£{gross_profit:,.2f}", f"{profit_pct:.1f}%"
-        ), tags=('total',))
-
-        # Configure tags for styling
-        self.financial_tree.tag_configure('bold', font=('Helvetica', 10, 'bold'))
-        self.financial_tree.tag_configure('highlight', background='#e8f4f8')
-        self.financial_tree.tag_configure('total', font=('Helvetica', 11, 'bold'), background='#d4edda')
-
-        self.cache.close()
