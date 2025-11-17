@@ -58,7 +58,59 @@ Should show your recent commits are on GitHub.
 
 ---
 
-## STEP 6: Ask User to Push Master to Origin
+## STEP 6: Document Database Migrations for Next Computer
+
+**IMPORTANT:** If database migrations were run during this session, document them for the next computer!
+
+Create/update `DATABASE_MIGRATIONS_PENDING.md` with:
+- List of all migration scripts that need to be run
+- Order they should be run in
+- Any test data scripts to run
+- Expected results/verification steps
+
+Example:
+```markdown
+# Database Migrations Needed on Brewery Computer
+
+Run these in order after pulling the latest code:
+
+1. **Duty System Migration**
+   ```bash
+   python src/data_access/migrate_duty_system.py
+   ```
+   - Adds: settings, settings_containers, batch_packaging_lines, spoilt_beer, duty_returns tables
+   - Adds: waste tracking fields to batches table
+
+2. **Fix Scripts (if needed)**
+   ```bash
+   python src/data_access/fix_spoilt_beer_table.py
+   python src/data_access/fix_duty_returns_table.py
+   ```
+
+3. **Test Data (optional)**
+   ```bash
+   python src/testing/generate_test_data.py
+   ```
+   - Creates 4 test batches (TEST001-TEST004)
+   - Covers all 4 SPR duty categories
+
+**Verification:**
+- Launch app: `python main.py`
+- Check Settings module has Duty Rates and Containers tabs
+- Check Duty module loads without errors
+- Check Reports module has all 5 tabs
+```
+
+Commit this file:
+```bash
+git add DATABASE_MIGRATIONS_PENDING.md
+git commit -m "Document pending database migrations for brewery computer"
+git push -u origin [current-branch-name]
+```
+
+---
+
+## STEP 7: Ask User to Push Master to Origin
 
 Now that the claude branch is tested and verified, have the USER push master:
 
@@ -77,11 +129,11 @@ git push origin master
 
 **Important:** Claude cannot push master automatically due to security restrictions (only claude/* branches allowed). The user must do this step manually.
 
-**Wait for user confirmation** before proceeding to Step 7.
+**Wait for user confirmation** before proceeding to Step 8.
 
 ---
 
-## STEP 7: Report to User
+## STEP 8: Report to User
 
 Tell the user:
 
@@ -96,6 +148,11 @@ Summary:
 - Total commits: [number]
 - Last commit: [message]
 - GitHub status: ✅ Fully synchronized
+
+⚠️  IMPORTANT FOR NEXT SESSION:
+- Database migrations documented in DATABASE_MIGRATIONS_PENDING.md
+- Run migrations on brewery computer before using the app
+- See start.md for complete setup instructions
 
 Safe to close session. Next session: say 'read start.md'
 ```
