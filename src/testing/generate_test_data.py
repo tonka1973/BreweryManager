@@ -94,6 +94,29 @@ class TestDataGenerator:
 
         return spr_category, duty_rate
 
+    def create_recipe(self, recipe_data):
+        """Create a recipe record"""
+        recipe_id = recipe_data['recipe_id']
+        name = recipe_data['beer_name']
+        style = recipe_data['style']
+        abv = recipe_data['abv']
+
+        now = datetime.now().isoformat()
+
+        self.cursor.execute('''
+            INSERT OR IGNORE INTO recipes (
+                recipe_id,
+                recipe_name,
+                style,
+                target_abv,
+                target_batch_size_litres,
+                created_date,
+                created_by,
+                last_modified,
+                is_active
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (recipe_id, name, style, abv, 100.0, now, self.user, now, 1))
+
     def create_batch(self, batch_data):
         """Create a batch and packaging lines"""
         batch_id = batch_data['batch_id']
@@ -103,6 +126,7 @@ class TestDataGenerator:
         abv = batch_data['abv']
         packaging_date = batch_data['packaging_date']
         packaging_lines = batch_data['packaging']
+        recipe_id = batch_data['recipe_id']
 
         print(f"\nCreating Batch: {gyle} - {name} ({style}, {abv}% ABV)")
 
@@ -113,17 +137,16 @@ class TestDataGenerator:
             INSERT INTO batches (
                 batch_id,
                 gyle_number,
-                beer_name,
-                style,
+                recipe_id,
                 measured_abv,
                 status,
                 brew_date,
-                created_date,
+                packaged_date,
                 created_by,
                 last_modified
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (batch_id, gyle, name, style, abv, 'Packaged',
-              packaging_date, now, self.user, now))
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (batch_id, gyle, recipe_id, abv, 'Packaged',
+              packaging_date, packaging_date, self.user, now))
 
         # Create packaging lines
         for line in packaging_lines:
@@ -246,6 +269,7 @@ class TestDataGenerator:
             # Batch 1: Category 1 - Draught <3.5% ABV (SPR Low)
             {
                 'batch_id': str(uuid.uuid4()),
+                'recipe_id': 'recipe_test001',
                 'gyle_number': 'TEST001',
                 'beer_name': 'Easy Session IPA',
                 'style': 'Session IPA',
@@ -260,6 +284,7 @@ class TestDataGenerator:
             # Batch 2: Category 2 - Draught 3.5-8.4% ABV (SPR Standard)
             {
                 'batch_id': str(uuid.uuid4()),
+                'recipe_id': 'recipe_test002',
                 'gyle_number': 'TEST002',
                 'beer_name': 'Classic Bitter',
                 'style': 'English Bitter',
@@ -274,6 +299,7 @@ class TestDataGenerator:
             # Batch 3: Category 3 - Non-Draught 3.5-8.4% ABV (SPR Standard)
             {
                 'batch_id': str(uuid.uuid4()),
+                'recipe_id': 'recipe_test003',
                 'gyle_number': 'TEST003',
                 'beer_name': 'West Coast IPA',
                 'style': 'American IPA',
@@ -288,6 +314,7 @@ class TestDataGenerator:
             # Batch 4: Category 4 - High ABV 8.5-22% (No SPR)
             {
                 'batch_id': str(uuid.uuid4()),
+                'recipe_id': 'recipe_test004',
                 'gyle_number': 'TEST004',
                 'beer_name': 'Imperial Russian Stout',
                 'style': 'Imperial Stout',
@@ -300,7 +327,12 @@ class TestDataGenerator:
             },
         ]
 
-        # Create all batches
+        # Create recipes first
+        print("\nCreating recipes...")
+        for batch in test_batches:
+            self.create_recipe(batch)
+
+        # Create all batches with packaging
         for batch in test_batches:
             self.create_batch(batch)
 
