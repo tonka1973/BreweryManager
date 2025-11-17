@@ -23,17 +23,17 @@ class ProductsModule(ttk.Frame):
 
     def create_widgets(self):
         """Create products widgets with tabbed interface"""
-        # Create notebook for tabs
-        self.notebook = ttk.Notebook(self)
+        # Create notebook for tabs with better visibility
+        self.notebook = ttk.Notebook(self, bootstyle="primary")
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
         # Tab 1: Products
-        self.products_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.products_tab, text="Products")
+        self.products_tab = ttk.Frame(self.notebook, padding=10)
+        self.notebook.add(self.products_tab, text="  Products  ")
 
         # Tab 2: Spoilt Beer
-        self.spoilt_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.spoilt_tab, text="Spoilt Beer")
+        self.spoilt_tab = ttk.Frame(self.notebook, padding=10)
+        self.notebook.add(self.spoilt_tab, text="  Spoilt Beer  ")
 
         # Create products tab
         self.create_products_tab()

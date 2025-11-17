@@ -42,13 +42,13 @@ class ReportsModule(ttk.Frame):
         )
         info_label.pack(side=LEFT, padx=(15, 0))
 
-        # Notebook for tabs
-        self.notebook = ttk.Notebook(self)
+        # Notebook for tabs with better visibility
+        self.notebook = ttk.Notebook(self, bootstyle="primary")
         self.notebook.pack(fill=BOTH, expand=True, padx=20, pady=10)
 
         # Create tabs
-        self.duty_reports_tab = ttk.Frame(self.notebook)
-        self.notebook.add(self.duty_reports_tab, text="Duty Reports")
+        self.duty_reports_tab = ttk.Frame(self.notebook, padding=10)
+        self.notebook.add(self.duty_reports_tab, text="  Duty Reports  ")
 
         self.create_duty_reports_tab()
 

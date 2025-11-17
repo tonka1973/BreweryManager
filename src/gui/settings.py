@@ -21,8 +21,8 @@ class SettingsModule(ttk.Frame):
 
     def create_widgets(self):
         """Create settings interface with tabbed sections"""
-        # Create notebook for different settings categories
-        self.notebook = ttk.Notebook(self)
+        # Create notebook for different settings categories with better visibility
+        self.notebook = ttk.Notebook(self, bootstyle="primary")
         self.notebook.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
         # Create tabs
@@ -31,8 +31,8 @@ class SettingsModule(ttk.Frame):
 
     def create_duty_rates_tab(self):
         """Duty Rates & SPR Configuration Tab"""
-        tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="Duty Rates")
+        tab = ttk.Frame(self.notebook, padding=10)
+        self.notebook.add(tab, text="  Duty Rates  ")
 
         # Create scrollable content
         canvas = tk.Canvas(tab, bg='white')
@@ -199,8 +199,8 @@ class SettingsModule(ttk.Frame):
 
     def create_containers_tab(self):
         """Container Configuration Tab"""
-        tab = ttk.Frame(self.notebook)
-        self.notebook.add(tab, text="Containers")
+        tab = ttk.Frame(self.notebook, padding=10)
+        self.notebook.add(tab, text="  Containers  ")
 
         # Header
         header = ttk.Frame(tab)
