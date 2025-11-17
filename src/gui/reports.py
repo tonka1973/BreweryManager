@@ -1,14 +1,15 @@
 """
-Reports Module - Historical Duty Returns Viewer
-Module 11: View past monthly duty returns and export data
+Reports Module - Comprehensive Business Reports
+Includes Sales, Inventory, Production, Financial, and Duty Reports
 """
 
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 import tkinter as tk
 from tkinter import messagebox
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal
+import calendar
 
 
 class ReportsModule(ttk.Frame):
@@ -29,7 +30,7 @@ class ReportsModule(ttk.Frame):
 
         title_label = ttk.Label(
             title_frame,
-            text="📊 Historical Duty Reports",
+            text="📊 Business Reports",
             font=("Helvetica", 16, "bold")
         )
         title_label.pack(side=LEFT)
@@ -37,7 +38,7 @@ class ReportsModule(ttk.Frame):
         # Info label
         info_label = ttk.Label(
             title_frame,
-            text="View past monthly HMRC duty returns",
+            text="Comprehensive analytics and reporting across all brewery operations",
             font=("Helvetica", 10)
         )
         info_label.pack(side=LEFT, padx=(15, 0))
@@ -46,12 +47,459 @@ class ReportsModule(ttk.Frame):
         self.notebook = ttk.Notebook(self, bootstyle="primary")
         self.notebook.pack(fill=BOTH, expand=True, padx=20, pady=10)
 
-        # Create tabs
+        # Create all report tabs
+        self.sales_tab = ttk.Frame(self.notebook, padding=10)
+        self.notebook.add(self.sales_tab, text="  Sales Reports  ")
+
+        self.inventory_tab = ttk.Frame(self.notebook, padding=10)
+        self.notebook.add(self.inventory_tab, text="  Inventory Reports  ")
+
+        self.production_tab = ttk.Frame(self.notebook, padding=10)
+        self.notebook.add(self.production_tab, text="  Production Reports  ")
+
+        self.financial_tab = ttk.Frame(self.notebook, padding=10)
+        self.notebook.add(self.financial_tab, text="  Financial Reports  ")
+
         self.duty_reports_tab = ttk.Frame(self.notebook, padding=10)
         self.notebook.add(self.duty_reports_tab, text="  Duty Reports  ")
 
+        # Create tab content
+        self.create_sales_tab()
+        self.create_inventory_tab()
+        self.create_production_tab()
+        self.create_financial_tab()
         self.create_duty_reports_tab()
 
+    # ================================================================
+    # SALES REPORTS TAB
+    # ================================================================
+    def create_sales_tab(self):
+        """Sales Reports - Revenue, customers, products performance"""
+
+        # Date range selector
+        control_frame = ttk.Frame(self.sales_tab)
+        control_frame.pack(fill=X, padx=10, pady=10)
+
+        ttk.Label(control_frame, text="Period:").pack(side=LEFT, padx=(0, 5))
+
+        self.sales_period = ttk.Combobox(
+            control_frame,
+            values=['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'Year to Date', 'All Time'],
+            state='readonly',
+            width=15
+        )
+        self.sales_period.set('Last 30 Days')
+        self.sales_period.pack(side=LEFT, padx=(0, 10))
+        self.sales_period.bind('<<ComboboxSelected>>', lambda e: self.load_sales_report())
+
+        ttk.Button(
+            control_frame,
+            text="🔄 Refresh",
+            command=self.load_sales_report,
+            bootstyle=PRIMARY
+        ).pack(side=LEFT)
+
+        # Summary cards
+        summary_frame = ttk.Frame(self.sales_tab)
+        summary_frame.pack(fill=X, padx=10, pady=10)
+
+        self.sales_summary_cards = {}
+        card_data = [
+            ('total_revenue', '💰 Total Revenue', '£0.00', SUCCESS),
+            ('total_volume', '🍺 Volume Sold', '0 L', INFO),
+            ('total_orders', '📦 Total Orders', '0', PRIMARY),
+            ('avg_order', '📊 Avg Order Value', '£0.00', WARNING)
+        ]
+
+        for i, (key, label, default, style) in enumerate(card_data):
+            card = ttk.Frame(summary_frame, bootstyle=style, relief=RAISED)
+            card.pack(side=LEFT, fill=BOTH, expand=True, padx=5)
+
+            ttk.Label(card, text=label, font=('Helvetica', 10)).pack(pady=(10, 5))
+            value_label = ttk.Label(card, text=default, font=('Helvetica', 16, 'bold'))
+            value_label.pack(pady=(0, 10))
+            self.sales_summary_cards[key] = value_label
+
+        # Notebook for different sales views
+        sales_notebook = ttk.Notebook(self.sales_tab)
+        sales_notebook.pack(fill=BOTH, expand=True, padx=10, pady=10)
+
+        # Tab 1: By Product
+        product_frame = ttk.Frame(sales_notebook)
+        sales_notebook.add(product_frame, text="By Product")
+
+        columns = ('product', 'quantity', 'litres', 'revenue', 'avg_price')
+        self.sales_by_product_tree = ttk.Treeview(
+            product_frame,
+            columns=columns,
+            show='tree headings',
+            height=15
+        )
+
+        self.sales_by_product_tree.heading('#0', text='Beer Name')
+        self.sales_by_product_tree.heading('product', text='Container Type')
+        self.sales_by_product_tree.heading('quantity', text='Qty Sold')
+        self.sales_by_product_tree.heading('litres', text='Litres')
+        self.sales_by_product_tree.heading('revenue', text='Revenue')
+        self.sales_by_product_tree.heading('avg_price', text='Avg Price/L')
+
+        self.sales_by_product_tree.column('#0', width=200)
+        self.sales_by_product_tree.column('product', width=150)
+        self.sales_by_product_tree.column('quantity', width=100)
+        self.sales_by_product_tree.column('litres', width=100)
+        self.sales_by_product_tree.column('revenue', width=120)
+        self.sales_by_product_tree.column('avg_price', width=120)
+
+        scrollbar = ttk.Scrollbar(product_frame, orient=VERTICAL, command=self.sales_by_product_tree.yview)
+        self.sales_by_product_tree.configure(yscrollcommand=scrollbar.set)
+
+        self.sales_by_product_tree.pack(side=LEFT, fill=BOTH, expand=True)
+        scrollbar.pack(side=RIGHT, fill=Y)
+
+        # Tab 2: By Customer
+        customer_frame = ttk.Frame(sales_notebook)
+        sales_notebook.add(customer_frame, text="By Customer")
+
+        columns = ('orders', 'litres', 'revenue', 'last_order')
+        self.sales_by_customer_tree = ttk.Treeview(
+            customer_frame,
+            columns=columns,
+            show='headings',
+            height=15
+        )
+
+        self.sales_by_customer_tree.heading('orders', text='Customer Name')
+        self.sales_by_customer_tree.heading('litres', text='Total Orders')
+        self.sales_by_customer_tree.heading('revenue', text='Litres')
+        self.sales_by_customer_tree.heading('last_order', text='Revenue')
+
+        self.sales_by_customer_tree.column('orders', width=250)
+        self.sales_by_customer_tree.column('litres', width=150)
+        self.sales_by_customer_tree.column('revenue', width=150)
+        self.sales_by_customer_tree.column('last_order', width=200)
+
+        scrollbar2 = ttk.Scrollbar(customer_frame, orient=VERTICAL, command=self.sales_by_customer_tree.yview)
+        self.sales_by_customer_tree.configure(yscrollcommand=scrollbar2.set)
+
+        self.sales_by_customer_tree.pack(side=LEFT, fill=BOTH, expand=True)
+        scrollbar2.pack(side=RIGHT, fill=Y)
+
+        # Load initial data
+        self.load_sales_report()
+
+    # ================================================================
+    # INVENTORY REPORTS TAB
+    # ================================================================
+    def create_inventory_tab(self):
+        """Inventory Reports - Stock levels, aging, value"""
+
+        # Control bar
+        control_frame = ttk.Frame(self.inventory_tab)
+        control_frame.pack(fill=X, padx=10, pady=10)
+
+        ttk.Label(control_frame, text="Show:").pack(side=LEFT, padx=(0, 5))
+
+        self.inventory_filter = ttk.Combobox(
+            control_frame,
+            values=['All Stock', 'Finished Goods Only', 'Raw Materials Only', 'Low Stock Alerts'],
+            state='readonly',
+            width=20
+        )
+        self.inventory_filter.set('Finished Goods Only')
+        self.inventory_filter.pack(side=LEFT, padx=(0, 10))
+        self.inventory_filter.bind('<<ComboboxSelected>>', lambda e: self.load_inventory_report())
+
+        ttk.Button(
+            control_frame,
+            text="🔄 Refresh",
+            command=self.load_inventory_report,
+            bootstyle=PRIMARY
+        ).pack(side=LEFT)
+
+        # Summary cards
+        summary_frame = ttk.Frame(self.inventory_tab)
+        summary_frame.pack(fill=X, padx=10, pady=10)
+
+        self.inventory_summary_cards = {}
+        card_data = [
+            ('total_stock', '🍺 Total Stock', '0 L', INFO),
+            ('stock_value', '💷 Stock Value', '£0.00', SUCCESS),
+            ('products', '📦 Products', '0', PRIMARY),
+            ('low_stock', '⚠️ Low Stock Items', '0', DANGER)
+        ]
+
+        for i, (key, label, default, style) in enumerate(card_data):
+            card = ttk.Frame(summary_frame, bootstyle=style, relief=RAISED)
+            card.pack(side=LEFT, fill=BOTH, expand=True, padx=5)
+
+            ttk.Label(card, text=label, font=('Helvetica', 10)).pack(pady=(10, 5))
+            value_label = ttk.Label(card, text=default, font=('Helvetica', 16, 'bold'))
+            value_label.pack(pady=(0, 10))
+            self.inventory_summary_cards[key] = value_label
+
+        # Stock table
+        table_frame = ttk.Frame(self.inventory_tab)
+        table_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
+
+        columns = ('product', 'quantity', 'litres', 'age_days', 'value', 'status')
+        self.inventory_tree = ttk.Treeview(
+            table_frame,
+            columns=columns,
+            show='headings',
+            height=20
+        )
+
+        self.inventory_tree.heading('product', text='Product / Material')
+        self.inventory_tree.heading('quantity', text='Quantity')
+        self.inventory_tree.heading('litres', text='Litres / Unit')
+        self.inventory_tree.heading('age_days', text='Age (Days)')
+        self.inventory_tree.heading('value', text='Est. Value')
+        self.inventory_tree.heading('status', text='Status')
+
+        self.inventory_tree.column('product', width=250)
+        self.inventory_tree.column('quantity', width=100)
+        self.inventory_tree.column('litres', width=120)
+        self.inventory_tree.column('age_days', width=100)
+        self.inventory_tree.column('value', width=120)
+        self.inventory_tree.column('status', width=150)
+
+        scrollbar = ttk.Scrollbar(table_frame, orient=VERTICAL, command=self.inventory_tree.yview)
+        self.inventory_tree.configure(yscrollcommand=scrollbar.set)
+
+        self.inventory_tree.pack(side=LEFT, fill=BOTH, expand=True)
+        scrollbar.pack(side=RIGHT, fill=Y)
+
+        # Load initial data
+        self.load_inventory_report()
+
+    # ================================================================
+    # PRODUCTION REPORTS TAB
+    # ================================================================
+    def create_production_tab(self):
+        """Production Reports - Volumes, efficiency, brewer performance"""
+
+        # Date range selector
+        control_frame = ttk.Frame(self.production_tab)
+        control_frame.pack(fill=X, padx=10, pady=10)
+
+        ttk.Label(control_frame, text="Period:").pack(side=LEFT, padx=(0, 5))
+
+        self.production_period = ttk.Combobox(
+            control_frame,
+            values=['Last 30 Days', 'Last 90 Days', 'Year to Date', 'All Time'],
+            state='readonly',
+            width=15
+        )
+        self.production_period.set('Last 90 Days')
+        self.production_period.pack(side=LEFT, padx=(0, 10))
+        self.production_period.bind('<<ComboboxSelected>>', lambda e: self.load_production_report())
+
+        ttk.Button(
+            control_frame,
+            text="🔄 Refresh",
+            command=self.load_production_report,
+            bootstyle=PRIMARY
+        ).pack(side=LEFT)
+
+        # Summary cards
+        summary_frame = ttk.Frame(self.production_tab)
+        summary_frame.pack(fill=X, padx=10, pady=10)
+
+        self.production_summary_cards = {}
+        card_data = [
+            ('total_batches', '🍺 Total Batches', '0', INFO),
+            ('total_volume', '📊 Total Volume', '0 L', SUCCESS),
+            ('avg_efficiency', '⚙️ Avg Waste %', '0%', WARNING),
+            ('packaged_volume', '📦 Packaged Volume', '0 L', PRIMARY)
+        ]
+
+        for i, (key, label, default, style) in enumerate(card_data):
+            card = ttk.Frame(summary_frame, bootstyle=style, relief=RAISED)
+            card.pack(side=LEFT, fill=BOTH, expand=True, padx=5)
+
+            ttk.Label(card, text=label, font=('Helvetica', 10)).pack(pady=(10, 5))
+            value_label = ttk.Label(card, text=default, font=('Helvetica', 16, 'bold'))
+            value_label.pack(pady=(0, 10))
+            self.production_summary_cards[key] = value_label
+
+        # Production notebook
+        prod_notebook = ttk.Notebook(self.production_tab)
+        prod_notebook.pack(fill=BOTH, expand=True, padx=10, pady=10)
+
+        # Tab 1: By Style
+        style_frame = ttk.Frame(prod_notebook)
+        prod_notebook.add(style_frame, text="By Style")
+
+        columns = ('batches', 'volume', 'avg_abv', 'packaged')
+        self.production_by_style_tree = ttk.Treeview(
+            style_frame,
+            columns=columns,
+            show='headings',
+            height=15
+        )
+
+        self.production_by_style_tree.heading('batches', text='Beer Style')
+        self.production_by_style_tree.heading('volume', text='Batches')
+        self.production_by_style_tree.heading('avg_abv', text='Total Volume (L)')
+        self.production_by_style_tree.heading('packaged', text='Avg ABV %')
+
+        self.production_by_style_tree.column('batches', width=250)
+        self.production_by_style_tree.column('volume', width=150)
+        self.production_by_style_tree.column('avg_abv', width=200)
+        self.production_by_style_tree.column('packaged', width=150)
+
+        scrollbar = ttk.Scrollbar(style_frame, orient=VERTICAL, command=self.production_by_style_tree.yview)
+        self.production_by_style_tree.configure(yscrollcommand=scrollbar.set)
+
+        self.production_by_style_tree.pack(side=LEFT, fill=BOTH, expand=True)
+        scrollbar.pack(side=RIGHT, fill=Y)
+
+        # Tab 2: By Brewer
+        brewer_frame = ttk.Frame(prod_notebook)
+        prod_notebook.add(brewer_frame, text="By Brewer")
+
+        columns = ('batches', 'volume', 'waste_pct')
+        self.production_by_brewer_tree = ttk.Treeview(
+            brewer_frame,
+            columns=columns,
+            show='headings',
+            height=15
+        )
+
+        self.production_by_brewer_tree.heading('batches', text='Brewer')
+        self.production_by_brewer_tree.heading('volume', text='Batches Brewed')
+        self.production_by_brewer_tree.heading('waste_pct', text='Total Volume (L)')
+
+        self.production_by_brewer_tree.column('batches', width=250)
+        self.production_by_brewer_tree.column('volume', width=200)
+        self.production_by_brewer_tree.column('waste_pct', width=200)
+
+        scrollbar2 = ttk.Scrollbar(brewer_frame, orient=VERTICAL, command=self.production_by_brewer_tree.yview)
+        self.production_by_brewer_tree.configure(yscrollcommand=scrollbar2.set)
+
+        self.production_by_brewer_tree.pack(side=LEFT, fill=BOTH, expand=True)
+        scrollbar2.pack(side=RIGHT, fill=Y)
+
+        # Tab 3: Packaging Breakdown
+        packaging_frame = ttk.Frame(prod_notebook)
+        prod_notebook.add(packaging_frame, text="Packaging Mix")
+
+        columns = ('quantity', 'litres', 'percentage')
+        self.production_packaging_tree = ttk.Treeview(
+            packaging_frame,
+            columns=columns,
+            show='headings',
+            height=15
+        )
+
+        self.production_packaging_tree.heading('quantity', text='Container Type')
+        self.production_packaging_tree.heading('litres', text='Units Packaged')
+        self.production_packaging_tree.heading('percentage', text='Total Litres')
+
+        self.production_packaging_tree.column('quantity', width=250)
+        self.production_packaging_tree.column('litres', width=200)
+        self.production_packaging_tree.column('percentage', width=200)
+
+        scrollbar3 = ttk.Scrollbar(packaging_frame, orient=VERTICAL, command=self.production_packaging_tree.yview)
+        self.production_packaging_tree.configure(yscrollcommand=scrollbar3.set)
+
+        self.production_packaging_tree.pack(side=LEFT, fill=BOTH, expand=True)
+        scrollbar3.pack(side=RIGHT, fill=Y)
+
+        # Load initial data
+        self.load_production_report()
+
+    # ================================================================
+    # FINANCIAL REPORTS TAB
+    # ================================================================
+    def create_financial_tab(self):
+        """Financial Reports - P&L, duty impact, costs"""
+
+        # Date range selector
+        control_frame = ttk.Frame(self.financial_tab)
+        control_frame.pack(fill=X, padx=10, pady=10)
+
+        ttk.Label(control_frame, text="Period:").pack(side=LEFT, padx=(0, 5))
+
+        self.financial_period = ttk.Combobox(
+            control_frame,
+            values=['Last 30 Days', 'Last 90 Days', 'Year to Date', 'Custom Range'],
+            state='readonly',
+            width=15
+        )
+        self.financial_period.set('Last 90 Days')
+        self.financial_period.pack(side=LEFT, padx=(0, 10))
+        self.financial_period.bind('<<ComboboxSelected>>', lambda e: self.load_financial_report())
+
+        ttk.Button(
+            control_frame,
+            text="🔄 Refresh",
+            command=self.load_financial_report,
+            bootstyle=PRIMARY
+        ).pack(side=LEFT)
+
+        # Summary cards
+        summary_frame = ttk.Frame(self.financial_tab)
+        summary_frame.pack(fill=X, padx=10, pady=10)
+
+        self.financial_summary_cards = {}
+        card_data = [
+            ('revenue', '💰 Revenue', '£0.00', SUCCESS),
+            ('cogs', '📦 COGS', '£0.00', WARNING),
+            ('duty', '🏛️ Duty Paid', '£0.00', DANGER),
+            ('profit', '📊 Gross Profit', '£0.00', INFO)
+        ]
+
+        for i, (key, label, default, style) in enumerate(card_data):
+            card = ttk.Frame(summary_frame, bootstyle=style, relief=RAISED)
+            card.pack(side=LEFT, fill=BOTH, expand=True, padx=5)
+
+            ttk.Label(card, text=label, font=('Helvetica', 10)).pack(pady=(10, 5))
+            value_label = ttk.Label(card, text=default, font=('Helvetica', 16, 'bold'))
+            value_label.pack(pady=(0, 10))
+            self.financial_summary_cards[key] = value_label
+
+        # Financial details table
+        table_frame = ttk.Frame(self.financial_tab)
+        table_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
+
+        # Create a nice P&L statement view
+        ttk.Label(
+            table_frame,
+            text="Profit & Loss Statement",
+            font=('Helvetica', 14, 'bold')
+        ).pack(pady=(0, 10))
+
+        columns = ('category', 'amount', 'percentage')
+        self.financial_tree = ttk.Treeview(
+            table_frame,
+            columns=columns,
+            show='tree headings',
+            height=20
+        )
+
+        self.financial_tree.heading('#0', text='Line Item')
+        self.financial_tree.heading('category', text='Category')
+        self.financial_tree.heading('amount', text='Amount')
+        self.financial_tree.heading('percentage', text='% of Revenue')
+
+        self.financial_tree.column('#0', width=250)
+        self.financial_tree.column('category', width=200)
+        self.financial_tree.column('amount', width=150)
+        self.financial_tree.column('percentage', width=150)
+
+        scrollbar = ttk.Scrollbar(table_frame, orient=VERTICAL, command=self.financial_tree.yview)
+        self.financial_tree.configure(yscrollcommand=scrollbar.set)
+
+        self.financial_tree.pack(side=LEFT, fill=BOTH, expand=True)
+        scrollbar.pack(side=RIGHT, fill=Y)
+
+        # Load initial data
+        self.load_financial_report()
+
+    # ================================================================
+    # DUTY REPORTS TAB (EXISTING)
+    # ================================================================
     def create_duty_reports_tab(self):
         """Create the duty reports tab showing all past returns"""
 
@@ -977,3 +1425,457 @@ class AnnualSummaryDialog(tk.Toplevel):
             report += f"{month}:  Production £{prod_duty:>8.2f}  |  Reclaim £{reclaim:>8.2f}  |  Net £{net:>8.2f}\n"
 
         self.summary_text.insert(END, report)
+
+    # ================================================================
+    # DATA LOADING METHODS FOR NEW TABS
+    # ================================================================
+
+    def load_sales_report(self):
+        """Load sales data based on selected period"""
+        period = self.sales_period.get()
+
+        # Calculate date range
+        today = datetime.now()
+        if period == 'Last 7 Days':
+            start_date = (today - timedelta(days=7)).strftime('%Y-%m-%d')
+        elif period == 'Last 30 Days':
+            start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        elif period == 'Last 90 Days':
+            start_date = (today - timedelta(days=90)).strftime('%Y-%m-%d')
+        elif period == 'Year to Date':
+            start_date = f"{today.year}-01-01"
+        else:  # All Time
+            start_date = '2000-01-01'
+
+        self.cache.connect()
+        cursor = self.cache.cursor
+
+        # Summary statistics
+        cursor.execute('''
+            SELECT
+                COUNT(DISTINCT sale_id) as total_orders,
+                SUM(quantity) as total_quantity,
+                SUM(total_litres) as total_litres,
+                SUM(line_total) as total_revenue
+            FROM sales
+            WHERE sale_date >= ?
+                AND status IN ('reserved', 'delivered', 'invoiced')
+        ''', (start_date,))
+
+        summary = cursor.fetchone()
+        total_orders = summary[0] or 0
+        total_litres = summary[1] or 0.0
+        total_revenue = summary[2] or 0.0
+        avg_order = (total_revenue / total_orders) if total_orders > 0 else 0.0
+
+        # Update summary cards
+        self.sales_summary_cards['total_revenue'].config(text=f"£{total_revenue:,.2f}")
+        self.sales_summary_cards['total_volume'].config(text=f"{total_litres:,.1f} L")
+        self.sales_summary_cards['total_orders'].config(text=f"{total_orders:,}")
+        self.sales_summary_cards['avg_order'].config(text=f"£{avg_order:,.2f}")
+
+        # Sales by product
+        self.sales_by_product_tree.delete(*self.sales_by_product_tree.get_children())
+
+        cursor.execute('''
+            SELECT
+                beer_name,
+                container_type,
+                SUM(quantity) as qty,
+                SUM(total_litres) as litres,
+                SUM(line_total) as revenue
+            FROM sales
+            WHERE sale_date >= ?
+                AND status IN ('reserved', 'delivered', 'invoiced')
+            GROUP BY beer_name, container_type
+            ORDER BY revenue DESC
+        ''', (start_date,))
+
+        products = {}
+        for row in cursor.fetchall():
+            beer_name = row[0] or 'Unknown'
+            container = row[1] or 'Unknown'
+            qty = row[2] or 0
+            litres = row[3] or 0.0
+            revenue = row[4] or 0.0
+            avg_price_per_litre = (revenue / litres) if litres > 0 else 0.0
+
+            if beer_name not in products:
+                products[beer_name] = {
+                    'total_qty': 0,
+                    'total_litres': 0,
+                    'total_revenue': 0,
+                    'containers': []
+                }
+
+            products[beer_name]['total_qty'] += qty
+            products[beer_name]['total_litres'] += litres
+            products[beer_name]['total_revenue'] += revenue
+            products[beer_name]['containers'].append((container, qty, litres, revenue, avg_price_per_litre))
+
+        for beer_name, data in sorted(products.items(), key=lambda x: x[1]['total_revenue'], reverse=True):
+            avg_price = (data['total_revenue'] / data['total_litres']) if data['total_litres'] > 0 else 0
+            parent = self.sales_by_product_tree.insert('', 'end', text=beer_name, values=(
+                'ALL',
+                f"{data['total_qty']:,}",
+                f"{data['total_litres']:,.1f}",
+                f"£{data['total_revenue']:,.2f}",
+                f"£{avg_price:.2f}/L"
+            ))
+
+            for container, qty, litres, revenue, price_per_l in data['containers']:
+                self.sales_by_product_tree.insert(parent, 'end', text='', values=(
+                    container,
+                    f"{qty:,}",
+                    f"{litres:,.1f}",
+                    f"£{revenue:,.2f}",
+                    f"£{price_per_l:.2f}/L"
+                ))
+
+        # Sales by customer
+        self.sales_by_customer_tree.delete(*self.sales_by_customer_tree.get_children())
+
+        cursor.execute('''
+            SELECT
+                c.customer_name,
+                COUNT(DISTINCT s.sale_id) as orders,
+                SUM(s.total_litres) as litres,
+                SUM(s.line_total) as revenue
+            FROM sales s
+            JOIN customers c ON s.customer_id = c.customer_id
+            WHERE s.sale_date >= ?
+                AND s.status IN ('reserved', 'delivered', 'invoiced')
+            GROUP BY c.customer_name
+            ORDER BY revenue DESC
+        ''', (start_date,))
+
+        for row in cursor.fetchall():
+            self.sales_by_customer_tree.insert('', 'end', values=(
+                row[0],
+                f"{row[1]:,}",
+                f"{row[2]:,.1f} L",
+                f"£{row[3]:,.2f}"
+            ))
+
+        self.cache.close()
+
+    def load_inventory_report(self):
+        """Load inventory data based on selected filter"""
+        filter_mode = self.inventory_filter.get()
+
+        self.cache.connect()
+        cursor = self.cache.cursor
+
+        # Clear existing data
+        self.inventory_tree.delete(*self.inventory_tree.get_children())
+
+        # Finished Goods (Products from sales table)
+        if filter_mode in ['All Stock', 'Finished Goods Only']:
+            # Get products with stock (from Products module logic)
+            # This would join with actual product inventory if you track it
+            # For now, show recent batches as available stock
+
+            cursor.execute('''
+                SELECT
+                    r.recipe_name,
+                    b.gyle_number,
+                    b.actual_batch_size,
+                    JULIANDAY('now') - JULIANDAY(b.packaged_date) as age_days,
+                    b.measured_abv
+                FROM batches b
+                JOIN recipes r ON b.recipe_id = r.recipe_id
+                WHERE b.status = 'Packaged'
+                    AND b.packaged_date >= date('now', '-90 days')
+                ORDER BY b.packaged_date DESC
+            ''')
+
+            total_stock_litres = 0
+            total_value = 0
+            product_count = 0
+
+            for row in cursor.fetchall():
+                recipe_name = row[0] or 'Unknown'
+                gyle = row[1] or ''
+                litres = row[2] or 0
+                age_days = int(row[3] or 0)
+
+                # Estimate value (you'd use actual pricing logic)
+                est_value_per_litre = 2.50  # Placeholder
+                est_value = litres * est_value_per_litre
+
+                # Status based on age
+                if age_days < 14:
+                    status = '✅ Fresh'
+                elif age_days < 30:
+                    status = '⚠️ Aging'
+                else:
+                    status = '🔴 Old Stock'
+
+                self.inventory_tree.insert('', 'end', values=(
+                    f"{recipe_name} ({gyle})",
+                    '1 batch',
+                    f"{litres:.1f} L",
+                    f"{age_days} days",
+                    f"£{est_value:.2f}",
+                    status
+                ))
+
+                total_stock_litres += litres
+                total_value += est_value
+                product_count += 1
+
+        # Raw Materials
+        if filter_mode in ['All Stock', 'Raw Materials Only']:
+            cursor.execute('''
+                SELECT
+                    material_name,
+                    current_stock,
+                    unit,
+                    cost_per_unit,
+                    reorder_level
+                FROM inventory_materials
+                WHERE current_stock > 0
+                ORDER BY material_type, material_name
+            ''')
+
+            for row in cursor.fetchall():
+                name = row[0]
+                stock = row[1] or 0
+                unit = row[2] or 'kg'
+                cost = row[3] or 0
+                reorder = row[4] or 0
+
+                value = stock * cost
+
+                if reorder > 0 and stock <= reorder:
+                    status = '🔴 Low Stock'
+                elif reorder > 0 and stock <= reorder * 1.5:
+                    status = '⚠️ Getting Low'
+                else:
+                    status = '✅ In Stock'
+
+                self.inventory_tree.insert('', 'end', values=(
+                    name,
+                    f"{stock:.1f}",
+                    unit,
+                    '-',
+                    f"£{value:.2f}",
+                    status
+                ))
+
+        # Update summary cards (using finished goods data)
+        self.inventory_summary_cards['total_stock'].config(text=f"{total_stock_litres:,.1f} L")
+        self.inventory_summary_cards['stock_value'].config(text=f"£{total_value:,.2f}")
+        self.inventory_summary_cards['products'].config(text=f"{product_count}")
+        self.inventory_summary_cards['low_stock'].config(text="0")  # Would calculate from inventory
+
+        self.cache.close()
+
+    def load_production_report(self):
+        """Load production data based on selected period"""
+        period = self.production_period.get()
+
+        # Calculate date range
+        today = datetime.now()
+        if period == 'Last 30 Days':
+            start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        elif period == 'Last 90 Days':
+            start_date = (today - timedelta(days=90)).strftime('%Y-%m-%d')
+        elif period == 'Year to Date':
+            start_date = f"{today.year}-01-01"
+        else:  # All Time
+            start_date = '2000-01-01'
+
+        self.cache.connect()
+        cursor = self.cache.cursor
+
+        # Summary statistics
+        cursor.execute('''
+            SELECT
+                COUNT(*) as total_batches,
+                SUM(COALESCE(fermented_volume, actual_batch_size, 0)) as total_volume,
+                SUM(packaged_volume) as packaged_volume,
+                SUM(waste_volume) as waste_volume
+            FROM batches
+            WHERE packaged_date >= ?
+                AND status = 'Packaged'
+        ''', (start_date,))
+
+        summary = cursor.fetchone()
+        total_batches = summary[0] or 0
+        total_volume = summary[1] or 0.0
+        packaged_volume = summary[2] or 0.0
+        waste_volume = summary[3] or 0.0
+
+        avg_waste_pct = ((waste_volume / total_volume) * 100) if total_volume > 0 else 0
+
+        # Update summary cards
+        self.production_summary_cards['total_batches'].config(text=f"{total_batches:,}")
+        self.production_summary_cards['total_volume'].config(text=f"{total_volume:,.1f} L")
+        self.production_summary_cards['avg_efficiency'].config(text=f"{avg_waste_pct:.1f}%")
+        self.production_summary_cards['packaged_volume'].config(text=f"{packaged_volume:,.1f} L")
+
+        # Production by style
+        self.production_by_style_tree.delete(*self.production_by_style_tree.get_children())
+
+        cursor.execute('''
+            SELECT
+                r.style,
+                COUNT(*) as batches,
+                SUM(COALESCE(b.fermented_volume, b.actual_batch_size, 0)) as volume,
+                AVG(b.measured_abv) as avg_abv
+            FROM batches b
+            JOIN recipes r ON b.recipe_id = r.recipe_id
+            WHERE b.packaged_date >= ?
+                AND b.status = 'Packaged'
+            GROUP BY r.style
+            ORDER BY volume DESC
+        ''', (start_date,))
+
+        for row in cursor.fetchall():
+            self.production_by_style_tree.insert('', 'end', values=(
+                row[0] or 'Unknown',
+                f"{row[1]:,}",
+                f"{row[2]:,.1f} L",
+                f"{row[3]:.1f}%"
+            ))
+
+        # Production by brewer
+        self.production_by_brewer_tree.delete(*self.production_by_brewer_tree.get_children())
+
+        cursor.execute('''
+            SELECT
+                brewer_name,
+                COUNT(*) as batches,
+                SUM(COALESCE(fermented_volume, actual_batch_size, 0)) as volume
+            FROM batches
+            WHERE packaged_date >= ?
+                AND status = 'Packaged'
+                AND brewer_name IS NOT NULL
+            GROUP BY brewer_name
+            ORDER BY volume DESC
+        ''', (start_date,))
+
+        for row in cursor.fetchall():
+            self.production_by_brewer_tree.insert('', 'end', values=(
+                row[0],
+                f"{row[1]:,}",
+                f"{row[2]:,.1f} L"
+            ))
+
+        # Packaging breakdown
+        self.production_packaging_tree.delete(*self.production_packaging_tree.get_children())
+
+        cursor.execute('''
+            SELECT
+                container_type,
+                SUM(quantity) as total_quantity,
+                SUM(total_duty_volume) as total_litres
+            FROM batch_packaging_lines
+            WHERE packaging_date >= ?
+            GROUP BY container_type
+            ORDER BY total_litres DESC
+        ''', (start_date,))
+
+        for row in cursor.fetchall():
+            self.production_packaging_tree.insert('', 'end', values=(
+                row[0],
+                f"{row[1]:,}",
+                f"{row[2]:,.1f} L"
+            ))
+
+        self.cache.close()
+
+    def load_financial_report(self):
+        """Load financial data - P&L statement"""
+        period = self.financial_period.get()
+
+        # Calculate date range
+        today = datetime.now()
+        if period == 'Last 30 Days':
+            start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+        elif period == 'Last 90 Days':
+            start_date = (today - timedelta(days=90)).strftime('%Y-%m-%d')
+        elif period == 'Year to Date':
+            start_date = f"{today.year}-01-01"
+        else:  # Custom Range - for now use YTD
+            start_date = f"{today.year}-01-01"
+
+        self.cache.connect()
+        cursor = self.cache.cursor
+
+        # Revenue from sales
+        cursor.execute('''
+            SELECT SUM(line_total)
+            FROM sales
+            WHERE sale_date >= ?
+                AND status IN ('delivered', 'invoiced')
+        ''', (start_date,))
+
+        revenue = cursor.fetchone()[0] or 0.0
+
+        # Cost of Goods Sold (simplified - based on ingredient costs)
+        # This is a placeholder - real COGS would track actual batch costs
+        cogs = revenue * 0.25  # Estimate 25% ingredient cost
+
+        # Duty paid (from duty returns)
+        cursor.execute('''
+            SELECT SUM(net_duty_payable)
+            FROM duty_returns
+            WHERE duty_month >= ?
+        ''', (start_date[:7],))  # YYYY-MM format
+
+        duty_paid = cursor.fetchone()[0] or 0.0
+
+        # Gross profit
+        gross_profit = revenue - cogs - duty_paid
+
+        # Update summary cards
+        self.financial_summary_cards['revenue'].config(text=f"£{revenue:,.2f}")
+        self.financial_summary_cards['cogs'].config(text=f"£{cogs:,.2f}")
+        self.financial_summary_cards['duty'].config(text=f"£{duty_paid:,.2f}")
+        self.financial_summary_cards['profit'].config(text=f"£{gross_profit:,.2f}")
+
+        # Build P&L tree
+        self.financial_tree.delete(*self.financial_tree.get_children())
+
+        # Revenue section
+        revenue_node = self.financial_tree.insert('', 'end', text='REVENUE', values=(
+            '', f"£{revenue:,.2f}", '100.0%'
+        ), tags=('bold',))
+
+        # Cost of Sales
+        cogs_pct = (cogs / revenue * 100) if revenue > 0 else 0
+        cogs_node = self.financial_tree.insert('', 'end', text='COST OF SALES', values=(
+            '', f"£{cogs:,.2f}", f"{cogs_pct:.1f}%"
+        ), tags=('bold',))
+
+        self.financial_tree.insert(cogs_node, 'end', text='  Ingredients', values=(
+            'Materials', f"£{cogs:,.2f}", f"{cogs_pct:.1f}%"
+        ))
+
+        # Gross Profit Before Duty
+        gross_before_duty = revenue - cogs
+        gross_before_duty_pct = (gross_before_duty / revenue * 100) if revenue > 0 else 0
+        self.financial_tree.insert('', 'end', text='GROSS PROFIT (Before Duty)', values=(
+            '', f"£{gross_before_duty:,.2f}", f"{gross_before_duty_pct:.1f}%"
+        ), tags=('highlight',))
+
+        # Duty
+        duty_pct = (duty_paid / revenue * 100) if revenue > 0 else 0
+        duty_node = self.financial_tree.insert('', 'end', text='HMRC DUTY', values=(
+            '', f"£{duty_paid:,.2f}", f"{duty_pct:.1f}%"
+        ), tags=('bold',))
+
+        # Net Gross Profit
+        profit_pct = (gross_profit / revenue * 100) if revenue > 0 else 0
+        self.financial_tree.insert('', 'end', text='NET GROSS PROFIT', values=(
+            '', f"£{gross_profit:,.2f}", f"{profit_pct:.1f}%"
+        ), tags=('total',))
+
+        # Configure tags for styling
+        self.financial_tree.tag_configure('bold', font=('Helvetica', 10, 'bold'))
+        self.financial_tree.tag_configure('highlight', background='#e8f4f8')
+        self.financial_tree.tag_configure('total', font=('Helvetica', 11, 'bold'), background='#d4edda')
+
+        self.cache.close()
