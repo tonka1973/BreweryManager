@@ -257,8 +257,9 @@ class DutyModule(ttk.Frame):
 
     def populate_month_combo(self):
         """Populate month selector with available months and future months"""
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+        cursor = self.cache.cursor
 
         # Get existing months from packaging lines
         cursor.execute('''
@@ -296,8 +297,10 @@ class DutyModule(ttk.Frame):
 
         self.current_month = duty_month
 
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+
+        cursor = self.cache.cursor
 
         # Check if return exists
         cursor.execute('SELECT * FROM duty_returns WHERE duty_month = ?', (duty_month,))
@@ -315,8 +318,9 @@ class DutyModule(ttk.Frame):
 
     def calculate_from_packaging(self):
         """Auto-calculate duty from packaging lines for current month"""
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+        cursor = self.cache.cursor
 
         # Query packaging lines for this month
         cursor.execute('''
@@ -517,8 +521,10 @@ class DutyModule(ttk.Frame):
             messagebox.showerror("Error", f"Invalid numeric value: {e}")
             return
 
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+
+        cursor = self.cache.cursor
 
         # Check if return exists
         cursor.execute('SELECT id, status FROM duty_returns WHERE duty_month = ?', (duty_month,))
@@ -587,7 +593,7 @@ class DutyModule(ttk.Frame):
                   net_payable, payment_date, payment_ref,
                   'in_progress', now, now))
 
-        conn.commit()
+        self.cache.connection.commit()
 
         messagebox.showinfo("Success", f"Duty return for {duty_month} saved successfully!")
         self.load_duty_return()  # Reload
@@ -603,8 +609,9 @@ class DutyModule(ttk.Frame):
         self.save_return()
 
         # Update status
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+        cursor = self.cache.cursor
 
         now = datetime.now().isoformat()
 
@@ -614,7 +621,7 @@ class DutyModule(ttk.Frame):
             WHERE duty_month = ?
         ''', ('submitted', now, now, self.current_month))
 
-        conn.commit()
+        self.cache.connection.commit()
 
         messagebox.showinfo("Submitted", f"Duty return for {self.current_month} marked as submitted!")
         self.load_duty_return()
@@ -632,8 +639,9 @@ class DutyModule(ttk.Frame):
         self.save_return()
 
         # Update status
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+        cursor = self.cache.cursor
 
         now = datetime.now().isoformat()
 
@@ -643,7 +651,7 @@ class DutyModule(ttk.Frame):
             WHERE duty_month = ?
         ''', ('paid', now, self.current_month))
 
-        conn.commit()
+        self.cache.connection.commit()
 
         messagebox.showinfo("Success", f"Duty return for {self.current_month} marked as paid!")
         self.load_duty_return()
@@ -741,8 +749,9 @@ class PackagingLinesDialog(tk.Toplevel):
 
     def load_data(self):
         """Load packaging lines"""
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+        cursor = self.cache.cursor
 
         cursor.execute('''
             SELECT

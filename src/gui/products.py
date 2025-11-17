@@ -224,8 +224,9 @@ class ProductsModule(ttk.Frame):
 
     def populate_spoilt_month_filter(self):
         """Populate the duty month filter for spoilt beer"""
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+        cursor = self.cache.cursor
 
         cursor.execute('''
             SELECT DISTINCT duty_month
@@ -248,8 +249,10 @@ class ProductsModule(ttk.Frame):
         for item in self.spoilt_tree.get_children():
             self.spoilt_tree.delete(item)
 
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+
+        cursor = self.cache.cursor
 
         # Build query with optional month filter
         month_filter = self.spoilt_month_filter.get()
@@ -345,8 +348,10 @@ class ProductsModule(ttk.Frame):
             messagebox.showerror("Error", "Could not identify record.")
             return
 
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+
+        cursor = self.cache.cursor
 
         cursor.execute('SELECT * FROM spoilt_beer WHERE id = ?', (record_id,))
         row = cursor.fetchone()
@@ -383,11 +388,13 @@ class ProductsModule(ttk.Frame):
                                    "This will affect duty calculations for the associated month."):
             return
 
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+
+        cursor = self.cache.cursor
 
         cursor.execute('DELETE FROM spoilt_beer WHERE id = ?', (record_id,))
-        conn.commit()
+        self.cache.connection.commit()
 
         messagebox.showinfo("Success", "Spoilt beer record deleted.")
         self.populate_spoilt_month_filter()
@@ -1057,8 +1064,9 @@ class AddSpoiltBeerDialog(tk.Toplevel):
 
     def load_container_types(self):
         """Load container types from settings_containers"""
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+        cursor = self.cache.cursor
 
         cursor.execute('''
             SELECT name, duty_paid_volume, is_draught_eligible
@@ -1123,8 +1131,9 @@ class AddSpoiltBeerDialog(tk.Toplevel):
         pure_alcohol_litres = total_volume * (abv / 100)
 
         # Get current duty rates from settings
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+        cursor = self.cache.cursor
 
         cursor.execute('''
             SELECT
@@ -1196,7 +1205,7 @@ class AddSpoiltBeerDialog(tk.Toplevel):
             VALUES ({placeholders})
         ''', values)
 
-        conn.commit()
+        self.cache.connection.commit()
 
         messagebox.showinfo("Success",
             f"Spoilt beer recorded successfully!\n\n"
@@ -1359,8 +1368,9 @@ class EditSpoiltBeerDialog(tk.Toplevel):
             return
 
         # Update database
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+        cursor = self.cache.cursor
 
         cursor.execute('''
             UPDATE spoilt_beer
@@ -1374,7 +1384,7 @@ class EditSpoiltBeerDialog(tk.Toplevel):
         ''', (date_discovered, batch_id, gyle_number, reason_category,
               reason_notes, status, self.record['id']))
 
-        conn.commit()
+        self.cache.connection.commit()
 
         messagebox.showinfo("Success", "Spoilt beer record updated successfully!")
         self.destroy()

@@ -180,8 +180,9 @@ class ReportsModule(ttk.Frame):
 
     def populate_year_filter(self):
         """Populate the year filter dropdown"""
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+        cursor = self.cache.cursor
 
         cursor.execute('''
             SELECT DISTINCT substr(duty_month, 1, 4) as year
@@ -204,8 +205,10 @@ class ReportsModule(ttk.Frame):
         for item in self.returns_tree.get_children():
             self.returns_tree.delete(item)
 
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+
+        cursor = self.cache.cursor
 
         # Build query with optional year filter
         year_filter = self.year_filter.get()
@@ -298,8 +301,9 @@ class ReportsModule(ttk.Frame):
         duty_month = values[0]
 
         # Fetch full details from database
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+        cursor = self.cache.cursor
 
         cursor.execute('''
             SELECT * FROM duty_returns WHERE duty_month = ?
@@ -646,8 +650,8 @@ class PackagingLinesDialog(tk.Toplevel):
 
         # Get parent's cache manager
         cache = self.master.cache
-        conn = cache.get_connection()
-        cursor = conn.cursor()
+        cache.connect()
+        cursor = cache.cursor
 
         # Query packaging lines from this month
         cursor.execute('''
@@ -778,8 +782,8 @@ class SpoiltBeerDialog(tk.Toplevel):
         """Load all spoilt beer records for this duty month"""
         # Get parent's cache manager
         cache = self.master.cache
-        conn = cache.get_connection()
-        cursor = conn.cursor()
+        cache.connect()
+        cursor = cache.cursor
 
         cursor.execute('''
             SELECT
@@ -860,8 +864,9 @@ class AnnualSummaryDialog(tk.Toplevel):
         year_combo.bind('<<ComboboxSelected>>', lambda e: self.load_summary())
 
         # Populate years
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+        cursor = self.cache.cursor
         cursor.execute('''
             SELECT DISTINCT substr(duty_month, 1, 4) as year
             FROM duty_returns
@@ -902,8 +907,10 @@ class AnnualSummaryDialog(tk.Toplevel):
 
         self.summary_text.delete('1.0', END)
 
-        conn = self.cache.get_connection()
-        cursor = conn.cursor()
+        self.cache.connect()
+
+
+        cursor = self.cache.cursor
 
         # Get all returns for this year
         cursor.execute('''

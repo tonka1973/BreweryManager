@@ -274,17 +274,17 @@ class SettingsModule(ttk.Frame):
             self.cache.connect()
 
             # Get production year dates from settings
-            settings = self.cache.execute("SELECT production_year_start, production_year_end FROM settings WHERE id = 1").fetchone()
+            settings = self.cache.cursor.execute("SELECT production_year_start, production_year_end FROM settings WHERE id = 1").fetchone()
 
             if settings:
-                year_start = settings['production_year_start']
-                year_end = settings['production_year_end']
+                year_start = settings[0]
+                year_end = settings[1]
             else:
                 year_start = '2025-02-01'
                 year_end = '2026-01-31'
 
             # Sum all pure alcohol from packaging lines in current production year
-            result = self.cache.execute("""
+            result = self.cache.cursor.execute("""
                 SELECT SUM(pure_alcohol_litres)
                 FROM batch_packaging_lines
                 WHERE packaging_date BETWEEN ? AND ?
@@ -305,7 +305,9 @@ class SettingsModule(ttk.Frame):
         """Load current rates from database"""
         try:
             self.cache.connect()
-            settings = self.cache.execute("SELECT * FROM settings WHERE id = 1").fetchone()
+            cursor = self.cache.cursor
+            cursor.execute("SELECT * FROM settings WHERE id = 1")
+            settings = cursor.fetchone()
             self.cache.close()
 
             if settings:
@@ -353,7 +355,7 @@ class SettingsModule(ttk.Frame):
                     return
 
             self.cache.connect()
-            self.cache.execute("""
+            self.cache.cursor.execute("""
                 UPDATE settings SET
                     spr_draught_low = ?,
                     spr_draught_standard = ?,
@@ -368,7 +370,7 @@ class SettingsModule(ttk.Frame):
                 datetime.now().isoformat(),
                 self.current_user.username
             ))
-            self.cache.commit()
+            self.cache.connection.commit()
             self.cache.close()
 
             messagebox.showinfo("Success",
@@ -409,7 +411,7 @@ class SettingsModule(ttk.Frame):
                     return
 
             self.cache.connect()
-            self.cache.execute("""
+            self.cache.cursor.execute("""
                 UPDATE settings SET
                     rate_full_8_5_to_22 = ?,
                     rates_effective_from = ?,
@@ -422,7 +424,7 @@ class SettingsModule(ttk.Frame):
                 datetime.now().isoformat(),
                 self.current_user.username
             ))
-            self.cache.commit()
+            self.cache.connection.commit()
             self.cache.close()
 
             messagebox.showinfo("Success",
@@ -441,7 +443,7 @@ class SettingsModule(ttk.Frame):
 
         try:
             self.cache.connect()
-            containers = self.cache.execute("""
+            containers = self.cache.cursor.execute("""
                 SELECT name, actual_capacity, duty_paid_volume,
                        is_draught_eligible, default_price
                 FROM settings_containers
@@ -596,7 +598,7 @@ class EditContainerDialog(tk.Toplevel):
         """Load container data from database"""
         try:
             self.cache.connect()
-            container = self.cache.execute("""
+            container = self.cache.cursor.execute("""
                 SELECT * FROM settings_containers WHERE name = ?
             """, (self.container_name,)).fetchone()
             self.cache.close()
@@ -685,7 +687,7 @@ class EditContainerDialog(tk.Toplevel):
 
             # Save to database
             self.cache.connect()
-            self.cache.execute("""
+            self.cache.cursor.execute("""
                 UPDATE settings_containers SET
                     duty_paid_volume = ?,
                     default_price = ?,
@@ -699,7 +701,7 @@ class EditContainerDialog(tk.Toplevel):
                 self.current_user.username,
                 self.container_name
             ))
-            self.cache.commit()
+            self.cache.connection.commit()
             self.cache.close()
 
             messagebox.showinfo("Success", "Container settings saved successfully!")
