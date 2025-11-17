@@ -656,15 +656,9 @@ O.G.: {og_text}"""
 
         ttk.Label(select_frame, text="Container Type:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0,5))
 
-        # TODO: Load from brewery_inventory table when containers module is implemented
-        # For now, placeholder with common container types
+        # Load containers from settings_containers table
         self.container_var = tk.StringVar()
-        self.container_options = {
-            "Firkin (40.9L)": {"name": "Firkin", "volume": 40.9, "stock": 999},
-            "Kilderkin (82L)": {"name": "Kilderkin", "volume": 82, "stock": 999},
-            "Pin (20.5L)": {"name": "Pin", "volume": 20.5, "stock": 999},
-            "Barrel (164L)": {"name": "Barrel", "volume": 164, "stock": 999}
-        }
+        self.load_containers()
 
         container_menu = ttk.Combobox(select_frame, textvariable=self.container_var,
                                      values=list(self.container_options.keys()),
@@ -721,6 +715,37 @@ O.G.: {og_text}"""
         ttk.Button(button_frame, text="Save & Package", bootstyle="success",
                   command=self.save).pack(side=tk.RIGHT)
 
+    def load_containers(self):
+        """Load available containers from settings_containers table"""
+        self.cache.connect()
+        cursor = self.cache.conn.cursor()
+
+        cursor.execute('''
+            SELECT name, actual_capacity, duty_paid_volume, is_draught_eligible
+            FROM settings_containers
+            WHERE active = 1
+            ORDER BY name
+        ''')
+
+        containers = cursor.fetchall()
+        self.cache.close()
+
+        self.container_options = {}
+        for name, actual_cap, duty_vol, is_draught in containers:
+            display_name = f"{name} ({duty_vol:.1f}L duty-paid)"
+            self.container_options[display_name] = {
+                'name': name,
+                'actual_capacity': actual_cap,
+                'duty_volume': duty_vol,
+                'is_draught': is_draught == 1
+            }
+
+        if not self.container_options:
+            # Fallback if no containers configured
+            messagebox.showwarning("No Containers",
+                "No containers configured in Settings.\n\n"
+                "Please configure containers in the Settings module before packaging.")
+
     def add_container(self):
         """Add selected container to list"""
         container_display = self.container_var.get()
@@ -744,15 +769,15 @@ O.G.: {og_text}"""
         #         f"Insufficient stock. Only {container['stock']} available.")
         #     return
 
-        # Add to list
-        unit_vol = container['volume']
-        total_vol = qty * unit_vol
+        # Add to list - use duty_volume for duty calculations
+        duty_vol = container['duty_volume']
+        total_duty_vol = qty * duty_vol
 
         item_id = self.container_tree.insert('', 'end', values=(
             qty,
             container['name'],
-            f"{unit_vol:.1f}L",
-            f"{total_vol:.1f}L",
+            f"{duty_vol:.1f}L",
+            f"{total_duty_vol:.1f}L",
             "[Remove]"
         ))
 
@@ -760,8 +785,10 @@ O.G.: {og_text}"""
             'item_id': item_id,
             'name': container['name'],
             'qty': qty,
-            'volume': unit_vol,
-            'total': total_vol
+            'actual_capacity': container['actual_capacity'],
+            'duty_volume': duty_vol,
+            'is_draught': container['is_draught'],
+            'total': total_duty_vol
         })
 
         # Update total
@@ -790,7 +817,7 @@ O.G.: {og_text}"""
         self.total_label.config(text=f"Total: {total:.1f}L")
 
     def save(self):
-        """Save packaging information"""
+        """Save packaging information with integrated duty calculations"""
         # Validate F.G.
         fg_str = self.fg_entry.get().strip()
         if not fg_str:
@@ -825,12 +852,6 @@ O.G.: {og_text}"""
             messagebox.showerror("Error", "Please add at least one container.")
             return
 
-        # TODO: Validate stock levels when brewery inventory implemented
-        # for container in self.selected_containers:
-        #     if container['qty'] > stock_level:
-        #         messagebox.showerror("Insufficient Stock", ...)
-        #         return
-
         # Calculate ABV
         og = self.batch.get('original_gravity')
         if not og:
@@ -858,19 +879,56 @@ O.G.: {og_text}"""
         # Duty ABV = higher of expected or actual
         duty_abv = max(expected_abv, actual_abv)
 
-        # Update batch record
-        data = {
+        # Load duty rates from settings
+        self.cache.connect()
+        cursor = self.cache.conn.cursor()
+
+        cursor.execute('''
+            SELECT
+                spr_draught_low,
+                spr_draught_standard,
+                spr_non_draught_standard,
+                rate_full_8_5_to_22
+            FROM settings
+            WHERE id = 1
+        ''')
+
+        settings_row = cursor.fetchone()
+        if not settings_row:
+            self.cache.close()
+            messagebox.showerror("Error",
+                "Duty rates not configured.\n\n"
+                "Please configure duty rates in the Settings module before packaging.")
+            return
+
+        spr_draught_low, spr_draught_std, spr_non_draught, rate_full = settings_row
+
+        # Calculate total packaged volume and duty
+        total_packaged_volume = sum(c['total'] for c in self.selected_containers)
+        total_duty = 0.0
+
+        # Get fermented volume from batch
+        fermented_volume = self.batch.get('actual_batch_size', 0)
+
+        # Update batch record with packaging details
+        waste_volume = max(0, fermented_volume - total_packaged_volume)
+        waste_percentage = (waste_volume / fermented_volume * 100) if fermented_volume > 0 else 0
+
+        batch_data = {
             'final_gravity': fg,
             'actual_abv': actual_abv,
-            'duty_abv': duty_abv,
+            'measured_abv': duty_abv,  # Use duty_abv for HMRC compliance
             'packaged_date': package_date_db,
+            'fermented_volume': fermented_volume,
+            'packaged_volume': total_packaged_volume,
+            'waste_volume': waste_volume,
+            'waste_percentage': waste_percentage,
             'status': 'packaged',
             'last_modified': get_now_db(),
             'sync_status': 'pending'
         }
 
-        self.cache.connect()
-        self.cache.update_record('batches', self.batch['batch_id'], data, 'batch_id')
+        self.cache.update_record('batches', self.batch['batch_id'], batch_data, 'batch_id')
 
         # Get recipe details for product info
         recipe_name = "Unknown Product"
@@ -881,9 +939,76 @@ O.G.: {og_text}"""
                 recipe_name = recipes[0].get('recipe_name', 'Unknown Product')
                 recipe_style = recipes[0].get('style', '')
 
-        # Create product records and deduct from container inventory
+        # Process each container line with duty calculations
         for container in self.selected_containers:
-            # Create product record
+            qty = container['qty']
+            duty_volume_per_unit = container['duty_volume']
+            is_draught = container['is_draught']
+
+            # Calculate volumes
+            total_duty_volume = duty_volume_per_unit * qty
+            pure_alcohol_litres = total_duty_volume * (duty_abv / 100)
+
+            # Determine SPR category and effective rate
+            if duty_abv >= 8.5:
+                spr_category = "no_spr"
+                effective_rate = rate_full
+            elif duty_abv < 3.5 and is_draught:
+                spr_category = "draught_low"
+                effective_rate = spr_draught_low
+            elif 3.5 <= duty_abv < 8.5 and is_draught:
+                spr_category = "draught_standard"
+                effective_rate = spr_draught_std
+            elif 3.5 <= duty_abv < 8.5 and not is_draught:
+                spr_category = "non_draught_standard"
+                effective_rate = spr_non_draught
+            else:
+                # Fallback - should not happen
+                spr_category = "unknown"
+                effective_rate = rate_full
+
+            # Calculate duty payable for this line
+            duty_payable = pure_alcohol_litres * effective_rate
+            total_duty += duty_payable
+
+            # Insert into batch_packaging_lines table
+            cursor.execute('''
+                INSERT INTO batch_packaging_lines (
+                    batch_id,
+                    packaging_date,
+                    container_type,
+                    quantity,
+                    container_actual_size,
+                    container_duty_volume,
+                    total_duty_volume,
+                    batch_abv,
+                    pure_alcohol_litres,
+                    spr_category,
+                    spr_rate_applied,
+                    full_duty_rate,
+                    effective_duty_rate,
+                    duty_payable,
+                    is_draught_eligible
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                self.batch['batch_id'],
+                package_date_db,
+                container['name'],
+                qty,
+                container['actual_capacity'],
+                duty_volume_per_unit,
+                total_duty_volume,
+                duty_abv,
+                pure_alcohol_litres,
+                spr_category,
+                effective_rate,
+                rate_full,
+                effective_rate,
+                duty_payable,
+                1 if is_draught else 0
+            ))
+
+            # Create product record (for finished goods tracking)
             product_id = str(uuid.uuid4())
             product_data = {
                 'product_id': product_id,
@@ -893,9 +1018,9 @@ O.G.: {og_text}"""
                 'product_name': recipe_name,
                 'style': recipe_style,
                 'container_type': container['name'],
-                'container_size_l': container['volume'],
-                'quantity_total': container['qty'],
-                'quantity_in_stock': container['qty'],
+                'container_size_l': duty_volume_per_unit,
+                'quantity_total': qty,
+                'quantity_in_stock': qty,
                 'quantity_sold': 0,
                 'abv': actual_abv,
                 'date_packaged': package_date_db,
@@ -914,16 +1039,22 @@ O.G.: {og_text}"""
                 f"name = '{container['name']}'")
             if container_types:
                 container_type = container_types[0]
-                new_qty = max(0, container_type.get('quantity_available', 0) - container['qty'])
+                new_qty = max(0, container_type.get('quantity_available', 0) - qty)
                 self.cache.update_record('container_types', container_type['container_type_id'], {
                     'quantity_available': new_qty,
                     'last_modified': get_now_db()
                 }, 'container_type_id')
 
+        self.cache.conn.commit()
         self.cache.close()
 
         messagebox.showinfo("Success",
-            f"Batch packaged!\n\nActual ABV: {actual_abv:.2f}%\nDuty ABV: {duty_abv:.2f}%")
+            f"Batch packaged successfully!\n\n"
+            f"Actual ABV: {actual_abv:.2f}%\n"
+            f"Duty ABV: {duty_abv:.2f}%\n"
+            f"Packaged Volume: {total_packaged_volume:.1f}L\n"
+            f"Waste: {waste_volume:.1f}L ({waste_percentage:.1f}%)\n"
+            f"Total Duty: £{total_duty:.2f}")
         self.destroy()
 
 
