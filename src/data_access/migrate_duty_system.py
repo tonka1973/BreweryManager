@@ -48,18 +48,13 @@ def migrate():
                 production_year_start TEXT DEFAULT '2025-02-01',
                 production_year_end TEXT DEFAULT '2026-01-31',
 
-                -- SPR RATES (£/lpa) - Manually entered effective rates
+                -- SPR RATES (£/lpa) - Manually entered effective rates for <8.5% ABV
                 spr_draught_low REAL DEFAULT 2.46,
                 spr_draught_standard REAL DEFAULT 4.89,
                 spr_non_draught_standard REAL DEFAULT 5.38,
 
-                -- FULL DUTY RATES (£/lpa) - For reference and ≥8.5% products
-                rate_draught_low REAL DEFAULT 8.42,
-                rate_draught_standard REAL DEFAULT 19.08,
-                rate_draught_high REAL DEFAULT 29.54,
-                rate_non_draught_low REAL DEFAULT 9.27,
-                rate_non_draught_standard REAL DEFAULT 21.01,
-                rate_non_draught_high REAL DEFAULT 29.54,
+                -- FULL DUTY RATE (£/lpa) - Only for 8.5-22% ABV (no SPR applies)
+                rate_full_8_5_to_22 REAL DEFAULT 29.54,
 
                 -- Metadata
                 rates_effective_from TEXT DEFAULT '2025-02-01',
@@ -317,11 +312,14 @@ def migrate():
         print("✅ MIGRATION COMPLETED SUCCESSFULLY!")
         print("=" * 70)
         print("\nNew tables added:")
-        print("  • settings                 - Duty rates and SPR rates configuration")
+        print("  • settings                 - SPR rates (3) + Full rate (1) configuration")
         print("  • settings_containers      - Container specifications with sediment allowances")
         print("  • batch_packaging_lines    - Multiple containers per batch with duty calculations")
         print("  • spoilt_beer             - Post-packaging spoilage tracking for refunds")
         print("  • duty_returns            - Monthly HMRC duty returns")
+        print("\nRate structure:")
+        print("  • 3 SPR rates              - For beers <8.5% ABV (draught low, draught std, non-draught)")
+        print("  • 1 Full rate              - For beers 8.5-22% ABV (no SPR discount)")
         print("\nBatches table updated:")
         print("  • fermented_volume        - Total volume after fermentation")
         print("  • packaged_volume         - Total volume packaged into containers")
