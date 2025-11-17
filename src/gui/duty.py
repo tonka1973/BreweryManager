@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import messagebox
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class DutyModule(ttk.Frame):
@@ -276,7 +276,6 @@ class DutyModule(ttk.Frame):
             months.insert(0, current)
 
         # Add next month
-        from datetime import datetime, timedelta
         next_month = (datetime.now().replace(day=1) + timedelta(days=32)).strftime('%Y-%m')
         if next_month not in months:
             months.insert(0, next_month)
