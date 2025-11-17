@@ -32,6 +32,8 @@ from src.gui.invoicing import InvoicingModule
 from src.gui.duty import DutyModule
 from src.gui.products import ProductsModule
 from src.gui.labels import LabelsModule
+from src.gui.reports import ReportsModule
+from src.gui.settings import SettingsModule
 
 
 class BreweryMainWindow:
@@ -316,7 +318,9 @@ class BreweryMainWindow:
             'Customers',
             'Sales',
             'Invoicing',
-            'Label Printing'
+            'Label Printing',
+            'Reports',
+            'Settings'
         ]
 
         self.nav_buttons = {}
@@ -446,7 +450,9 @@ class BreweryMainWindow:
             'Customers': CustomersModule,
             'Sales': SalesModule,
             'Invoicing': InvoicingModule,
-            'Label Printing': LabelsModule
+            'Label Printing': LabelsModule,
+            'Reports': ReportsModule,
+            'Settings': SettingsModule
         }
 
         # Get the module class
