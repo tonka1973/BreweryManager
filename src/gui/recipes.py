@@ -608,8 +608,15 @@ class RecipeDialog(tk.Toplevel):
         self.notes_text = tk.Text(main_frame, font=('Arial', 10), width=40, height=4)
         self.notes_text.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=20)
 
+        # Allergens
+        ttk.Label(main_frame, text="Allergens (for labels)", font=('Arial', 10, 'bold')).grid(row=10, column=0, sticky='w', pady=(0, 5), padx=20)
+        self.allergens_text = tk.Text(main_frame, font=('Arial', 10), width=40, height=2)
+        self.allergens_text.grid(row=11, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=20)
+        # Add placeholder hint
+        ttk.Label(main_frame, text="e.g., Gluten (Barley), Sulphites", font=('Arial', 9), foreground='gray').grid(row=12, column=0, columnspan=2, sticky='w', padx=20)
+
         # Ingredients Section
-        ttk.Label(main_frame, text="Ingredients", font=('Arial', 11, 'bold')).grid(row=10, column=0, columnspan=2, sticky='w', pady=(10, 5), padx=20)
+        ttk.Label(main_frame, text="Ingredients", font=('Arial', 11, 'bold')).grid(row=13, column=0, columnspan=2, sticky='w', pady=(10, 5), padx=20)
 
         # Add ingredient button
         add_ing_btn = ttk.Button(
@@ -618,11 +625,11 @@ class RecipeDialog(tk.Toplevel):
             bootstyle="success",
             command=self.add_ingredient
         )
-        add_ing_btn.grid(row=11, column=0, sticky='w', pady=(0, 5), padx=20)
+        add_ing_btn.grid(row=14, column=0, sticky='w', pady=(0, 5), padx=20)
 
         # Ingredients list frame
         ing_frame = ttk.Frame(main_frame)
-        ing_frame.grid(row=12, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=20)
+        ing_frame.grid(row=15, column=0, columnspan=2, sticky='ew', pady=(0, 15), padx=20)
 
         # Scrollbar for ingredients
         ing_scroll = ttk.Scrollbar(ing_frame, orient="vertical")
@@ -695,6 +702,10 @@ class RecipeDialog(tk.Toplevel):
         notes = self.recipe.get('brewing_notes', '')
         if notes:
             self.notes_text.insert('1.0', notes)
+
+        allergens = self.recipe.get('allergens', '')
+        if allergens:
+            self.allergens_text.insert('1.0', allergens)
 
     def load_ingredients(self):
         """Load ingredients for existing recipe"""
@@ -805,6 +816,7 @@ class RecipeDialog(tk.Toplevel):
         # Prepare data
         version = int(self.version_entry.get() or 1)
         notes = self.notes_text.get('1.0', tk.END).strip()
+        allergens = self.allergens_text.get('1.0', tk.END).strip()
 
         if self.mode == 'add':
             # Create new recipe
@@ -821,6 +833,7 @@ class RecipeDialog(tk.Toplevel):
                 'last_modified': get_now_db(),
                 'is_active': self.active_var.get(),
                 'brewing_notes': notes,
+                'allergens': allergens,
                 'sync_status': 'pending'
             }
 
@@ -849,6 +862,7 @@ class RecipeDialog(tk.Toplevel):
                 'last_modified': get_now_db(),
                 'is_active': self.active_var.get(),
                 'brewing_notes': notes,
+                'allergens': allergens,
                 'sync_status': 'pending'
             }
 
