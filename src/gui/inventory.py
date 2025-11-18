@@ -4,7 +4,6 @@ Tracks brewing materials and finished goods inventory
 """
 
 import os
-import subprocess
 import tkinter as tk
 from tkinter import messagebox
 import ttkbootstrap as ttk
@@ -489,10 +488,10 @@ class InventoryModule(ttk.Frame):
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(report_lines))
 
-            # Use subprocess to send to default printer via notepad
-            subprocess.call(['cmd', '/c', 'notepad', '/p', filename], shell=True)
+            # Open file in default text editor (like label printing opens PDFs)
+            os.startfile(filename)
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
+            messagebox.showerror("Error", f"Failed to open report:\n{str(e)}\n\nTry 'Save TXT' button instead.")
 
 
 class MaterialDialog(tk.Toplevel):
@@ -1634,7 +1633,7 @@ class InventoryLogbookDialog(tk.Toplevel):
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(report_lines))
 
-            # Use subprocess to send to default printer via notepad
-            subprocess.call(['cmd', '/c', 'notepad', '/p', filename], shell=True)
+            # Open file in default text editor (like label printing opens PDFs)
+            os.startfile(filename)
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
+            messagebox.showerror("Error", f"Failed to open report:\n{str(e)}\n\nTry 'Save TXT' button instead.")
