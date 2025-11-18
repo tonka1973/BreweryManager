@@ -95,7 +95,7 @@ class RecipesModule(ttk.Frame):
         hsb.pack(side=tk.BOTTOM, fill=tk.X)
 
         # Treeview
-        columns = ('Name', 'Style', 'ABV %', 'Batch Size (L)', 'Version', 'Status', 'Edit', 'Delete')
+        columns = ('Name', 'Style', 'ABV %', 'Batch Size (L)', 'Version', 'Created', 'Status', 'Edit', 'Delete')
         self.recipes_tree = ttk.Treeview(
             list_frame,
             columns=columns,
@@ -110,6 +110,7 @@ class RecipesModule(ttk.Frame):
         self.recipes_tree.heading('ABV %', text='ABV %')
         self.recipes_tree.heading('Batch Size (L)', text='Batch Size (L)')
         self.recipes_tree.heading('Version', text='Version')
+        self.recipes_tree.heading('Created', text='Created Date')
         self.recipes_tree.heading('Status', text='Status')
         self.recipes_tree.heading('Edit', text='Edit')
         self.recipes_tree.heading('Delete', text='Delete')
@@ -120,6 +121,7 @@ class RecipesModule(ttk.Frame):
         self.recipes_tree.column('ABV %', width=80)
         self.recipes_tree.column('Batch Size (L)', width=100)
         self.recipes_tree.column('Version', width=60)
+        self.recipes_tree.column('Created', width=100)
         self.recipes_tree.column('Status', width=80)
         self.recipes_tree.column('Edit', width=50, anchor='center')
         self.recipes_tree.column('Delete', width=50, anchor='center')
@@ -205,7 +207,22 @@ class RecipesModule(ttk.Frame):
             is_active = recipe.get('is_active', 1)
             status = 'Active' if is_active else 'Inactive'
 
-            values = (name, style, f"{abv:.1f}", f"{batch_size:.0f}", version, status, '✏️', '🗑️')
+            # Format created date
+            created_date = recipe.get('created_date', '')
+            if created_date:
+                try:
+                    # Convert YYYY-MM-DD to DD/MM/YYYY
+                    if '-' in created_date:
+                        parts = created_date.split('-')
+                        created_display = f"{parts[2]}/{parts[1]}/{parts[0]}"
+                    else:
+                        created_display = created_date
+                except:
+                    created_display = created_date
+            else:
+                created_display = 'N/A'
+
+            values = (name, style, f"{abv:.1f}", f"{batch_size:.0f}", version, created_display, status, '✏️', '🗑️')
 
             # Color code by status
             tag = 'active' if is_active else 'inactive'
@@ -817,6 +834,21 @@ class RecipeDialog(tk.Toplevel):
         version = int(self.version_entry.get() or 1)
         notes = self.notes_text.get('1.0', tk.END).strip()
         allergens = self.allergens_text.get('1.0', tk.END).strip()
+
+        # If setting this recipe to active, deactivate all other versions with same name
+        if self.active_var.get() == 1:
+            self.cache.connect()
+            # Find all recipes with the same name
+            all_same_name = self.cache.get_all_records('recipes', f"recipe_name = '{name.replace("'", "''")}'")
+            # Deactivate all of them
+            for other_recipe in all_same_name:
+                if self.mode == 'edit' and other_recipe['recipe_id'] == self.recipe['recipe_id']:
+                    # Skip the current recipe being edited (will be set to active below)
+                    continue
+                self.cache.update_record('recipes', other_recipe['recipe_id'],
+                                       {'is_active': 0, 'sync_status': 'pending'},
+                                       id_column='recipe_id')
+            self.cache.close()
 
         if self.mode == 'add':
             # Create new recipe
