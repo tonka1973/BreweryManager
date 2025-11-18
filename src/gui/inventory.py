@@ -95,6 +95,12 @@ class InventoryModule(ttk.Frame):
                                 command=self.open_logbook)
         logbook_btn.pack(side=tk.LEFT, padx=(10, 0))
 
+        print_btn = ttk.Button(toolbar, text="🖨️ Print Stock",
+                              bootstyle="info",
+                              cursor='hand2',
+                              command=self.print_stock_report)
+        print_btn.pack(side=tk.LEFT, padx=(10, 0))
+
         # Materials list
         list_frame = ttk.Frame(self, relief=tk.SOLID, borderwidth=1)
         list_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=(0, 20))
@@ -309,6 +315,88 @@ class InventoryModule(ttk.Frame):
         """Open inventory logbook dialog"""
         dialog = InventoryLogbookDialog(self, self.cache, self.current_user)
         self.wait_window(dialog)
+
+    def print_stock_report(self):
+        """Generate printable stock report for current category"""
+        from tkinter import filedialog
+
+        # Build report header
+        report_lines = []
+        report_lines.append("=" * 100)
+        report_lines.append("BREWERY INVENTORY STOCK REPORT")
+        report_lines.append("=" * 100)
+        report_lines.append(f"Generated: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+        report_lines.append("")
+
+        # Show active category
+        category_name = self.current_category.capitalize() if self.current_category != 'all' else 'All Categories'
+        if self.current_category == 'containers':
+            category_name = 'Containers'
+
+        report_lines.append(f"Category: {category_name}")
+        report_lines.append("=" * 100)
+        report_lines.append("")
+
+        # Get all items from tree
+        items = self.tree.get_children()
+        if not items:
+            messagebox.showinfo("No Data", "No items to print in current category.")
+            return
+
+        # Table header
+        report_lines.append(f"{'Material':<30} {'Type':<12} {'Stock':<12} {'Unit':<8} {'Reorder':<12} {'Supplier':<25} {'Cost/Unit':<12}")
+        report_lines.append("-" * 100)
+
+        # Add each material
+        low_stock_items = []
+        for item in items:
+            values = self.tree.item(item)['values']
+            material, mat_type, stock, unit, reorder, supplier, cost = values
+
+            # Truncate long fields
+            material = material[:29] if len(material) > 29 else material
+            mat_type = mat_type[:11] if len(mat_type) > 11 else mat_type
+            supplier = supplier[:24] if len(supplier) > 24 else supplier
+
+            line = f"{material:<30} {mat_type:<12} {stock:<12} {unit:<8} {reorder:<12} {supplier:<25} {cost:<12}"
+            report_lines.append(line)
+
+            # Check for low stock
+            try:
+                stock_val = float(stock)
+                reorder_val = float(reorder)
+                if stock_val <= reorder_val:
+                    low_stock_items.append(material)
+            except:
+                pass
+
+        report_lines.append("")
+        report_lines.append("=" * 100)
+        report_lines.append(f"Total Items: {len(items)}")
+
+        if low_stock_items:
+            report_lines.append("")
+            report_lines.append("*** LOW STOCK ALERT ***")
+            report_lines.append(f"Items at or below reorder level: {len(low_stock_items)}")
+            for item in low_stock_items:
+                report_lines.append(f"  - {item}")
+
+        report_lines.append("=" * 100)
+
+        # Save to file
+        filename = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            initialfile=f"inventory_stock_{category_name.lower().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        )
+
+        if filename:
+            try:
+                with open(filename, 'w', encoding='utf-8') as f:
+                    f.write('\n'.join(report_lines))
+                messagebox.showinfo("Success", f"Stock report saved to:\n{filename}\n\nYou can now open and print this file.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save report:\n{str(e)}")
 
 
 class MaterialDialog(tk.Toplevel):
@@ -1132,6 +1220,12 @@ class InventoryLogbookDialog(tk.Toplevel):
                                 command=self.load_transactions)
         refresh_btn.pack(side=tk.LEFT)
 
+        print_btn = ttk.Button(filter_frame, text="🖨️ Print",
+                              bootstyle="info",
+                              cursor='hand2',
+                              command=self.print_report)
+        print_btn.pack(side=tk.LEFT, padx=(10, 0))
+
         # Transactions list
         list_frame = ttk.Frame(frame, relief=tk.SOLID, borderwidth=1)
         list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
@@ -1296,3 +1390,73 @@ class InventoryLogbookDialog(tk.Toplevel):
             self.tree.insert('', 'end', values=values, tags=(tag,))
 
         self.cache.close()
+
+    def print_report(self):
+        """Generate printable report of current filtered transactions"""
+        from tkinter import filedialog
+
+        # Build report header
+        report_lines = []
+        report_lines.append("=" * 100)
+        report_lines.append("INVENTORY TRANSACTION HISTORY REPORT")
+        report_lines.append("=" * 100)
+        report_lines.append(f"Generated: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+        report_lines.append("")
+
+        # Show active filters
+        category_name = self.current_category.capitalize() if self.current_category != 'all' else 'All Categories'
+        trans_type = self.trans_type_var.get().capitalize() if self.trans_type_var.get() != 'all' else 'All Types'
+        material = self.material_var.get() if self.material_var.get() != 'all' else 'All Materials'
+
+        report_lines.append(f"Category: {category_name}")
+        report_lines.append(f"Transaction Type: {trans_type}")
+        report_lines.append(f"Material: {material}")
+        report_lines.append("=" * 100)
+        report_lines.append("")
+
+        # Get all items from tree
+        items = self.tree.get_children()
+        if not items:
+            messagebox.showinfo("No Data", "No transactions to print with current filters.")
+            return
+
+        # Table header
+        report_lines.append(f"{'Date':<12} {'Type':<8} {'Material':<25} {'Qty Change':<12} {'New Balance':<12} {'Reference':<20} {'User':<15}")
+        report_lines.append("-" * 100)
+
+        # Add each transaction
+        for item in items:
+            values = self.tree.item(item)['values']
+            date, trans_type, material, qty_change, new_balance, reference, username, notes = values
+
+            # Truncate long fields
+            material = material[:24] if len(material) > 24 else material
+            reference = reference[:19] if len(reference) > 19 else reference
+            username = username[:14] if len(username) > 14 else username
+
+            line = f"{date:<12} {trans_type:<8} {material:<25} {qty_change:<12} {new_balance:<12} {reference:<20} {username:<15}"
+            report_lines.append(line)
+
+            # Add notes if present
+            if notes and notes.strip():
+                report_lines.append(f"    Notes: {notes}")
+
+        report_lines.append("")
+        report_lines.append("=" * 100)
+        report_lines.append(f"Total Transactions: {len(items)}")
+        report_lines.append("=" * 100)
+
+        # Save to file
+        filename = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+            initialfile=f"inventory_transactions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        )
+
+        if filename:
+            try:
+                with open(filename, 'w', encoding='utf-8') as f:
+                    f.write('\n'.join(report_lines))
+                messagebox.showinfo("Success", f"Report saved to:\n{filename}\n\nYou can now open and print this file.")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save report:\n{str(e)}")
