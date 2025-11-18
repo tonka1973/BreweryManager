@@ -116,13 +116,14 @@ class DashboardModule(ttk.Frame):
         # Frame wrapper (keep tk.Frame for specific color requirements)
         card = tk.Frame(
             parent,
-            bg=color,
             relief=tk.RAISED,
             borderwidth=2,
             cursor='hand2' if destination and self.navigate else 'arrow',
             highlightbackground=color,
             highlightthickness=3
         )
+        # Explicitly configure background color
+        card.configure(bg=color)
         card.grid(row=0, column=column, padx=8, pady=5, sticky='ew')
         parent.grid_columnconfigure(column, weight=1)
 
@@ -135,10 +136,11 @@ class DashboardModule(ttk.Frame):
             card,
             text=value,
             font=('Arial', 20, 'bold'),
-            bg=color,
             fg='white'
         )
-        value_label.pack(pady=(15, 5))
+        # Explicitly configure background color
+        value_label.configure(bg=color)
+        value_label.pack(pady=(15, 5), fill=tk.BOTH, expand=True)
 
         # Make label clickable too
         if destination and self.navigate:
@@ -150,10 +152,11 @@ class DashboardModule(ttk.Frame):
             card,
             text=title,
             font=('Arial', 10),
-            bg=color,
             fg='white'
         )
-        title_label.pack(pady=(0, 15))
+        # Explicitly configure background color
+        title_label.configure(bg=color)
+        title_label.pack(pady=(0, 15), fill=tk.BOTH, expand=True)
 
         # Make label clickable too
         if destination and self.navigate:
