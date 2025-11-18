@@ -31,7 +31,6 @@ from src.gui.sales import SalesModule
 from src.gui.invoicing import InvoicingModule
 from src.gui.duty import DutyModule
 from src.gui.products import ProductsModule
-from src.gui.labels import LabelsModule
 from src.gui.reports import ReportsModule
 from src.gui.settings import SettingsModule
 
@@ -318,7 +317,6 @@ class BreweryMainWindow:
             'Customers',
             'Sales',
             'Invoicing',
-            'Label Printing',
             'Reports',
             'Settings'
         ]
@@ -450,7 +448,6 @@ class BreweryMainWindow:
             'Customers': CustomersModule,
             'Sales': SalesModule,
             'Invoicing': InvoicingModule,
-            'Label Printing': LabelsModule,
             'Reports': ReportsModule,
             'Settings': SettingsModule
         }
