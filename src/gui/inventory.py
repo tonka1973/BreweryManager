@@ -9,6 +9,9 @@ from tkinter import messagebox
 import ttkbootstrap as ttk
 import uuid
 from datetime import datetime
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import mm
 from ..utilities.date_utils import get_today_db
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
 
@@ -406,15 +409,16 @@ class InventoryModule(ttk.Frame):
                 messagebox.showerror("Error", f"Failed to save report:\n{str(e)}")
 
     def print_stock_report(self):
-        """Print stock report directly via Windows print dialog"""
-        import subprocess
-        import tempfile
+        """Generate PDF report and open it for printing"""
+        # Get all items from tree
+        items = self.tree.get_children()
+        if not items:
+            messagebox.showinfo("No Data", "No items to print in current category.")
+            return
 
-        # Build report header
+        # Build report data
         report_lines = []
-        report_lines.append("=" * 100)
         report_lines.append("BREWERY INVENTORY STOCK REPORT")
-        report_lines.append("=" * 100)
         report_lines.append(f"Generated: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
         report_lines.append("")
 
@@ -424,18 +428,9 @@ class InventoryModule(ttk.Frame):
             category_name = 'Containers'
 
         report_lines.append(f"Category: {category_name}")
-        report_lines.append("=" * 100)
         report_lines.append("")
-
-        # Get all items from tree
-        items = self.tree.get_children()
-        if not items:
-            messagebox.showinfo("No Data", "No items to print in current category.")
-            return
-
-        # Table header
         report_lines.append(f"{'Material':<30} {'Type':<12} {'Stock':<12} {'Unit':<8} {'Reorder':<12} {'Supplier':<25} {'Cost/Unit':<12}")
-        report_lines.append("-" * 100)
+        report_lines.append("-" * 115)
 
         # Add each material
         low_stock_items = []
@@ -461,7 +456,6 @@ class InventoryModule(ttk.Frame):
                 pass
 
         report_lines.append("")
-        report_lines.append("=" * 100)
         report_lines.append(f"Total Items: {len(items)}")
 
         if low_stock_items:
@@ -471,9 +465,7 @@ class InventoryModule(ttk.Frame):
             for item in low_stock_items:
                 report_lines.append(f"  - {item}")
 
-        report_lines.append("=" * 100)
-
-        # Print directly
+        # Generate PDF
         try:
             # Create reports directory if it doesn't exist
             reports_dir = os.path.expanduser('~/.brewerymanager/reports')
@@ -482,16 +474,36 @@ class InventoryModule(ttk.Frame):
             # Generate filename with timestamp
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             category_suffix = self.current_category if self.current_category != 'all' else 'all'
-            filename = os.path.join(reports_dir, f"stock_report_{category_suffix}_{timestamp}.txt")
+            pdf_filename = os.path.join(reports_dir, f"stock_report_{category_suffix}_{timestamp}.pdf")
 
-            # Write file
-            with open(filename, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(report_lines))
+            # Create PDF
+            c = canvas.Canvas(pdf_filename, pagesize=A4)
+            width, height = A4
 
-            # Open file in default text editor (like label printing opens PDFs)
-            os.startfile(filename)
+            # Use Courier (monospace) for table alignment
+            c.setFont("Courier", 8)
+
+            # Starting position
+            y_position = height - 40
+            line_height = 12
+
+            # Draw each line
+            for line in report_lines:
+                if y_position < 40:  # New page if near bottom
+                    c.showPage()
+                    c.setFont("Courier", 8)
+                    y_position = height - 40
+
+                c.drawString(40, y_position, line)
+                y_position -= line_height
+
+            # Save PDF
+            c.save()
+
+            # Open PDF in default viewer (like label printing)
+            os.startfile(pdf_filename)
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to open report:\n{str(e)}\n\nTry 'Save TXT' button instead.")
+            messagebox.showerror("Error", f"Failed to generate PDF:\n{str(e)}")
 
 
 class MaterialDialog(tk.Toplevel):
@@ -1563,15 +1575,16 @@ class InventoryLogbookDialog(tk.Toplevel):
                 messagebox.showerror("Error", f"Failed to save report:\n{str(e)}")
 
     def print_report(self):
-        """Print report directly via Windows print dialog"""
-        import subprocess
-        import tempfile
+        """Generate PDF report and open it for printing"""
+        # Get all items from tree
+        items = self.tree.get_children()
+        if not items:
+            messagebox.showinfo("No Data", "No transactions to print with current filters.")
+            return
 
-        # Build report header
+        # Build report data
         report_lines = []
-        report_lines.append("=" * 100)
         report_lines.append("INVENTORY TRANSACTION HISTORY REPORT")
-        report_lines.append("=" * 100)
         report_lines.append(f"Generated: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
         report_lines.append("")
 
@@ -1583,18 +1596,9 @@ class InventoryLogbookDialog(tk.Toplevel):
         report_lines.append(f"Category: {category_name}")
         report_lines.append(f"Transaction Type: {trans_type}")
         report_lines.append(f"Material: {material}")
-        report_lines.append("=" * 100)
         report_lines.append("")
-
-        # Get all items from tree
-        items = self.tree.get_children()
-        if not items:
-            messagebox.showinfo("No Data", "No transactions to print with current filters.")
-            return
-
-        # Table header
         report_lines.append(f"{'Date':<12} {'Type':<8} {'Material':<25} {'Qty Change':<12} {'New Balance':<12} {'Reference':<20} {'User':<15}")
-        report_lines.append("-" * 100)
+        report_lines.append("-" * 115)
 
         # Add each transaction
         for item in items:
@@ -1614,11 +1618,9 @@ class InventoryLogbookDialog(tk.Toplevel):
                 report_lines.append(f"    Notes: {notes}")
 
         report_lines.append("")
-        report_lines.append("=" * 100)
         report_lines.append(f"Total Transactions: {len(items)}")
-        report_lines.append("=" * 100)
 
-        # Print directly
+        # Generate PDF
         try:
             # Create reports directory if it doesn't exist
             reports_dir = os.path.expanduser('~/.brewerymanager/reports')
@@ -1627,13 +1629,33 @@ class InventoryLogbookDialog(tk.Toplevel):
             # Generate filename with timestamp
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             category_suffix = self.current_category if self.current_category != 'all' else 'all'
-            filename = os.path.join(reports_dir, f"logbook_report_{category_suffix}_{timestamp}.txt")
+            pdf_filename = os.path.join(reports_dir, f"logbook_report_{category_suffix}_{timestamp}.pdf")
 
-            # Write file
-            with open(filename, 'w', encoding='utf-8') as f:
-                f.write('\n'.join(report_lines))
+            # Create PDF
+            c = canvas.Canvas(pdf_filename, pagesize=A4)
+            width, height = A4
 
-            # Open file in default text editor (like label printing opens PDFs)
-            os.startfile(filename)
+            # Use Courier (monospace) for table alignment
+            c.setFont("Courier", 8)
+
+            # Starting position
+            y_position = height - 40
+            line_height = 12
+
+            # Draw each line
+            for line in report_lines:
+                if y_position < 40:  # New page if near bottom
+                    c.showPage()
+                    c.setFont("Courier", 8)
+                    y_position = height - 40
+
+                c.drawString(40, y_position, line)
+                y_position -= line_height
+
+            # Save PDF
+            c.save()
+
+            # Open PDF in default viewer (like label printing)
+            os.startfile(pdf_filename)
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to open report:\n{str(e)}\n\nTry 'Save TXT' button instead.")
+            messagebox.showerror("Error", f"Failed to generate PDF:\n{str(e)}")
