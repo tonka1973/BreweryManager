@@ -52,11 +52,25 @@
 3. `6cb1a88` - Fix: Use correct connection attribute in PackageDialog
 4. `c7c1432` - Add mousewheel and keyboard scrolling support
 5. `f5747df` - Add scrolling and resize grips to all GUI modules
+6. `ee5f447` - Add label printing foundation (Part 1/2)
+7. `06c3415` - Redesign PackageDialog with 3-button workflow (Part 2/2)
+8. `48208ea` - Remove standalone Label Printing module
+
+## Label Printing Feature Completed
+- ✅ Database migration for allergens and fill_number tracking
+- ✅ Allergen field added to Recipe editor
+- ✅ PDF label generation utility with reportlab
+- ✅ PackageDialog redesigned with Print/Save/Package buttons
+- ✅ Sequential fill numbering (1 of 10, 2 of 10, etc.)
+- ✅ Auto-populated labels: beer name, date, ABV, gyle, duty paid, allergens
+- ✅ Standalone Labels module removed from navigation
+- ⚠️  Needs testing with actual batch packaging
 
 ## Next Session TODO
-- Test the UX improvements (scrolling and resize grips)
-- Continue with any additional features or bug fixes
-- Consider testing the full duty calculation workflow
+- Run label printing migration on brewery database
+- Test label printing workflow with real batch
+- Verify PDF generation and formatting
+- Consider adding label size configuration to Settings module
 
 ---
 *Session started: 2025-11-18*
