@@ -4,6 +4,7 @@ Tracks brewing materials and finished goods inventory
 """
 
 import os
+import subprocess
 import tkinter as tk
 from tkinter import messagebox
 import ttkbootstrap as ttk
@@ -488,8 +489,8 @@ class InventoryModule(ttk.Frame):
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(report_lines))
 
-            # Use notepad /p with os.system (shows print dialog on Windows)
-            os.system(f'notepad /p "{filename}"')
+            # Use subprocess to send to default printer via notepad
+            subprocess.call(['cmd', '/c', 'notepad', '/p', filename], shell=True)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
 
@@ -1633,7 +1634,7 @@ class InventoryLogbookDialog(tk.Toplevel):
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(report_lines))
 
-            # Use notepad /p with os.system (shows print dialog on Windows)
-            os.system(f'notepad /p "{filename}"')
+            # Use subprocess to send to default printer via notepad
+            subprocess.call(['cmd', '/c', 'notepad', '/p', filename], shell=True)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
