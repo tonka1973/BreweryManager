@@ -118,40 +118,42 @@ class DashboardModule(ttk.Frame):
             parent,
             bg=color,
             relief=tk.RAISED,
-            borderwidth=1,
-            cursor='hand2' if destination and self.navigate else 'arrow'
+            borderwidth=2,
+            cursor='hand2' if destination and self.navigate else 'arrow',
+            highlightbackground=color,
+            highlightthickness=3
         )
-        card.grid(row=0, column=column, padx=5, sticky='ew')
+        card.grid(row=0, column=column, padx=8, pady=5, sticky='ew')
         parent.grid_columnconfigure(column, weight=1)
 
         # Make clickable if navigate callback exists
         if destination and self.navigate:
             card.bind('<Button-1>', lambda e: self.navigate(destination))
 
-        # Value (smaller font) - keep tk.Label for colored background
+        # Value (larger font, more padding) - keep tk.Label for colored background
         value_label = tk.Label(
             card,
             text=value,
-            font=('Arial', 16, 'bold'),
+            font=('Arial', 20, 'bold'),
             bg=color,
             fg='white'
         )
-        value_label.pack(pady=(8, 2))
+        value_label.pack(pady=(15, 5))
 
         # Make label clickable too
         if destination and self.navigate:
             value_label.bind('<Button-1>', lambda e: self.navigate(destination))
             value_label.config(cursor='hand2')
 
-        # Title (smaller font) - keep tk.Label for colored background
+        # Title (larger font) - keep tk.Label for colored background
         title_label = tk.Label(
             card,
             text=title,
-            font=('Arial', 8),
+            font=('Arial', 10),
             bg=color,
             fg='white'
         )
-        title_label.pack(pady=(0, 8))
+        title_label.pack(pady=(0, 15))
 
         # Make label clickable too
         if destination and self.navigate:
