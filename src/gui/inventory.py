@@ -480,8 +480,7 @@ class InventoryModule(ttk.Frame):
             temp_file.close()
 
             # Use notepad /p to open print dialog directly (Windows)
-            subprocess.run(['notepad', '/p', temp_file.name], shell=True)
-            messagebox.showinfo("Printing", "Print dialog opened!")
+            subprocess.Popen(['notepad', '/p', temp_file.name])
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
 
@@ -1618,7 +1617,6 @@ class InventoryLogbookDialog(tk.Toplevel):
             temp_file.close()
 
             # Use notepad /p to open print dialog directly (Windows)
-            subprocess.run(['notepad', '/p', temp_file.name], shell=True)
-            messagebox.showinfo("Printing", "Print dialog opened!")
+            subprocess.Popen(['notepad', '/p', temp_file.name])
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
