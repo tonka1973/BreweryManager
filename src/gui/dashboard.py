@@ -105,11 +105,11 @@ class DashboardModule(ttk.Frame):
 
         self.cache.close()
 
-        # Create cards (now clickable) with bright, readable colors
-        self.create_stat_card(stats_frame, "Total Batches", str(total_batches), "#2196F3", 0, "Production")  # Bright Blue
-        self.create_stat_card(stats_frame, "In Production", str(active_count), "#FF9800", 1, "Production")  # Bright Orange
-        self.create_stat_card(stats_frame, "Customers", str(total_customers), "#4CAF50", 2, "Customers")  # Bright Green
-        self.create_stat_card(stats_frame, "Sales (Month)", str(monthly_sales), "#9C27B0", 3, "Sales")  # Bright Purple
+        # Create cards (now clickable) with bright colors optimized for black text
+        self.create_stat_card(stats_frame, "Total Batches", str(total_batches), "#42A5F5", 0, "Production")  # Light Blue
+        self.create_stat_card(stats_frame, "In Production", str(active_count), "#FFA726", 1, "Production")  # Light Orange
+        self.create_stat_card(stats_frame, "Customers", str(total_customers), "#66BB6A", 2, "Customers")  # Light Green
+        self.create_stat_card(stats_frame, "Sales (Month)", str(monthly_sales), "#AB47BC", 3, "Sales")  # Light Purple
 
     def create_stat_card(self, parent, title, value, color, column, destination=None):
         """Create a single stat card as a clickable frame"""
@@ -136,7 +136,7 @@ class DashboardModule(ttk.Frame):
             card,
             text=value,
             font=('Arial', 20, 'bold'),
-            fg='white'
+            fg='black'
         )
         # Explicitly configure background color
         value_label.configure(bg=color)
@@ -152,7 +152,7 @@ class DashboardModule(ttk.Frame):
             card,
             text=title,
             font=('Arial', 10),
-            fg='white'
+            fg='black'
         )
         # Explicitly configure background color
         title_label.configure(bg=color)
