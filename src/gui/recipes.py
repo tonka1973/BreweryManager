@@ -835,6 +835,12 @@ class RecipeDialog(tk.Toplevel):
         notes = self.notes_text.get('1.0', tk.END).strip()
         allergens = self.allergens_text.get('1.0', tk.END).strip()
 
+        # Check if version is changing (only relevant in edit mode)
+        version_changing = False
+        if self.mode == 'edit':
+            original_version = self.recipe.get('version', 1)
+            version_changing = (version != original_version)
+
         # If setting this recipe to active, deactivate all other versions with same name
         if self.active_var.get() == 1:
             self.cache.connect()
@@ -842,7 +848,9 @@ class RecipeDialog(tk.Toplevel):
             all_same_name = self.cache.get_all_records('recipes', f"recipe_name = '{name.replace("'", "''")}'")
             # Deactivate all of them
             for other_recipe in all_same_name:
-                if self.mode == 'edit' and other_recipe['recipe_id'] == self.recipe['recipe_id']:
+                # Skip the current recipe being edited ONLY if version is NOT changing
+                # (if version IS changing, we're creating a new recipe, so deactivate the original)
+                if self.mode == 'edit' and not version_changing and other_recipe['recipe_id'] == self.recipe['recipe_id']:
                     # Skip the current recipe being edited (will be set to active below)
                     continue
                 self.cache.update_record('recipes', other_recipe['recipe_id'],
