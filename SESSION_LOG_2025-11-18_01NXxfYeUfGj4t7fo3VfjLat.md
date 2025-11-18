@@ -12,13 +12,28 @@
 - Database migration completed: migrate_label_printing.py ✅
 
 ## Tasks Completed This Session
-- [ ] (Will be updated as we work)
+- [x] Added configurable VAT rate to Settings module
+- [x] Created database migration (migrate_add_vat.py) to add vat_rate column
+- [x] Updated Settings GUI with VAT Rate configuration section
+- [x] Modified invoicing module to load VAT from settings instead of hardcoded 20%
+- [x] Fixed sqlite3.Row attribute error in VAT rate loading
+- [x] All changes committed and pushed to GitHub
 
 ## Issues Encountered
-- None yet
+- GitHub outage (2025-11-18 21:11 UTC) - all Git operations down during session
+  - Prevented user from pulling changes to brewery computer
+  - Push succeeded before outage; pull will work once GitHub recovers
+- Initial bug: Used .get() method on sqlite3.Row object - fixed with try/except
+
+## Database Migrations for Brewery Computer
+- **migrate_add_vat.py** - Adds vat_rate column to settings table (default 0.20)
+  - Only needed if settings table already exists
+  - If starting fresh, migrate_duty_system.py already includes vat_rate field
 
 ## Next Session TODO
-- (Will be updated at end of session)
+- Pull latest changes once GitHub outage resolves
+- Test VAT rate functionality on brewery computer
+- Consider packaging application as .exe with PyInstaller
 
 ---
 *Session started: 2025-11-18*
