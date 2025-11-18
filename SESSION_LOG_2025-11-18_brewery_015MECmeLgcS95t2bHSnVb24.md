@@ -55,6 +55,8 @@
 6. `ee5f447` - Add label printing foundation (Part 1/2)
 7. `06c3415` - Redesign PackageDialog with 3-button workflow (Part 2/2)
 8. `48208ea` - Remove standalone Label Printing module
+9. `bf68db9` - Update session log with label printing implementation
+10. (pending) - Add Google Sheets implementation plan
 
 ## Label Printing Feature Completed
 - ✅ Database migration for allergens and fill_number tracking
@@ -66,11 +68,23 @@
 - ✅ Standalone Labels module removed from navigation
 - ⚠️  Needs testing with actual batch packaging
 
+## Google Sheets Preparation Completed
+- ✅ Created comprehensive implementation plan (GOOGLE_SHEETS_IMPLEMENTATION_PLAN.md)
+  - Current state analysis of existing sync code
+  - Table sync decisions (which tables to sync vs keep local-only)
+  - Two-way sync strategy with timestamp-based conflict resolution
+  - Implementation phases A-D (14-18 hours estimated)
+  - Prerequisites checklist (Google Cloud setup, credentials, test spreadsheet)
+  - Questions to answer before implementation
+- ✅ Reviewed existing testing checklist (TESTING_CHECKLIST.md already comprehensive)
+- ⚠️  Ready to implement after current features are tested
+
 ## Next Session TODO
-- Run label printing migration on brewery database
+- Run label printing migration on brewery database (`python src/data_access/migrate_label_printing.py`)
 - Test label printing workflow with real batch
 - Verify PDF generation and formatting
-- Consider adding label size configuration to Settings module
+- Complete testing checklist for all current features
+- Once testing complete, begin Google Sheets sync implementation (Phase A: Basic Connection)
 
 ---
 *Session started: 2025-11-18*
