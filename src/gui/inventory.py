@@ -318,7 +318,18 @@ class InventoryModule(ttk.Frame):
 
     def print_stock_report(self):
         """Generate printable stock report for current category"""
+        import os
+        import tempfile
         from tkinter import filedialog
+
+        # Ask user what they want to do
+        choice = messagebox.askquestion(
+            "Print Options",
+            "How would you like to print this report?\n\n"
+            "• Yes = Save to file (you can print later)\n"
+            "• No = Print directly (opens print dialog)",
+            icon='question'
+        )
 
         # Build report header
         report_lines = []
@@ -383,20 +394,35 @@ class InventoryModule(ttk.Frame):
 
         report_lines.append("=" * 100)
 
-        # Save to file
-        filename = filedialog.asksaveasfilename(
-            defaultextension=".txt",
-            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
-            initialfile=f"inventory_stock_{category_name.lower().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        )
+        # Handle user choice
+        if choice == 'yes':
+            # Save to file
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".txt",
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+                initialfile=f"inventory_stock_{category_name.lower().replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            )
 
-        if filename:
+            if filename:
+                try:
+                    with open(filename, 'w', encoding='utf-8') as f:
+                        f.write('\n'.join(report_lines))
+                    messagebox.showinfo("Success", f"Report saved to:\n{filename}\n\nYou can now open and print this file.")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to save report:\n{str(e)}")
+        else:
+            # Print directly
             try:
-                with open(filename, 'w', encoding='utf-8') as f:
-                    f.write('\n'.join(report_lines))
-                messagebox.showinfo("Success", f"Stock report saved to:\n{filename}\n\nYou can now open and print this file.")
+                # Create temporary file
+                temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8')
+                temp_file.write('\n'.join(report_lines))
+                temp_file.close()
+
+                # Open print dialog (Windows)
+                os.startfile(temp_file.name, 'print')
+                messagebox.showinfo("Printing", "Print dialog opened!\n\nThe report has been sent to your default printer.")
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to save report:\n{str(e)}")
+                messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save to file' instead.")
 
 
 class MaterialDialog(tk.Toplevel):
@@ -1393,7 +1419,18 @@ class InventoryLogbookDialog(tk.Toplevel):
 
     def print_report(self):
         """Generate printable report of current filtered transactions"""
+        import os
+        import tempfile
         from tkinter import filedialog
+
+        # Ask user what they want to do
+        choice = messagebox.askquestion(
+            "Print Options",
+            "How would you like to print this report?\n\n"
+            "• Yes = Save to file (you can print later)\n"
+            "• No = Print directly (opens print dialog)",
+            icon='question'
+        )
 
         # Build report header
         report_lines = []
@@ -1446,17 +1483,32 @@ class InventoryLogbookDialog(tk.Toplevel):
         report_lines.append(f"Total Transactions: {len(items)}")
         report_lines.append("=" * 100)
 
-        # Save to file
-        filename = filedialog.asksaveasfilename(
-            defaultextension=".txt",
-            filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
-            initialfile=f"inventory_transactions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-        )
+        # Handle user choice
+        if choice == 'yes':
+            # Save to file
+            filename = filedialog.asksaveasfilename(
+                defaultextension=".txt",
+                filetypes=[("Text files", "*.txt"), ("All files", "*.*")],
+                initialfile=f"inventory_transactions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+            )
 
-        if filename:
+            if filename:
+                try:
+                    with open(filename, 'w', encoding='utf-8') as f:
+                        f.write('\n'.join(report_lines))
+                    messagebox.showinfo("Success", f"Report saved to:\n{filename}\n\nYou can now open and print this file.")
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to save report:\n{str(e)}")
+        else:
+            # Print directly
             try:
-                with open(filename, 'w', encoding='utf-8') as f:
-                    f.write('\n'.join(report_lines))
-                messagebox.showinfo("Success", f"Report saved to:\n{filename}\n\nYou can now open and print this file.")
+                # Create temporary file
+                temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8')
+                temp_file.write('\n'.join(report_lines))
+                temp_file.close()
+
+                # Open print dialog (Windows)
+                os.startfile(temp_file.name, 'print')
+                messagebox.showinfo("Printing", "Print dialog opened!\n\nThe report has been sent to your default printer.")
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to save report:\n{str(e)}")
+                messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save to file' instead.")
