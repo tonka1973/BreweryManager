@@ -488,8 +488,8 @@ class InventoryModule(ttk.Frame):
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(report_lines))
 
-            # Use os.startfile with print verb
-            os.startfile(filename, 'print')
+            # Use notepad /p with os.system (shows print dialog on Windows)
+            os.system(f'notepad /p "{filename}"')
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
 
@@ -1633,7 +1633,7 @@ class InventoryLogbookDialog(tk.Toplevel):
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(report_lines))
 
-            # Use os.startfile with print verb
-            os.startfile(filename, 'print')
+            # Use notepad /p with os.system (shows print dialog on Windows)
+            os.system(f'notepad /p "{filename}"')
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
