@@ -1172,17 +1172,18 @@ class IngredientDialog(tk.Toplevel):
             name_frame,
             textvariable=self.name_var,
             font=('Arial', 10),
-            width=37
+            width=37,
+            state='readonly'  # Only allow selection from inventory
         )
         self.name_combo.pack(fill=tk.X)
 
-        # Enable autocomplete filtering
-        self.name_combo.bind('<KeyRelease>', self.on_name_keyrelease)
+        # Make dropdown open when clicking anywhere on the combobox
+        self.name_combo.bind('<Button-1>', lambda e: self.name_combo.event_generate('<Down>'))
 
         # Info label
         self.inventory_info_label = ttk.Label(
             main_frame,
-            text="Select from inventory or type new name",
+            text="Select ingredient from inventory",
             font=('Arial', 8, 'italic')
         )
         self.inventory_info_label.grid(row=4, column=0, columnspan=2, sticky='w', pady=(0, 15))
@@ -1304,24 +1305,6 @@ class IngredientDialog(tk.Toplevel):
         """Update name options when type changes"""
         self.update_name_options()
 
-    def on_name_keyrelease(self, event):
-        """Filter combobox values as user types"""
-        typed = self.name_var.get().lower()
-        if not typed:
-            # If empty, show all items for this type
-            self.update_name_options()
-            return
-
-        # Get all items for current type
-        selected_type = self.type_var.get()
-        all_items = self.inventory_items.get(selected_type, [])
-
-        # Filter items that contain the typed text
-        filtered = [item['name'] for item in all_items if typed in item['name'].lower()]
-
-        # Update combobox with filtered values
-        self.name_combo['values'] = filtered
-
     def update_name_options(self):
         """Update the name combobox based on selected type"""
         selected_type = self.type_var.get()
@@ -1336,11 +1319,12 @@ class IngredientDialog(tk.Toplevel):
         # Update info label
         if items:
             self.inventory_info_label.config(
-                text=f"Found {len(items)} {selected_type} items in inventory - select or type new"
+                text=f"Found {len(items)} {selected_type} items in inventory"
             )
         else:
             self.inventory_info_label.config(
-                text=f"No {selected_type} items in inventory - type new name"
+                text=f"No {selected_type} items in inventory - add items in Inventory module first",
+                foreground='red'
             )
 
     def populate_fields(self):
@@ -1371,8 +1355,12 @@ class IngredientDialog(tk.Toplevel):
         timing = self.timing_var.get().strip()
         notes = self.notes_text.get('1.0', tk.END).strip()
 
-        if not name or not quantity_str:
-            messagebox.showerror("Validation Error", "Please fill in name and quantity.")
+        if not name:
+            messagebox.showerror("Validation Error", "Please select an ingredient from inventory.")
+            return
+
+        if not quantity_str:
+            messagebox.showerror("Validation Error", "Please enter a quantity.")
             return
 
         try:
@@ -1388,17 +1376,14 @@ class IngredientDialog(tk.Toplevel):
         # Check if ingredient exists in inventory
         inventory_item_id = self.check_inventory(name, ing_type)
 
-        # If not in inventory, offer to add it
+        # Ingredient must be in inventory
         if not inventory_item_id:
-            result = messagebox.askyesno(
-                "Add to Inventory?",
+            messagebox.showerror(
+                "Not in Inventory",
                 f"'{name}' is not in your inventory.\n\n"
-                f"Would you like to add it to your inventory now?\n\n"
-                f"This will help track stock levels when using recipes."
+                f"Please add it to the Inventory module first before using it in recipes."
             )
-
-            if result:
-                inventory_item_id = self.add_to_inventory(name, ing_type, unit)
+            return
 
         self.result = {
             'name': name,
@@ -1407,7 +1392,7 @@ class IngredientDialog(tk.Toplevel):
             'unit': unit,
             'timing': timing,
             'notes': notes,
-            'inventory_item_id': inventory_item_id  # Link to inventory if exists
+            'inventory_item_id': inventory_item_id  # Link to inventory
         }
 
         self.destroy()
@@ -1420,37 +1405,3 @@ class IngredientDialog(tk.Toplevel):
             if item['name'].lower() == name.lower():
                 return item['id']
         return None
-
-    def add_to_inventory(self, name, ing_type, unit):
-        """Add ingredient to inventory"""
-        try:
-            self.cache.connect()
-
-            material_data = {
-                'material_id': str(uuid.uuid4()),
-                'material_name': name,
-                'material_type': ing_type.lower(),
-                'current_stock': 0.0,  # Start with zero stock
-                'unit': unit,
-                'reorder_level': 0.0,
-                'supplier': '',
-                'cost_per_unit': 0.0,
-                'last_updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                'sync_status': 'pending'
-            }
-
-            self.cache.insert_record('inventory_materials', material_data)
-            self.cache.close()
-
-            messagebox.showinfo(
-                "Added to Inventory",
-                f"'{name}' has been added to your inventory with 0 {unit}.\n\n"
-                f"You can add stock levels in the Inventory module."
-            )
-
-            return material_data['material_id']
-
-        except Exception as e:
-            self.cache.close()
-            messagebox.showerror("Error", f"Failed to add to inventory: {str(e)}")
-            return None
