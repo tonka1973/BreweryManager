@@ -301,3 +301,112 @@ def get_window_manager():
         WindowManager or None: The global window manager
     """
     return _window_manager
+
+
+def enable_mousewheel_scrolling(widget, canvas=None):
+    """
+    Enable mousewheel scrolling for a widget
+
+    Args:
+        widget: The widget to enable scrolling for (Treeview, Text, Listbox, etc.)
+        canvas: Optional canvas if widget is embedded in a canvas
+    """
+    def on_mousewheel(event):
+        # Windows uses event.delta, Linux uses event.num
+        if event.delta:
+            delta = -1 if event.delta > 0 else 1
+        else:
+            delta = -1 if event.num == 4 else 1
+
+        if canvas:
+            canvas.yview_scroll(delta, "units")
+        else:
+            widget.yview_scroll(delta, "units")
+
+    # Bind mousewheel to widget
+    widget.bind("<MouseWheel>", on_mousewheel)  # Windows/Mac
+    widget.bind("<Button-4>", on_mousewheel)     # Linux scroll up
+    widget.bind("<Button-5>", on_mousewheel)     # Linux scroll down
+
+    # Also bind when mouse enters the widget
+    def bind_mousewheel(event):
+        widget.bind_all("<MouseWheel>", on_mousewheel)
+        widget.bind_all("<Button-4>", on_mousewheel)
+        widget.bind_all("<Button-5>", on_mousewheel)
+
+    def unbind_mousewheel(event):
+        widget.unbind_all("<MouseWheel>")
+        widget.unbind_all("<Button-4>")
+        widget.unbind_all("<Button-5>")
+
+    widget.bind("<Enter>", bind_mousewheel)
+    widget.bind("<Leave>", unbind_mousewheel)
+
+
+def enable_treeview_keyboard_navigation(treeview):
+    """
+    Enable keyboard arrow navigation for Treeview
+    (This is usually enabled by default, but this ensures it works)
+
+    Args:
+        treeview: The Treeview widget
+    """
+    def on_key(event):
+        if event.keysym in ('Up', 'Down', 'Prior', 'Next', 'Home', 'End'):
+            # These are handled by default Treeview bindings
+            # This function just ensures focus is set
+            if not treeview.focus():
+                items = treeview.get_children()
+                if items:
+                    treeview.focus(items[0])
+                    treeview.selection_set(items[0])
+
+    treeview.bind("<Key>", on_key)
+
+
+def enable_canvas_scrolling(canvas, frame=None):
+    """
+    Enable mousewheel and keyboard scrolling for a canvas
+
+    Args:
+        canvas: The canvas widget
+        frame: Optional frame inside the canvas
+    """
+    def on_mousewheel(event):
+        if event.delta:
+            canvas.yview_scroll(-1 * int(event.delta / 120), "units")
+        else:
+            canvas.yview_scroll(-1 if event.num == 4 else 1, "units")
+
+    def on_key(event):
+        if event.keysym == 'Up':
+            canvas.yview_scroll(-1, "units")
+        elif event.keysym == 'Down':
+            canvas.yview_scroll(1, "units")
+        elif event.keysym == 'Prior':  # Page Up
+            canvas.yview_scroll(-1, "pages")
+        elif event.keysym == 'Next':  # Page Down
+            canvas.yview_scroll(1, "pages")
+        elif event.keysym == 'Home':
+            canvas.yview_moveto(0)
+        elif event.keysym == 'End':
+            canvas.yview_moveto(1)
+
+    # Bind mousewheel
+    canvas.bind("<MouseWheel>", on_mousewheel)  # Windows/Mac
+    canvas.bind("<Button-4>", on_mousewheel)     # Linux scroll up
+    canvas.bind("<Button-5>", on_mousewheel)     # Linux scroll down
+
+    # Bind keyboard
+    canvas.bind("<Up>", on_key)
+    canvas.bind("<Down>", on_key)
+    canvas.bind("<Prior>", on_key)
+    canvas.bind("<Next>", on_key)
+    canvas.bind("<Home>", on_key)
+    canvas.bind("<End>", on_key)
+
+    # Set focus to canvas when mouse enters
+    def set_focus(event):
+        canvas.focus_set()
+
+    canvas.bind("<Enter>", set_focus)

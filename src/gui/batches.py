@@ -14,7 +14,7 @@ import ttkbootstrap as ttk
 import uuid
 from datetime import datetime
 from ..utilities.date_utils import format_date_for_display, parse_display_date, get_today_display, get_today_db, get_now_db
-from ..utilities.window_manager import get_window_manager
+from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
 from ..utilities.calculations import calculate_abv_from_gravity
 
 
@@ -97,6 +97,10 @@ class BatchesModule(ttk.Frame):
 
         self.tree.pack(fill=tk.BOTH, expand=True)
         vsb.config(command=self.tree.yview)
+
+        # Enable mousewheel and keyboard scrolling
+        enable_mousewheel_scrolling(self.tree)
+        enable_treeview_keyboard_navigation(self.tree)
 
         # Smart double-click: fermenting → edit, packaged → edit packaged
         self.tree.bind('<Double-1>', lambda e: self.on_double_click())
@@ -699,6 +703,10 @@ O.G.: {og_text}"""
         self.container_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         vsb.config(command=self.container_tree.yview)
 
+        # Enable mousewheel and keyboard scrolling
+        enable_mousewheel_scrolling(self.container_tree)
+        enable_treeview_keyboard_navigation(self.container_tree)
+
         # Total label
         self.total_label = ttk.Label(container_frame, text="Total: 0L", font=('Arial', 12, 'bold'))
         self.total_label.pack(pady=(10,0))
@@ -1192,6 +1200,10 @@ Current Duty ABV: {duty_abv_text}"""
 
         self.container_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         vsb.config(command=self.container_tree.yview)
+
+        # Enable mousewheel and keyboard scrolling
+        enable_mousewheel_scrolling(self.container_tree)
+        enable_treeview_keyboard_navigation(self.container_tree)
 
         # Total label
         self.total_label = ttk.Label(container_frame, text="Total: 0L", font=('Arial', 12, 'bold'))
