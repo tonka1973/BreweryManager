@@ -406,7 +406,7 @@ class InventoryModule(ttk.Frame):
 
     def print_stock_report(self):
         """Print stock report directly via Windows print dialog"""
-        import os
+        import subprocess
         import tempfile
 
         # Build report header
@@ -479,8 +479,8 @@ class InventoryModule(ttk.Frame):
             temp_file.write('\n'.join(report_lines))
             temp_file.close()
 
-            # Open print dialog (Windows)
-            os.startfile(temp_file.name, 'print')
+            # Use notepad /p to open print dialog directly (Windows)
+            subprocess.run(['notepad', '/p', temp_file.name], shell=True)
             messagebox.showinfo("Printing", "Print dialog opened!")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
@@ -1556,7 +1556,7 @@ class InventoryLogbookDialog(tk.Toplevel):
 
     def print_report(self):
         """Print report directly via Windows print dialog"""
-        import os
+        import subprocess
         import tempfile
 
         # Build report header
@@ -1617,8 +1617,8 @@ class InventoryLogbookDialog(tk.Toplevel):
             temp_file.write('\n'.join(report_lines))
             temp_file.close()
 
-            # Open print dialog (Windows)
-            os.startfile(temp_file.name, 'print')
+            # Use notepad /p to open print dialog directly (Windows)
+            subprocess.run(['notepad', '/p', temp_file.name], shell=True)
             messagebox.showinfo("Printing", "Print dialog opened!")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
