@@ -479,8 +479,9 @@ class InventoryModule(ttk.Frame):
             temp_file.write('\n'.join(report_lines))
             temp_file.close()
 
-            # Use notepad /p to open print dialog directly (Windows)
-            subprocess.Popen(['notepad', '/p', temp_file.name])
+            # Use PowerShell Start-Process to invoke Windows print dialog
+            powershell_cmd = f'Start-Process -FilePath "{temp_file.name}" -Verb Print'
+            subprocess.Popen(['powershell', '-Command', powershell_cmd])
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
 
@@ -1616,7 +1617,8 @@ class InventoryLogbookDialog(tk.Toplevel):
             temp_file.write('\n'.join(report_lines))
             temp_file.close()
 
-            # Use notepad /p to open print dialog directly (Windows)
-            subprocess.Popen(['notepad', '/p', temp_file.name])
+            # Use PowerShell Start-Process to invoke Windows print dialog
+            powershell_cmd = f'Start-Process -FilePath "{temp_file.name}" -Verb Print'
+            subprocess.Popen(['powershell', '-Command', powershell_cmd])
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
