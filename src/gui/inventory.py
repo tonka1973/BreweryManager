@@ -3,6 +3,7 @@ Inventory Module for Brewery Management System
 Tracks brewing materials and finished goods inventory
 """
 
+import os
 import tkinter as tk
 from tkinter import messagebox
 import ttkbootstrap as ttk
@@ -474,14 +475,21 @@ class InventoryModule(ttk.Frame):
 
         # Print directly
         try:
-            # Create temporary file
-            temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8')
-            temp_file.write('\n'.join(report_lines))
-            temp_file.close()
+            # Create reports directory if it doesn't exist
+            reports_dir = os.path.expanduser('~/.brewerymanager/reports')
+            os.makedirs(reports_dir, exist_ok=True)
 
-            # Use PowerShell Start-Process to invoke Windows print dialog
-            powershell_cmd = f'Start-Process -FilePath "{temp_file.name}" -Verb Print'
-            subprocess.Popen(['powershell', '-Command', powershell_cmd])
+            # Generate filename with timestamp
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            category_suffix = self.current_category if self.current_category != 'all' else 'all'
+            filename = os.path.join(reports_dir, f"stock_report_{category_suffix}_{timestamp}.txt")
+
+            # Write file
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(report_lines))
+
+            # Use os.startfile with print verb
+            os.startfile(filename, 'print')
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
 
@@ -1612,13 +1620,20 @@ class InventoryLogbookDialog(tk.Toplevel):
 
         # Print directly
         try:
-            # Create temporary file
-            temp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt', encoding='utf-8')
-            temp_file.write('\n'.join(report_lines))
-            temp_file.close()
+            # Create reports directory if it doesn't exist
+            reports_dir = os.path.expanduser('~/.brewerymanager/reports')
+            os.makedirs(reports_dir, exist_ok=True)
 
-            # Use PowerShell Start-Process to invoke Windows print dialog
-            powershell_cmd = f'Start-Process -FilePath "{temp_file.name}" -Verb Print'
-            subprocess.Popen(['powershell', '-Command', powershell_cmd])
+            # Generate filename with timestamp
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            category_suffix = self.current_category if self.current_category != 'all' else 'all'
+            filename = os.path.join(reports_dir, f"logbook_report_{category_suffix}_{timestamp}.txt")
+
+            # Write file
+            with open(filename, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(report_lines))
+
+            # Use os.startfile with print verb
+            os.startfile(filename, 'print')
         except Exception as e:
             messagebox.showerror("Error", f"Failed to print:\n{str(e)}\n\nTry 'Save TXT' button instead.")
