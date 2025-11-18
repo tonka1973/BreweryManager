@@ -7,6 +7,7 @@ import tkinter as tk
 import ttkbootstrap as ttk
 from datetime import datetime, timedelta
 from typing import Optional
+from ..utilities.window_manager import enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
 
 
 class DashboardModule(ttk.Frame):
@@ -202,6 +203,9 @@ class DashboardModule(ttk.Frame):
 
         self.batches_tree.pack(fill=tk.BOTH, expand=True)
         scrollbar.config(command=self.batches_tree.yview)
+
+        enable_mousewheel_scrolling(self.batches_tree)
+        enable_treeview_keyboard_navigation(self.batches_tree)
 
         # Load recent batches
         self.load_recent_batches()

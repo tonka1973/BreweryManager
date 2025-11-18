@@ -9,7 +9,7 @@ from tkinter import messagebox
 import uuid
 from datetime import datetime, timedelta
 from ..utilities.date_utils import format_date_for_display, parse_display_date, get_today_display, get_today_db
-from ..utilities.window_manager import get_window_manager
+from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
 
 
 class InvoicingModule(ttk.Frame):
@@ -77,6 +77,9 @@ class InvoicingModule(ttk.Frame):
 
         self.tree.pack(fill=tk.BOTH, expand=True)
         vsb.config(command=self.tree.yview)
+
+        enable_mousewheel_scrolling(self.tree)
+        enable_treeview_keyboard_navigation(self.tree)
 
     def load_invoices(self):
         """Load invoices from database"""
@@ -231,6 +234,9 @@ class InvoiceCreateDialog(tk.Toplevel):
 
         self.sales_tree.pack(fill=tk.BOTH, expand=True)
         vsb.config(command=self.sales_tree.yview)
+
+        enable_mousewheel_scrolling(self.sales_tree)
+        enable_treeview_keyboard_navigation(self.sales_tree)
 
         # VAT Rate
         vat_frame = ttk.Frame(frame)

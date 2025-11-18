@@ -9,7 +9,7 @@ import ttkbootstrap as ttk
 import uuid
 from datetime import datetime
 from ..utilities.date_utils import get_today_db
-from ..utilities.window_manager import get_window_manager
+from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
 
 
 class InventoryModule(ttk.Frame):
@@ -119,6 +119,9 @@ class InventoryModule(ttk.Frame):
 
         self.tree.pack(fill=tk.BOTH, expand=True)
         vsb.config(command=self.tree.yview)
+
+        enable_mousewheel_scrolling(self.tree)
+        enable_treeview_keyboard_navigation(self.tree)
 
     def switch_category(self, category):
         """Switch to a different category"""
@@ -837,8 +840,15 @@ class ContainerTypeDialog(tk.Toplevel):
         self.title("Add Container Type")
         self.transient(parent)
         self.grab_set()
-        self.geometry("500x400")
-        self.resizable(True, True)
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'container_type_dialog', width_pct=0.35, height_pct=0.45,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            self.geometry("500x400")
+            self.resizable(True, True)
 
         self.create_widgets()
 
@@ -948,7 +958,15 @@ class ContainerTypeAdjustDialog(tk.Toplevel):
         self.title(f"Adjust Stock: {container_type.get('name', 'Unknown')}")
         self.transient(parent)
         self.grab_set()
-        self.geometry("400x300")
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'container_type_adjust_dialog', width_pct=0.3, height_pct=0.35,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            self.geometry("400x300")
+            self.resizable(True, True)
 
         self.create_widgets()
 
@@ -1097,6 +1115,9 @@ class InventoryLogbookDialog(tk.Toplevel):
 
         self.tree.pack(fill=tk.BOTH, expand=True)
         vsb.config(command=self.tree.yview)
+
+        enable_mousewheel_scrolling(self.tree)
+        enable_treeview_keyboard_navigation(self.tree)
 
         # Tag configurations
         self.tree.tag_configure('add', background='#e8f5e9')  # Green for additions

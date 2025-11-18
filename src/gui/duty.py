@@ -8,6 +8,7 @@ from tkinter import messagebox
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from datetime import datetime, timedelta
+from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation, enable_canvas_scrolling
 
 
 class DutyModule(ttk.Frame):
@@ -79,6 +80,8 @@ class DutyModule(ttk.Frame):
 
         canvas.pack(side=LEFT, fill=BOTH, expand=True, padx=(20, 0))
         scrollbar.pack(side=RIGHT, fill=Y, padx=(0, 20))
+
+        enable_canvas_scrolling(canvas)
 
     def create_content_sections(self):
         """Create all content sections"""
@@ -669,9 +672,17 @@ class PackagingLinesDialog(tk.Toplevel):
         self.duty_month = duty_month
 
         self.title(f"Packaging Lines - {duty_month}")
-        self.geometry("1200x600")
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'packaging_lines_dialog', width_pct=0.75, height_pct=0.65,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            self.geometry("1200x600")
+            self.resizable(True, True)
 
         self.create_widgets()
         self.load_data()
@@ -737,6 +748,9 @@ class PackagingLinesDialog(tk.Toplevel):
         self.tree.column('duty', width=100)
 
         self.tree.pack(fill=BOTH, expand=True)
+
+        enable_mousewheel_scrolling(self.tree)
+        enable_treeview_keyboard_navigation(self.tree)
 
         # Close button
         ttk.Button(

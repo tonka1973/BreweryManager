@@ -9,7 +9,7 @@ import ttkbootstrap as ttk
 import uuid
 from datetime import datetime
 from ..utilities.date_utils import get_today_db
-from ..utilities.window_manager import get_window_manager
+from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation, enable_canvas_scrolling
 
 
 class CustomersModule(ttk.Frame):
@@ -77,6 +77,10 @@ class CustomersModule(ttk.Frame):
 
         self.tree.pack(fill=tk.BOTH, expand=True)
         vsb.config(command=self.tree.yview)
+
+        enable_mousewheel_scrolling(self.tree)
+        enable_treeview_keyboard_navigation(self.tree)
+
         self.tree.bind('<Double-1>', lambda e: self.view_customer())
 
     def load_customers(self):
@@ -295,6 +299,8 @@ class CustomerDialog(tk.Toplevel):
 
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
+
+        enable_canvas_scrolling(canvas)
 
         # Buttons
         button_frame = ttk.Frame(self)

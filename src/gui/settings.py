@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import messagebox
 import ttkbootstrap as ttk
 from datetime import datetime
+from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation, enable_canvas_scrolling
 
 
 class SettingsModule(ttk.Frame):
@@ -49,6 +50,8 @@ class SettingsModule(ttk.Frame):
 
         canvas.pack(side="left", fill="both", expand=True, padx=20, pady=20)
         scrollbar.pack(side="right", fill="y")
+
+        enable_canvas_scrolling(canvas)
 
         # ================================================================
         # SECTION 1: Annual Production Display (Read-Only)
@@ -240,6 +243,9 @@ class SettingsModule(ttk.Frame):
 
         self.container_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        enable_mousewheel_scrolling(self.container_tree)
+        enable_treeview_keyboard_navigation(self.container_tree)
 
         # Bind double-click to edit
         self.container_tree.bind('<Double-Button-1>', lambda e: self.edit_container())
@@ -498,9 +504,17 @@ class EditContainerDialog(tk.Toplevel):
         self.container_name = container_name
 
         self.title(f"Edit Container: {container_name}")
-        self.geometry("500x450")
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'edit_container_dialog', width_pct=0.35, height_pct=0.5,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            self.geometry("500x450")
+            self.resizable(True, True)
 
         self.create_widgets()
         self.load_container()

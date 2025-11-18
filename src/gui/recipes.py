@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 from ..utilities.date_utils import format_date_for_display, format_datetime_for_display, get_today_db, get_now_db
-from ..utilities.window_manager import get_window_manager
+from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation, enable_canvas_scrolling
 
 
 class RecipesModule(ttk.Frame):
@@ -129,6 +129,9 @@ class RecipesModule(ttk.Frame):
         vsb.config(command=self.recipes_tree.yview)
         hsb.config(command=self.recipes_tree.xview)
 
+        enable_mousewheel_scrolling(self.recipes_tree)
+        enable_treeview_keyboard_navigation(self.recipes_tree)
+
         # Double-click to edit recipe
         self.recipes_tree.bind('<Double-1>', lambda e: self.edit_recipe())
 
@@ -167,6 +170,8 @@ class RecipesModule(ttk.Frame):
 
         info_canvas.pack(side="left", fill="both", expand=True)
         info_scrollbar.pack(side="right", fill="y")
+
+        enable_canvas_scrolling(info_canvas)
 
         # Initial message
         self.show_no_selection_message()
@@ -561,11 +566,7 @@ class RecipeDialog(tk.Toplevel):
         main_frame.bind('<Configure>', configure_scroll_region)
         canvas.bind('<Configure>', configure_canvas_width)
 
-        # Enable mousewheel scrolling
-        def on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-
-        canvas.bind_all("<MouseWheel>", on_mousewheel)
+        enable_canvas_scrolling(canvas)
 
         # Recipe Name
         ttk.Label(main_frame, text="Recipe Name *", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0, 5), padx=20)

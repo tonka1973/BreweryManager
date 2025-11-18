@@ -8,6 +8,7 @@ from tkinter import messagebox
 import ttkbootstrap as ttk
 import uuid
 from datetime import datetime
+from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation, enable_canvas_scrolling
 
 
 class ProductsModule(ttk.Frame):
@@ -109,6 +110,9 @@ class ProductsModule(ttk.Frame):
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         vsb.config(command=self.tree.yview)
 
+        enable_mousewheel_scrolling(self.tree)
+        enable_treeview_keyboard_navigation(self.tree)
+
         # Bind double-click to view sales history
         self.tree.bind('<Double-Button-1>', lambda e: self.view_sales_history())
 
@@ -203,6 +207,9 @@ class ProductsModule(ttk.Frame):
         self.spoilt_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         vsb.config(command=self.spoilt_tree.yview)
         hsb.config(command=self.spoilt_tree.xview)
+
+        enable_mousewheel_scrolling(self.spoilt_tree)
+        enable_treeview_keyboard_navigation(self.spoilt_tree)
 
         # Bind double-click to edit
         self.spoilt_tree.bind('<Double-Button-1>', lambda e: self.edit_spoilt_beer())
@@ -541,9 +548,17 @@ class AddProductDialog(tk.Toplevel):
         self.current_user = current_user
 
         self.title("Add Product")
-        self.geometry("500x600")
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'add_product_dialog', width_pct=0.35, height_pct=0.65,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            self.geometry("500x600")
+            self.resizable(True, True)
 
         self.create_widgets()
 
@@ -667,9 +682,17 @@ class EditProductNameDialog(tk.Toplevel):
         self.product = product
 
         self.title("Edit Product Name")
-        self.geometry("400x250")
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'edit_product_name_dialog', width_pct=0.3, height_pct=0.3,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            self.geometry("400x250")
+            self.resizable(True, True)
 
         self.create_widgets()
 
@@ -727,9 +750,17 @@ class ProcessReturnDialog(tk.Toplevel):
         self.product = product
 
         self.title("Process Return")
-        self.geometry("450x350")
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'process_return_dialog', width_pct=0.32, height_pct=0.4,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            self.geometry("450x350")
+            self.resizable(True, True)
 
         self.create_widgets()
 
@@ -881,6 +912,9 @@ Packaged: {self.format_date(self.product.get('date_packaged', ''))}"""
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         vsb.config(command=self.tree.yview)
 
+        enable_mousewheel_scrolling(self.tree)
+        enable_treeview_keyboard_navigation(self.tree)
+
         # Close button
         ttk.Button(self, text="Close", bootstyle="secondary",
                   command=self.destroy).pack(pady=20)
@@ -957,6 +991,7 @@ class AddSpoiltBeerDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
+        from ttkbootstrap.constants import VERTICAL, Y
         # Scrollable frame
         canvas = tk.Canvas(self)
         scrollbar = ttk.Scrollbar(self, orient=VERTICAL, command=canvas.yview)
@@ -1061,6 +1096,8 @@ class AddSpoiltBeerDialog(tk.Toplevel):
         # Pack canvas and scrollbar
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=Y)
+
+        enable_canvas_scrolling(canvas)
 
     def load_container_types(self):
         """Load container types from settings_containers"""
@@ -1233,6 +1270,7 @@ class EditSpoiltBeerDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
+        from ttkbootstrap.constants import VERTICAL, Y
         # Scrollable frame
         canvas = tk.Canvas(self)
         scrollbar = ttk.Scrollbar(self, orient=VERTICAL, command=canvas.yview)
@@ -1352,6 +1390,8 @@ class EditSpoiltBeerDialog(tk.Toplevel):
         # Pack canvas and scrollbar
         canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=Y)
+
+        enable_canvas_scrolling(canvas)
 
     def save(self):
         """Save updated record"""

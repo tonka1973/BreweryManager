@@ -10,6 +10,7 @@ from tkinter import messagebox
 from datetime import datetime, timedelta
 from decimal import Decimal
 import calendar
+from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
 
 
 class ReportsModule(ttk.Frame):
@@ -156,6 +157,9 @@ class ReportsModule(ttk.Frame):
         self.sales_by_product_tree.pack(side=LEFT, fill=BOTH, expand=True)
         scrollbar.pack(side=RIGHT, fill=Y)
 
+        enable_mousewheel_scrolling(self.sales_by_product_tree)
+        enable_treeview_keyboard_navigation(self.sales_by_product_tree)
+
         # Tab 2: By Customer
         customer_frame = ttk.Frame(sales_notebook)
         sales_notebook.add(customer_frame, text="By Customer")
@@ -183,6 +187,9 @@ class ReportsModule(ttk.Frame):
 
         self.sales_by_customer_tree.pack(side=LEFT, fill=BOTH, expand=True)
         scrollbar2.pack(side=RIGHT, fill=Y)
+
+        enable_mousewheel_scrolling(self.sales_by_customer_tree)
+        enable_treeview_keyboard_navigation(self.sales_by_customer_tree)
 
         # Load initial data
         self.load_sales_report()
@@ -269,6 +276,9 @@ class ReportsModule(ttk.Frame):
         self.inventory_tree.pack(side=LEFT, fill=BOTH, expand=True)
         scrollbar.pack(side=RIGHT, fill=Y)
 
+        enable_mousewheel_scrolling(self.inventory_tree)
+        enable_treeview_keyboard_navigation(self.inventory_tree)
+
         # Load initial data
         self.load_inventory_report()
 
@@ -354,6 +364,9 @@ class ReportsModule(ttk.Frame):
         self.production_by_style_tree.pack(side=LEFT, fill=BOTH, expand=True)
         scrollbar.pack(side=RIGHT, fill=Y)
 
+        enable_mousewheel_scrolling(self.production_by_style_tree)
+        enable_treeview_keyboard_navigation(self.production_by_style_tree)
+
         # Tab 2: By Brewer
         brewer_frame = ttk.Frame(prod_notebook)
         prod_notebook.add(brewer_frame, text="By Brewer")
@@ -380,6 +393,9 @@ class ReportsModule(ttk.Frame):
         self.production_by_brewer_tree.pack(side=LEFT, fill=BOTH, expand=True)
         scrollbar2.pack(side=RIGHT, fill=Y)
 
+        enable_mousewheel_scrolling(self.production_by_brewer_tree)
+        enable_treeview_keyboard_navigation(self.production_by_brewer_tree)
+
         # Tab 3: Packaging Breakdown
         packaging_frame = ttk.Frame(prod_notebook)
         prod_notebook.add(packaging_frame, text="Packaging Mix")
@@ -405,6 +421,9 @@ class ReportsModule(ttk.Frame):
 
         self.production_packaging_tree.pack(side=LEFT, fill=BOTH, expand=True)
         scrollbar3.pack(side=RIGHT, fill=Y)
+
+        enable_mousewheel_scrolling(self.production_packaging_tree)
+        enable_treeview_keyboard_navigation(self.production_packaging_tree)
 
         # Load initial data
         self.load_production_report()
@@ -493,6 +512,9 @@ class ReportsModule(ttk.Frame):
 
         self.financial_tree.pack(side=LEFT, fill=BOTH, expand=True)
         scrollbar.pack(side=RIGHT, fill=Y)
+
+        enable_mousewheel_scrolling(self.financial_tree)
+        enable_treeview_keyboard_navigation(self.financial_tree)
 
         # Load initial data
         self.load_financial_report()
@@ -593,6 +615,9 @@ class ReportsModule(ttk.Frame):
         self.returns_tree.column('payment_date', width=100, anchor=CENTER)
 
         self.returns_tree.pack(fill=BOTH, expand=True)
+
+        enable_mousewheel_scrolling(self.returns_tree)
+        enable_treeview_keyboard_navigation(self.returns_tree)
 
         # Bind double-click to view details
         self.returns_tree.bind('<Double-Button-1>', self.view_return_details)
@@ -1286,11 +1311,19 @@ class DutyReturnDetailsDialog(tk.Toplevel):
         self.return_data = return_data
 
         self.title(f"Duty Return Details - {duty_month}")
-        self.geometry("800x700")
 
         # Make modal
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'duty_return_details_dialog', width_pct=0.5, height_pct=0.75,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            self.geometry("800x700")
+            self.resizable(True, True)
 
         self.create_widgets()
 
@@ -1463,11 +1496,19 @@ class PackagingLinesDialog(tk.Toplevel):
         self.duty_month = duty_month
 
         self.title(f"Packaging Lines - {duty_month}")
-        self.geometry("1200x600")
 
         # Make modal
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'packaging_lines_report_dialog', width_pct=0.75, height_pct=0.65,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            self.geometry("1200x600")
+            self.resizable(True, True)
 
         self.create_widgets()
         self.load_packaging_lines()
@@ -1598,11 +1639,19 @@ class SpoiltBeerDialog(tk.Toplevel):
         self.duty_month = duty_month
 
         self.title(f"Spoilt Beer - {duty_month}")
-        self.geometry("1000x500")
 
         # Make modal
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'spoilt_beer_dialog', width_pct=0.65, height_pct=0.55,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            self.geometry("1000x500")
+            self.resizable(True, True)
 
         self.create_widgets()
         self.load_spoilt_beer()
@@ -1729,11 +1778,19 @@ class AnnualSummaryDialog(tk.Toplevel):
         self.cache = cache_manager
 
         self.title("Annual Duty Summary")
-        self.geometry("700x600")
 
         # Make modal
         self.transient(parent)
         self.grab_set()
+
+        # Use window manager for sizing if available
+        wm = get_window_manager()
+        if wm:
+            wm.setup_dialog(self, 'annual_summary_dialog', width_pct=0.45, height_pct=0.65,
+                          add_grip=True, save_on_close=True, resizable=True)
+        else:
+            self.geometry("700x600")
+            self.resizable(True, True)
 
         self.create_widgets()
 
