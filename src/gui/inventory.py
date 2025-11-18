@@ -107,7 +107,7 @@ class InventoryModule(ttk.Frame):
                                 yscrollcommand=vsb.set)
 
         for col in columns:
-            self.tree.heading(col, text=col)
+            self.tree.heading(col, text=col, anchor='w')
 
         self.tree.column('Material', width=200)
         self.tree.column('Type', width=100)
@@ -1102,7 +1102,7 @@ class InventoryLogbookDialog(tk.Toplevel):
                                 yscrollcommand=vsb.set)
 
         for col in columns:
-            self.tree.heading(col, text=col)
+            self.tree.heading(col, text=col, anchor='w')
 
         self.tree.column('Date', width=100)
         self.tree.column('Type', width=70)
