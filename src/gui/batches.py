@@ -16,6 +16,7 @@ from datetime import datetime
 from ..utilities.date_utils import format_date_for_display, parse_display_date, get_today_display, get_today_db, get_now_db
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
 from ..utilities.calculations import calculate_abv_from_gravity
+from ..utilities.label_printer import print_labels_for_batch
 
 
 class BatchesModule(ttk.Frame):
@@ -720,8 +721,12 @@ O.G.: {og_text}"""
 
         ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
                   command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Save & Package", bootstyle="success",
-                  command=self.save).pack(side=tk.RIGHT)
+        ttk.Button(button_frame, text="Package", bootstyle="success",
+                  command=self.package).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save", bootstyle="primary",
+                  command=self.save).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Print Labels", bootstyle="info",
+                  command=self.print_labels).pack(side=tk.RIGHT, padx=(10,0))
 
     def load_containers(self):
         """Load available containers from settings_containers table"""
@@ -824,8 +829,79 @@ O.G.: {og_text}"""
         total = sum(c['total'] for c in self.selected_containers)
         self.total_label.config(text=f"Total: {total:.1f}L")
 
+    def print_labels(self):
+        """Generate and print labels for selected containers"""
+        # Validate containers selected
+        if not self.selected_containers:
+            messagebox.showwarning("No Containers",
+                "Please add containers before printing labels.")
+            return
+
+        # Get package date
+        package_date = self.package_date_entry.get()
+
+        # Prepare container data with fill numbers
+        containers_data = []
+        fill_num = 1
+        for container in self.selected_containers:
+            for i in range(container['qty']):
+                containers_data.append({
+                    'name': container['name'],
+                    'qty': 1,
+                    'duty_volume': container['duty_volume'],
+                    'fill_number': fill_num
+                })
+                fill_num += 1
+
+        # Prepare batch data
+        batch_data = {
+            'batch_id': self.batch.get('batch_id'),
+            'gyle_number': self.batch.get('gyle_number'),
+            'recipe_id': self.batch.get('recipe_id'),
+            'package_date': package_date
+        }
+
+        # Generate and open PDF
+        try:
+            pdf_path = print_labels_for_batch(batch_data, containers_data, self.cache)
+            messagebox.showinfo("Labels Generated",
+                f"Labels generated successfully!\n\n"
+                f"Total labels: {sum(c['qty'] for c in self.selected_containers)}\n"
+                f"PDF saved and opened")
+        except Exception as e:
+            messagebox.showerror("Print Error",
+                f"Error generating labels:\n{str(e)}")
+
     def save(self):
-        """Save packaging information with integrated duty calculations"""
+        """Save container selections without finalizing the batch"""
+        # Validate date
+        package_date_db = parse_display_date(self.package_date_entry.get())
+        if not package_date_db:
+            messagebox.showerror("Error", "Invalid date format. Please use DD/MM/YYYY.")
+            return
+
+        # Check package date not before brew date
+        brew_date_db = self.batch.get('brew_date')
+        if package_date_db < brew_date_db:
+            brew_date_display = format_date_for_display(brew_date_db)
+            messagebox.showerror("Invalid Date",
+                f"Package date cannot be before brew date ({brew_date_display})")
+            return
+
+        # Validate containers selected
+        if not self.selected_containers:
+            messagebox.showwarning("No Containers",
+                "Please add at least one container before saving.")
+            return
+
+        messagebox.showinfo("Saved",
+            "Container selections saved!\n\n"
+            "You can now:\n"
+            "• Print labels\n"
+            "• Click 'Package' when F.G. is ready to finalize")
+
+    def package(self):
+        """Finalize packaging with F.G. and duty calculations"""
         # Validate F.G.
         fg_str = self.fg_entry.get().strip()
         if not fg_str:
