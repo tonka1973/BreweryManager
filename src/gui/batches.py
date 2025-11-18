@@ -718,7 +718,7 @@ O.G.: {og_text}"""
     def load_containers(self):
         """Load available containers from settings_containers table"""
         self.cache.connect()
-        cursor = self.cache.conn.cursor()
+        cursor = self.cache.connection.cursor()
 
         cursor.execute('''
             SELECT name, actual_capacity, duty_paid_volume, is_draught_eligible
@@ -881,7 +881,7 @@ O.G.: {og_text}"""
 
         # Load duty rates from settings
         self.cache.connect()
-        cursor = self.cache.conn.cursor()
+        cursor = self.cache.connection.cursor()
 
         cursor.execute('''
             SELECT
@@ -1045,7 +1045,7 @@ O.G.: {og_text}"""
                     'last_modified': get_now_db()
                 }, 'container_type_id')
 
-        self.cache.conn.commit()
+        self.cache.connection.commit()
         self.cache.close()
 
         messagebox.showinfo("Success",
