@@ -110,22 +110,25 @@ git push -u origin [current-branch-name]
 
 ---
 
-## STEP 7: Ask User to Push Master to Origin
+## STEP 7: Merge to Master and Push
 
-Now that the claude branch is tested and verified, have the USER push master:
+Now that the claude branch is tested and verified, merge to master and push:
 
 **Tell the user:**
 ```
-Now please run these commands to push master to origin:
+✅ Testing complete! Now let's merge to master and push:
 
 git checkout master
+git merge claude/[current-branch-name]
 git push origin master
 ```
 
 **What this does:**
-- Makes the verified, tested work the official state on origin/master
-- Ensures origin/master stays synchronized across all computers
-- Next session can safely reset to origin/master
+1. Switches to master branch
+2. Merges your tested work from the claude branch into master
+3. Pushes master to GitHub (makes it the official state)
+4. Ensures origin/master stays synchronized across all computers
+5. Next session can safely start from origin/master
 
 **Important:** Claude cannot push master automatically due to security restrictions (only claude/* branches allowed). The user must do this step manually.
 
