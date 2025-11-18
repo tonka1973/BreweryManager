@@ -1050,6 +1050,7 @@ class InventoryLogbookDialog(tk.Toplevel):
         super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
+        self.current_category = 'all'  # Track selected category
 
         self.title("Inventory Logbook - Transaction History")
         self.transient(parent)
@@ -1076,17 +1077,55 @@ class InventoryLogbookDialog(tk.Toplevel):
         ttk.Label(frame, text="Inventory Transaction History",
                  font=('Arial', 14, 'bold')).pack(pady=(0, 10))
 
-        # Filter frame
+        # Category tabs/buttons
+        category_frame = ttk.Frame(frame)
+        category_frame.pack(fill=tk.X, pady=(0, 10))
+
+        categories = [
+            ('All', 'all'),
+            ('Grain', 'grain'),
+            ('Hops', 'hops'),
+            ('Yeast', 'yeast'),
+            ('Adjunct', 'adjunct'),
+            ('Sundries', 'sundries'),
+            ('Containers', 'containers')
+        ]
+
+        self.category_buttons = {}
+        for label, cat_id in categories:
+            btn = ttk.Button(
+                category_frame,
+                text=label,
+                bootstyle="secondary",
+                cursor='hand2',
+                command=lambda c=cat_id: self.switch_category(c)
+            )
+            btn.pack(side=tk.LEFT, padx=(0, 5))
+            self.category_buttons[cat_id] = btn
+
+        # Highlight "All" button by default
+        self.category_buttons['all'].configure(bootstyle="success")
+
+        # Filter frame (two filters side by side)
         filter_frame = ttk.Frame(frame)
         filter_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(filter_frame, text="Filter by Type:", font=('Arial', 10)).pack(side=tk.LEFT, padx=(0, 5))
-        self.filter_var = tk.StringVar(value='all')
-        filter_combo = ttk.Combobox(filter_frame, textvariable=self.filter_var,
-                                    values=['all', 'add', 'remove'],
+        # Transaction type filter
+        ttk.Label(filter_frame, text="Transaction Type:", font=('Arial', 10)).pack(side=tk.LEFT, padx=(0, 5))
+        self.trans_type_var = tk.StringVar(value='all')
+        trans_type_combo = ttk.Combobox(filter_frame, textvariable=self.trans_type_var,
+                                    values=['all', 'added', 'removed'],
                                     width=12, state='readonly')
-        filter_combo.pack(side=tk.LEFT, padx=(0, 20))
-        filter_combo.bind('<<ComboboxSelected>>', lambda e: self.load_transactions())
+        trans_type_combo.pack(side=tk.LEFT, padx=(0, 20))
+        trans_type_combo.bind('<<ComboboxSelected>>', lambda e: self.load_transactions())
+
+        # Material filter
+        ttk.Label(filter_frame, text="Material:", font=('Arial', 10)).pack(side=tk.LEFT, padx=(0, 5))
+        self.material_var = tk.StringVar(value='all')
+        self.material_combo = ttk.Combobox(filter_frame, textvariable=self.material_var,
+                                          width=25, state='readonly')
+        self.material_combo.pack(side=tk.LEFT, padx=(0, 20))
+        self.material_combo.bind('<<ComboboxSelected>>', lambda e: self.load_transactions())
 
         refresh_btn = ttk.Button(filter_frame, text="🔄 Refresh",
                                 bootstyle="secondary",
@@ -1133,28 +1172,89 @@ class InventoryLogbookDialog(tk.Toplevel):
         ttk.Button(button_frame, text="Close", bootstyle="secondary",
                   command=self.destroy).pack(side=tk.RIGHT)
 
+    def switch_category(self, category):
+        """Switch to a different category"""
+        self.current_category = category
+
+        # Update button colors (highlight active)
+        for cat, btn in self.category_buttons.items():
+            if cat == category:
+                btn.configure(bootstyle="success")
+            else:
+                btn.configure(bootstyle="secondary")
+
+        # Update material filter options
+        self.update_material_filter()
+
+        # Reload transactions
+        self.load_transactions()
+
+    def update_material_filter(self):
+        """Update the material filter dropdown based on current category"""
+        self.cache.connect()
+
+        if self.current_category == 'all':
+            # Get all materials
+            materials = self.cache.get_all_records('inventory_materials', order_by='material_name')
+        else:
+            # Get materials for this category
+            materials = self.cache.get_all_records('inventory_materials',
+                                                   f"material_type = '{self.current_category}'",
+                                                   order_by='material_name')
+
+        self.cache.close()
+
+        # Build material list
+        material_names = ['all'] + [m.get('material_name', '') for m in materials]
+
+        # Update combobox
+        self.material_combo['values'] = material_names
+        self.material_var.set('all')  # Reset to 'all' when category changes
+
     def load_transactions(self):
         """Load transactions from database"""
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        # Build where clause
-        filter_type = self.filter_var.get()
-        where = None if filter_type == 'all' else f"transaction_type = '{filter_type}'"
+        # Build where clauses
+        where_clauses = []
+
+        # Filter by transaction type (added/removed)
+        trans_type = self.trans_type_var.get()
+        if trans_type != 'all':
+            # Map 'added' to 'add' and 'removed' to 'remove' for database
+            db_type = 'add' if trans_type == 'added' else 'remove'
+            where_clauses.append(f"transaction_type = '{db_type}'")
 
         self.cache.connect()
+
+        # Get all transactions
+        where = ' AND '.join(where_clauses) if where_clauses else None
         transactions = self.cache.get_all_records('inventory_transactions', where,
                                                   order_by='transaction_date DESC, transaction_id DESC')
 
+        # Now filter by category and material
         for trans in transactions:
-            # Get material name
+            # Get material info
             material_name = 'Unknown'
+            material_type = None
             material_id = trans.get('material_id')
             if material_id:
                 materials = self.cache.get_all_records('inventory_materials',
                     f"material_id = '{material_id}'")
                 if materials:
                     material_name = materials[0].get('material_name', 'Unknown')
+                    material_type = materials[0].get('material_type', '')
+
+            # Filter by category
+            if self.current_category != 'all':
+                if material_type != self.current_category:
+                    continue
+
+            # Filter by specific material
+            if self.material_var.get() != 'all':
+                if material_name != self.material_var.get():
+                    continue
 
             # Format date
             date_str = trans.get('transaction_date', '')
@@ -1168,7 +1268,13 @@ class InventoryLogbookDialog(tk.Toplevel):
                 except:
                     pass  # Keep original if conversion fails
 
-            trans_type = trans.get('transaction_type', '').capitalize()
+            trans_type_display = trans.get('transaction_type', '').capitalize()
+            # Change 'Add' to 'Added' and 'Remove' to 'Removed'
+            if trans_type_display == 'Add':
+                trans_type_display = 'Added'
+            elif trans_type_display == 'Remove':
+                trans_type_display = 'Removed'
+
             quantity_change = trans.get('quantity_change', 0)
             new_balance = trans.get('new_balance', 0)
             reference = trans.get('reference', '')
@@ -1177,7 +1283,7 @@ class InventoryLogbookDialog(tk.Toplevel):
 
             values = (
                 date_str,
-                trans_type,
+                trans_type_display,
                 material_name,
                 f"{quantity_change:+.1f}",  # Show + or - sign
                 f"{new_balance:.1f}",
