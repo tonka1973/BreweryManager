@@ -182,16 +182,49 @@ class SettingsModule(ttk.Frame):
                   command=self.save_full_rate).pack(pady=(20, 0))
 
         # ================================================================
+        # SECTION 4: VAT Rate (User Editable)
+        # ================================================================
+        vat_frame = ttk.LabelFrame(scrollable_frame, text="VAT Rate", padding=20)
+        vat_frame.pack(fill=tk.X, pady=(0, 20))
+
+        ttk.Label(vat_frame,
+                 text="Standard UK VAT rate applied to invoices.\nUpdate if HMRC changes the VAT rate.",
+                 font=('Arial', 9, 'italic'),
+                 foreground='#666').pack(anchor='w', pady=(0, 15))
+
+        vat_form = ttk.Frame(vat_frame)
+        vat_form.pack(fill=tk.X)
+
+        ttk.Label(vat_form, text="VAT Rate:",
+                 font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0, 5))
+
+        entry_frame = ttk.Frame(vat_form)
+        entry_frame.grid(row=1, column=0, sticky='w')
+
+        self.vat_rate_entry = ttk.Entry(entry_frame, width=10, font=('Arial', 10))
+        self.vat_rate_entry.pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Label(entry_frame, text="%", font=('Arial', 10)).pack(side=tk.LEFT)
+
+        ttk.Label(vat_form, text="(Standard UK rate is currently 20%)",
+                 font=('Arial', 9, 'italic'),
+                 foreground='#666').grid(row=2, column=0, sticky='w', pady=(5, 0))
+
+        ttk.Button(vat_frame, text="💾 Save VAT Rate",
+                  bootstyle="success",
+                  command=self.save_vat_rate).pack(pady=(20, 0))
+
+        # ================================================================
         # Important Notes
         # ================================================================
         notes_frame = ttk.LabelFrame(scrollable_frame, text="Important Notes", padding=20)
         notes_frame.pack(fill=tk.X, pady=(0, 20))
 
-        notes_text = """• All rates are in £ per litre of pure alcohol (£/lpa)
-• Changes only affect NEW packaging after this date
+        notes_text = """• All duty rates are in £ per litre of pure alcohol (£/lpa)
+• Changes only affect NEW packaging/invoices after this date
 • Historical records keep their original rates (for audit trail)
 • Review SPR rates semi-regularly based on production trends
-• Update full rates when HMRC announces changes (typically February)"""
+• Update duty rates when HMRC announces changes (typically February)
+• Update VAT rate if HMRC changes the standard rate"""
 
         ttk.Label(notes_frame, text=notes_text,
                  font=('Arial', 9),
@@ -334,6 +367,11 @@ class SettingsModule(ttk.Frame):
                 # Effective date
                 self.effective_date_entry.delete(0, tk.END)
                 self.effective_date_entry.insert(0, settings['rates_effective_from'])
+
+                # VAT rate (convert from decimal to percentage)
+                vat_percentage = settings.get('vat_rate', 0.20) * 100
+                self.vat_rate_entry.delete(0, tk.END)
+                self.vat_rate_entry.insert(0, f"{vat_percentage:.0f}")
             else:
                 messagebox.showwarning("No Settings", "Settings record not found. Please run database migration.")
 
@@ -442,6 +480,51 @@ class SettingsModule(ttk.Frame):
             if self.cache:
                 self.cache.close()
             messagebox.showerror("Error", f"Failed to save full rate:\n{str(e)}")
+
+    def save_vat_rate(self):
+        """Save VAT rate to database"""
+        try:
+            rate_str = self.vat_rate_entry.get().strip()
+
+            if not rate_str:
+                messagebox.showerror("Error", "Please enter the VAT rate.")
+                return
+
+            try:
+                rate_percentage = float(rate_str)
+                if rate_percentage < 0 or rate_percentage > 100:
+                    messagebox.showerror("Error", "VAT rate must be between 0 and 100%.")
+                    return
+                # Convert percentage to decimal
+                rate = rate_percentage / 100
+            except ValueError:
+                messagebox.showerror("Error", f"Invalid VAT rate: {rate_str}")
+                return
+
+            self.cache.connect()
+            self.cache.cursor.execute("""
+                UPDATE settings SET
+                    vat_rate = ?,
+                    updated_at = ?,
+                    updated_by = ?
+                WHERE id = 1
+            """, (
+                rate,
+                datetime.now().isoformat(),
+                self.current_user.username
+            ))
+            self.cache.connection.commit()
+            self.cache.close()
+
+            messagebox.showinfo("Success",
+                              f"VAT rate saved successfully ({rate_percentage:.0f}%)!\n\n"
+                              "New invoices will use this VAT rate.\n"
+                              "Existing invoices keep their original VAT rate.")
+
+        except Exception as e:
+            if self.cache:
+                self.cache.close()
+            messagebox.showerror("Error", f"Failed to save VAT rate:\n{str(e)}")
 
     def load_containers(self):
         """Load container configuration"""

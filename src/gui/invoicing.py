@@ -243,7 +243,21 @@ class InvoiceCreateDialog(tk.Toplevel):
         vat_frame.pack(fill=tk.X, pady=(10,0))
 
         ttk.Label(vat_frame, text="VAT Rate:", font=('Arial', 10, 'bold')).pack(side=tk.LEFT, padx=(0,10))
-        self.vat_var = tk.StringVar(value="20")
+
+        # Load VAT rate from settings
+        default_vat = "20"  # Fallback default
+        try:
+            self.cache.connect()
+            settings = self.cache.cursor.execute("SELECT vat_rate FROM settings WHERE id = 1").fetchone()
+            self.cache.close()
+            if settings and settings['vat_rate']:
+                default_vat = f"{settings['vat_rate'] * 100:.0f}"
+        except:
+            # If settings table doesn't exist or vat_rate column is missing, use default
+            if self.cache:
+                self.cache.close()
+
+        self.vat_var = tk.StringVar(value=default_vat)
         ttk.Entry(vat_frame, textvariable=self.vat_var, font=('Arial', 10),
                  width=10).pack(side=tk.LEFT)
         ttk.Label(vat_frame, text="%", font=('Arial', 10)).pack(side=tk.LEFT, padx=(5,0))

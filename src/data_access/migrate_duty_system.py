@@ -56,6 +56,9 @@ def migrate():
                 -- FULL DUTY RATE (£/lpa) - Only for 8.5-22% ABV (no SPR applies)
                 rate_full_8_5_to_22 REAL DEFAULT 29.54,
 
+                -- VAT RATE (decimal, e.g., 0.20 = 20%)
+                vat_rate REAL DEFAULT 0.20,
+
                 -- Metadata
                 rates_effective_from TEXT DEFAULT '2025-02-01',
                 updated_at TEXT,
