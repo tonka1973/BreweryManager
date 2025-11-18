@@ -1,8 +1,8 @@
 # Database Migrations Needed
 
 **Date Updated:** 2025-11-18
-**From Session:** Brewery Computer (Session ID: 015MECmeLgcS95t2bHSnVb24)
-**Status:** Label printing migration pending on THIS computer
+**From Session:** Home Computer (Session ID: 01NXxfYeUfGj4t7fo3VfjLat)
+**Status:** Label printing + VAT rate migrations pending on BREWERY computer
 
 ---
 
@@ -14,13 +14,15 @@
 - migrate_duty_system.py ✅ Run
 - generate_test_data.py ✅ Run
 
-⚠️ **NEW: Label printing migration needs to be run**
+⚠️ **NEW: Two migrations need to be run on brewery computer**
+1. Label printing migration
+2. VAT rate migration
 
 ---
 
-## Migration Required on Brewery Computer
+## Migrations Required on Brewery Computer
 
-### Run Label Printing Migration
+### 1. Run Label Printing Migration
 
 This migration adds label printing capabilities to the application.
 
@@ -39,6 +41,38 @@ python src/data_access/migrate_label_printing.py
   - `fill_number` INTEGER - Track sequential container numbering (1 of 10, 2 of 10, etc.)
 
 **Expected Output:** "✅ MIGRATION COMPLETED SUCCESSFULLY!"
+
+---
+
+### 2. Run VAT Rate Migration
+
+This migration adds configurable VAT rate to Settings.
+
+```bash
+python src/data_access/migrate_add_vat.py
+```
+
+**What This Adds:**
+
+**Updated Tables:**
+- `settings` table gets new column:
+  - `vat_rate` REAL DEFAULT 0.20 - Configurable VAT rate (0.20 = 20%)
+
+**Note:** If you haven't run migrate_duty_system.py yet, the newer version already includes vat_rate, so this migration may not be needed. The script will check and skip if already exists.
+
+**Expected Output:**
+```
+============================================================
+Migration: Add VAT Rate to Settings
+============================================================
+
+Adding vat_rate column to settings table...
+✓ vat_rate column added successfully (default: 0.20 = 20%)
+
+============================================================
+Migration completed successfully!
+============================================================
+```
 
 ---
 
@@ -67,7 +101,21 @@ python main.py
 - ✅ PDF opens automatically (if possible)
 - ✅ One label per page (100mm x 150mm default)
 
-### 3. Workflow Test
+### 3. Test VAT Rate Feature
+
+**Settings Module - Duty Rates Tab:**
+- ✅ VAT Rate section should appear below Full Duty Rate
+- ✅ Shows current VAT rate (default: 20%)
+- ✅ Can edit and save VAT rate (0-100%)
+- ✅ Success message confirms new rate
+
+**Invoicing Module:**
+- ✅ Create Invoice dialog loads VAT from settings (not hardcoded 20%)
+- ✅ Can override VAT per invoice if needed
+- ✅ New invoices use updated VAT rate
+- ✅ Existing invoices keep original VAT rate
+
+### 4. Workflow Test
 
 1. Create/edit a recipe and add allergen info
 2. Start packaging a batch
@@ -80,7 +128,14 @@ python main.py
 
 ## What's New in This Session
 
-### Label Printing Feature (9 commits)
+### VAT Rate Configuration (Session 01NXxfYeUfGj4t7fo3VfjLat - Home Computer)
+- ✅ Added configurable VAT rate to Settings module
+- ✅ Database migration for vat_rate column
+- ✅ Settings GUI with VAT Rate section
+- ✅ Invoicing loads VAT from settings (not hardcoded)
+- ✅ Bug fix: sqlite3.Row attribute handling
+
+### Label Printing Feature (Session 015MECmeLgcS95t2bHSnVb24 - Brewery Computer)
 - ✅ Database migration for allergens and fill numbering
 - ✅ Label printer utility (`src/utilities/label_printer.py`)
 - ✅ ReportLab PDF generation
@@ -154,11 +209,22 @@ cp ~/.brewerymanager/cache.db ~/.brewerymanager/cache_backup_2025-11-18.db
 
 ## Summary Checklist
 
+**Migrations:**
 - [ ] Run migrate_label_printing.py
+- [ ] Run migrate_add_vat.py (or verify vat_rate exists in settings table)
+
+**Label Printing Tests:**
 - [ ] Test recipe editor allergen field
 - [ ] Test batch packaging with label printing
 - [ ] Verify PDF generation in `~/.brewerymanager/labels/`
 - [ ] Test 3-button workflow (Print/Save/Package)
+
+**VAT Rate Tests:**
+- [ ] Test Settings → Duty Rates → VAT Rate section
+- [ ] Test changing and saving VAT rate
+- [ ] Test invoice creation uses VAT from settings
+
+**Final:**
 - [ ] Complete full testing checklist before Google Sheets implementation
 
 Once verified, all features ready for production use! ✅
