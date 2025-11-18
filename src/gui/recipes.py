@@ -851,35 +851,68 @@ class RecipeDialog(tk.Toplevel):
             messagebox.showinfo("Success", "Recipe created successfully!")
 
         else:
-            # Update existing recipe
-            recipe_id = self.recipe['recipe_id']
-            recipe_data = {
-                'recipe_name': name,
-                'style': style,
-                'version': version,
-                'target_abv': abv,
-                'target_batch_size_litres': batch_size,
-                'last_modified': get_now_db(),
-                'is_active': self.active_var.get(),
-                'brewing_notes': notes,
-                'allergens': allergens,
-                'sync_status': 'pending'
-            }
+            # Edit mode - check if version has changed
+            original_version = self.recipe.get('version', 1)
 
-            self.cache.connect()
-            self.cache.update_record('recipes', recipe_id, recipe_data, id_column='recipe_id')
+            if version != original_version:
+                # Version changed - create NEW recipe (new version)
+                recipe_id = str(uuid.uuid4())
+                recipe_data = {
+                    'recipe_id': recipe_id,
+                    'recipe_name': name,
+                    'style': style,
+                    'version': version,
+                    'target_abv': abv,
+                    'target_batch_size_litres': batch_size,
+                    'created_date': get_today_db(),  # New version gets new created date
+                    'created_by': self.current_user.username,
+                    'last_modified': get_now_db(),
+                    'is_active': self.active_var.get(),
+                    'brewing_notes': notes,
+                    'allergens': allergens,
+                    'sync_status': 'pending'
+                }
 
-            # Delete old ingredients and save new ones
-            self.cache.cursor.execute("DELETE FROM recipe_ingredients WHERE recipe_id = ?", (recipe_id,))
-            self.cache.connection.commit()
-            self.save_ingredients(recipe_id)
+                self.cache.connect()
+                self.cache.insert_record('recipes', recipe_data)
+                self.save_ingredients(recipe_id)
+                self.cache.close()
 
-            self.cache.close()
+                # Store recipe_id so parent can re-select it
+                self.saved_recipe_id = recipe_id
 
-            # Store recipe_id so parent can re-select it
-            self.saved_recipe_id = recipe_id
+                messagebox.showinfo("Success", f"New recipe version {version} created successfully!\n\nThe original version {original_version} is preserved.")
 
-            messagebox.showinfo("Success", "Recipe updated successfully!")
+            else:
+                # Version unchanged - update existing recipe
+                recipe_id = self.recipe['recipe_id']
+                recipe_data = {
+                    'recipe_name': name,
+                    'style': style,
+                    'version': version,
+                    'target_abv': abv,
+                    'target_batch_size_litres': batch_size,
+                    'last_modified': get_now_db(),
+                    'is_active': self.active_var.get(),
+                    'brewing_notes': notes,
+                    'allergens': allergens,
+                    'sync_status': 'pending'
+                }
+
+                self.cache.connect()
+                self.cache.update_record('recipes', recipe_id, recipe_data, id_column='recipe_id')
+
+                # Delete old ingredients and save new ones
+                self.cache.cursor.execute("DELETE FROM recipe_ingredients WHERE recipe_id = ?", (recipe_id,))
+                self.cache.connection.commit()
+                self.save_ingredients(recipe_id)
+
+                self.cache.close()
+
+                # Store recipe_id so parent can re-select it
+                self.saved_recipe_id = recipe_id
+
+                messagebox.showinfo("Success", "Recipe updated successfully!")
 
         self.destroy()
 
