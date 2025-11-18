@@ -120,6 +120,9 @@ class InventoryModule(ttk.Frame):
         self.tree.pack(fill=tk.BOTH, expand=True)
         vsb.config(command=self.tree.yview)
 
+        # Double-click to adjust stock
+        self.tree.bind('<Double-Button-1>', lambda e: self.adjust_stock())
+
         enable_mousewheel_scrolling(self.tree)
         enable_treeview_keyboard_navigation(self.tree)
 
