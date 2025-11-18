@@ -1,208 +1,164 @@
-# Database Migrations Needed on Brewery Computer
+# Database Migrations Needed
 
-**Date Created:** 2025-11-17
-**From Session:** Home Computer
-**For Next Session:** Brewery Computer
-
-⚠️ **CRITICAL:** Run these migrations on the brewery computer before using the application!
+**Date Updated:** 2025-11-18
+**From Session:** Brewery Computer (Session ID: 015MECmeLgcS95t2bHSnVb24)
+**Status:** Label printing migration pending on THIS computer
 
 ---
 
-## Overview
+## Current Status
 
-This session completed the UK HMRC duty calculation system (Phase 1 & Phase 2) and added comprehensive reporting modules. The brewery computer database needs these migrations to match the new code.
+✅ **Duty system migrations completed** (Nov 17 migrations were run at start of this session)
+- fix_spoilt_beer_table.py ✅ Run
+- fix_duty_returns_table.py ✅ Run
+- migrate_duty_system.py ✅ Run
+- generate_test_data.py ✅ Run
+
+⚠️ **NEW: Label printing migration needs to be run**
 
 ---
 
-## Step-by-Step Migration Instructions
+## Migration Required on Brewery Computer
 
-### 1. Pull Latest Code First
+### Run Label Printing Migration
 
-```bash
-cd C:\Users\darre\Desktop\BreweryManager
-git fetch origin
-git checkout claude/read-start-0194aExHtBNpeEuauYj96Kvm
-git pull origin claude/read-start-0194aExHtBNpeEuauYj96Kvm
-```
-
-### 2. Fix Table Schema Issues (Run These First)
-
-Some tables may exist with old schemas. Fix them before running the main migration:
+This migration adds label printing capabilities to the application.
 
 ```bash
-# Fix spoilt_beer table schema
-python src/data_access/fix_spoilt_beer_table.py
-# Answer: yes
-
-# Fix duty_returns table schema
-python src/data_access/fix_duty_returns_table.py
-# Answer: yes
-```
-
-**Expected Output:** Both should show "✅ TABLE FIXED SUCCESSFULLY!"
-
-### 3. Run Main Duty System Migration
-
-```bash
-python src/data_access/migrate_duty_system.py
+python src/data_access/migrate_label_printing.py
 # Answer: yes
 ```
 
 **What This Adds:**
 
-**New Tables:**
-- `settings` - SPR duty rates (3 rates) + Full duty rate configuration
-- `settings_containers` - Container specs with sediment allowances (Firkins, Pins, Kegs, Bottles)
-- `batch_packaging_lines` - Packaging records with automatic duty calculations
-- `spoilt_beer` - Post-packaging spoilage tracking for duty refunds
-- `duty_returns` - Monthly HMRC duty return submissions
-
 **Updated Tables:**
-- `batches` table gets new columns:
-  - `fermented_volume` - Total volume after fermentation
-  - `packaged_volume` - Total volume packaged
-  - `waste_volume` - Brewery losses (no duty paid)
-  - `waste_percentage` - Waste as % of fermented volume
+- `recipes` table gets new column:
+  - `allergens` TEXT - Store allergen information for label printing
+
+- `batch_packaging_lines` table gets new column:
+  - `fill_number` INTEGER - Track sequential container numbering (1 of 10, 2 of 10, etc.)
 
 **Expected Output:** "✅ MIGRATION COMPLETED SUCCESSFULLY!"
-
-### 4. Generate Test Data (Optional but Recommended)
-
-```bash
-python src/testing/generate_test_data.py
-# Answer: yes
-```
-
-**What This Creates:**
-- 4 test batches covering all duty categories:
-  - TEST001: Easy Session IPA (3.2% ABV, Draught Low)
-  - TEST002: Classic Bitter (4.5% ABV, Draught Standard)
-  - TEST003: West Coast IPA (5.8% ABV, Non-Draught Standard)
-  - TEST004: Imperial Russian Stout (9.5% ABV, No SPR - Full Rate)
-
-**Expected Output:** "✅ TEST DATA GENERATION COMPLETED!"
 
 ---
 
 ## Verification Steps
 
-### Launch the Application
+### 1. Launch the Application
 ```bash
 python main.py
 ```
 
-### Check These Modules:
+### 2. Test Label Printing Feature
 
-1. **Settings Module**
-   - ✅ Should have 2 tabs: "Duty Rates" and "Containers"
-   - ✅ Duty Rates tab shows SPR rates and Full rate
-   - ✅ Containers tab shows 9 container types with duty-paid volumes
+**Recipe Editor:**
+- ✅ Recipe dialog should have "Allergens (for labels)" field
+- ✅ Can enter allergen info (e.g., "Gluten (Barley), Sulphites")
 
-2. **Duty Module**
-   - ✅ Loads without errors
-   - ✅ Shows month selector
-   - ✅ If test data was run, shows duty calculations for test batches
-   - ✅ Shows spoilt beer deductions
+**Production Module - Package Batch:**
+- ✅ Package dialog now has 3 buttons: "Print Labels", "Save", "Package"
+- ✅ "Print Labels" generates PDF with auto-populated labels
+- ✅ Labels include: beer name, packaged date, ABV, gyle/fill number, duty paid volume, allergens
+- ✅ Sequential numbering across all containers (1 of 10, 2 of 10, etc.)
 
-3. **Production Module → Batches**
-   - ✅ Package dialog shows containers with duty-paid volumes
-   - ✅ Packaging automatically calculates duty
+**Label PDF:**
+- ✅ Generated in: `~/.brewerymanager/labels/`
+- ✅ Filename format: `[GYLE]_labels_[TIMESTAMP].pdf`
+- ✅ PDF opens automatically (if possible)
+- ✅ One label per page (100mm x 150mm default)
 
-4. **Products Module**
-   - ✅ Has 2 tabs: "Products" and "Spoilt Beer"
-   - ✅ Spoilt Beer tab loads without errors
+### 3. Workflow Test
 
-5. **Reports Module**
-   - ✅ Has 5 tabs: Sales, Inventory, Production, Financial, Duty Reports
-   - ✅ All tabs load without errors
-   - ✅ If test data was run, Production and Duty reports show data
-
----
-
-## Troubleshooting
-
-### Error: "no such table: settings"
-- Run the main migration: `python src/data_access/migrate_duty_system.py`
-
-### Error: "no such column: duty_month"
-- Run fix scripts first: `python src/data_access/fix_spoilt_beer_table.py` and `fix_duty_returns_table.py`
-
-### Error: "'ReportsModule' object has no attribute 'load_sales_report'"
-- Clear Python cache: `rd /s /q src\gui\__pycache__`
-- This was fixed in commit d3de25b
-
-### Application crashes on startup
-1. Check you pulled the latest code
-2. Clear all Python cache: `for /d /r . %d in (__pycache__) do @if exist "%d" rd /s /q "%d"`
-3. Re-run migrations
+1. Create/edit a recipe and add allergen info
+2. Start packaging a batch
+3. Click "Print Labels" - should generate PDF (F.G. not required)
+4. Click "Save" - saves container selections (dialog stays open)
+5. Enter F.G. value
+6. Click "Package" - finalizes batch with duty calculations
 
 ---
 
-## What's New in This Update
+## What's New in This Session
 
-### Phase 1: Duty System Foundation
-- ✅ Settings module with duty rates configuration
-- ✅ Container configuration with sediment allowances
-- ✅ Duty module for monthly HMRC returns
-- ✅ Spoilt beer tracking (Products module)
-- ✅ Database migration system
+### Label Printing Feature (9 commits)
+- ✅ Database migration for allergens and fill numbering
+- ✅ Label printer utility (`src/utilities/label_printer.py`)
+- ✅ ReportLab PDF generation
+- ✅ Recipe editor allergen field
+- ✅ PackageDialog redesigned with 3-button workflow
+- ✅ Removed standalone Label Printing module
 
-### Phase 2: Automatic Duty Integration
-- ✅ Batch packaging automatically calculates duty
-- ✅ SPR category auto-determination (based on ABV and draught status)
-- ✅ Waste tracking and monitoring
-- ✅ Immutable audit trail (duty rates snapshot at packaging time)
+### UX Improvements
+- ✅ Mousewheel scrolling in all 11 GUI modules
+- ✅ Keyboard arrow navigation for all Treeviews
+- ✅ Canvas scrolling (Page Up/Down, Home/End)
+- ✅ Resize grips added to 12 dialogs
+- ✅ Responsive dialog sizing
 
-### Phase 3: Comprehensive Reporting
-- ✅ Sales Reports (revenue by product/customer)
-- ✅ Inventory Reports (stock levels, aging, value)
-- ✅ Production Reports (volume, efficiency, packaging mix)
-- ✅ Financial Reports (P&L with duty impact)
-- ✅ Enhanced Duty Reports (historical view)
+### Google Sheets Preparation
+- ✅ Implementation plan created (`GOOGLE_SHEETS_IMPLEMENTATION_PLAN.md`)
+- ✅ Ready for Phase A implementation after testing
 
 ### Bug Fixes
-- ✅ Fixed datetime import conflicts
-- ✅ Fixed cache API usage across all modules
-- ✅ Fixed test data generator schema issues
-- ✅ Improved tab visibility across all modules
-- ✅ Fixed Reports module method placement
+- ✅ Fixed PackageDialog AttributeError (self.cache.conn → self.cache.connection)
+
+---
+
+## Commits in This Session
+
+1. `5923255` - Add session log for November 18 brewery session
+2. `cd55d97` - Add diagnostic script for container configuration
+3. `6cb1a88` - Fix: Use correct connection attribute in PackageDialog
+4. `c7c1432` - Add mousewheel and keyboard scrolling support
+5. `f5747df` - Add scrolling and resize grips to all GUI modules
+6. `ee5f447` - Add label printing foundation (Part 1/2)
+7. `06c3415` - Redesign PackageDialog with 3-button workflow (Part 2/2)
+8. `48208ea` - Remove standalone Label Printing module
+9. `bf68db9` - Update session log with label printing implementation
+10. `5b15b6e` - Add Google Sheets implementation plan and update session log
 
 ---
 
 ## Important Notes
 
-⚠️ **Database Path:**
-- Home computer: `C:\Users\Tonk\.brewerymanager\cache.db`
-- Brewery computer: `C:\Users\darre\.brewerymanager\cache.db`
+⚠️ **This is the BREWERY computer database**
+- Database path: `~/.brewerymanager/cache.db`
+- Label printing migration needs to be run on THIS computer
+- Once run, all label printing features will be available
 
-These are SEPARATE databases! The migrations only affect the brewery computer database.
+⚠️ **Migration is Non-Destructive**
+- Only adds new columns to existing tables
+- No data is deleted or modified
+- Existing recipes and batches are preserved
 
-⚠️ **Production Data:**
-If you have real production data on the brewery computer:
-- The migration is NON-DESTRUCTIVE
-- Existing batches, recipes, customers, etc. are preserved
-- Only NEW tables/columns are added
-- Test data is optional and uses distinct gyle numbers (TEST001-TEST004)
-
-⚠️ **Backup Recommended:**
-Before running migrations on production database:
+⚠️ **Backup Recommended**
+Before running migration:
 ```bash
-copy C:\Users\darre\.brewerymanager\cache.db C:\Users\darre\.brewerymanager\cache_backup_2025-11-17.db
+cp ~/.brewerymanager/cache.db ~/.brewerymanager/cache_backup_2025-11-18.db
 ```
+
+---
+
+## Next Steps
+
+**Immediate:**
+1. Run label printing migration: `python src/data_access/migrate_label_printing.py`
+2. Test label printing workflow with a real batch
+3. Verify PDF generation and formatting
+
+**Future:**
+- Complete testing checklist (see `TESTING_CHECKLIST.md`)
+- Implement Google Sheets sync (see `GOOGLE_SHEETS_IMPLEMENTATION_PLAN.md`)
 
 ---
 
 ## Summary Checklist
 
-Before using the app on brewery computer:
+- [ ] Run migrate_label_printing.py
+- [ ] Test recipe editor allergen field
+- [ ] Test batch packaging with label printing
+- [ ] Verify PDF generation in `~/.brewerymanager/labels/`
+- [ ] Test 3-button workflow (Print/Save/Package)
+- [ ] Complete full testing checklist before Google Sheets implementation
 
-- [ ] Pull latest code from GitHub
-- [ ] Run fix_spoilt_beer_table.py
-- [ ] Run fix_duty_returns_table.py
-- [ ] Run migrate_duty_system.py
-- [ ] (Optional) Run generate_test_data.py
-- [ ] Clear Python cache
-- [ ] Launch app and verify all modules
-- [ ] Test packaging a batch to see automatic duty calculation
-
-Once verified, you're ready to go! ✅
+Once verified, all features ready for production use! ✅
