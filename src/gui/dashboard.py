@@ -105,11 +105,11 @@ class DashboardModule(ttk.Frame):
 
         self.cache.close()
 
-        # Create cards (now clickable)
-        self.create_stat_card(stats_frame, "Total Batches", str(total_batches), "#3498db", 0, "Batches")
-        self.create_stat_card(stats_frame, "In Production", str(active_count), "#f39c12", 1, "Batches")
-        self.create_stat_card(stats_frame, "Customers", str(total_customers), "#2ecc71", 2, "Customers")
-        self.create_stat_card(stats_frame, "Sales (Month)", str(monthly_sales), "#9b59b6", 3, "Sales")
+        # Create cards (now clickable) with vibrant colors
+        self.create_stat_card(stats_frame, "Total Batches", str(total_batches), "#1e88e5", 0, "Batches")  # Vibrant Blue
+        self.create_stat_card(stats_frame, "In Production", str(active_count), "#fb8c00", 1, "Batches")  # Vibrant Orange
+        self.create_stat_card(stats_frame, "Customers", str(total_customers), "#43a047", 2, "Customers")  # Vibrant Green
+        self.create_stat_card(stats_frame, "Sales (Month)", str(monthly_sales), "#8e24aa", 3, "Sales")  # Vibrant Purple
 
     def create_stat_card(self, parent, title, value, color, column, destination=None):
         """Create a single stat card as a clickable frame"""
