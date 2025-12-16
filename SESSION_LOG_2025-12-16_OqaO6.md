@@ -20,12 +20,12 @@
 - [x] Install Git on new computer
 - [x] Clone repository
 - [x] Add Admin Computer to COMPUTER_PATHS.md
-- [ ] Run dependency installation
-- [ ] Run database migrations
-- [ ] Test application launch
+- [x] Run dependency installation (pip install -r requirements.txt)
+- [x] Run database migrations (migrate_duty_system.py, migrate_add_vat.py)
+- [x] Test application launch - SUCCESS!
 
 ## Issues Encountered
-- None yet
+- Minor: One database index creation failed (idx_duty_month) - does not affect functionality
 
 ## Next Session TODO
 - (Will be updated at end of session)
