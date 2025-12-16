@@ -18,6 +18,12 @@ This file stores the folder paths for each computer that runs the Brewery Manage
 - **User:** Tonk
 - **Added:** November 2025
 
+### 3. Admin Computer
+- **Name:** Admin
+- **Path:** `C:\Users\darre\Desktop\brewerymanager`
+- **User:** darre
+- **Added:** December 2025
+
 ---
 
 ## Adding a New Computer
