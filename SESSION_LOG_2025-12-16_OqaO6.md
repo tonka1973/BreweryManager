@@ -23,9 +23,12 @@
 - [x] Run dependency installation (pip install -r requirements.txt)
 - [x] Run database migrations (migrate_duty_system.py, migrate_add_vat.py)
 - [x] Test application launch - SUCCESS!
+- [x] Fix duty_returns table schema (upgraded from 11 to 25 columns)
+- [x] Create missing idx_duty_returns_month index
 
 ## Issues Encountered
-- Minor: One database index creation failed (idx_duty_month) - does not affect functionality
+- duty_returns table had old schema (11 columns) - FIXED with migrate_duty_returns_to_new_schema.py
+- Old data preserved in duty_returns_old table
 
 ## Next Session TODO
 - (Will be updated at end of session)
