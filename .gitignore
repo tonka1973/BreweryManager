@@ -44,6 +44,9 @@ token.json
 *.bak
 ~*
 
+# Local user preferences (window position, etc)
+.brewery_window_config.json
+
 # Build artifacts
 *.exe
 *.spec
