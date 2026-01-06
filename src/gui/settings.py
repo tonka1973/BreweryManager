@@ -371,7 +371,7 @@ class SettingsModule(ttk.Frame):
                 # VAT rate (convert from decimal to percentage)
                 try:
                     vat_percentage = settings['vat_rate'] * 100
-                except (KeyError, TypeError):
+                except (KeyError, TypeError, IndexError):
                     vat_percentage = 20  # Default to 20% if column doesn't exist yet
                 self.vat_rate_entry.delete(0, tk.END)
                 self.vat_rate_entry.insert(0, f"{vat_percentage:.0f}")

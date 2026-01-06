@@ -317,6 +317,25 @@ class SQLiteCacheManager:
                 )
             ''')
             
+            # Settings table (for duty rates and configuration)
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    annual_production_hl_pa REAL DEFAULT 0,
+                    production_year_start TEXT,
+                    production_year_end TEXT,
+                    spr_draught_low REAL DEFAULT 0,
+                    spr_draught_standard REAL DEFAULT 0,
+                    spr_non_draught_standard REAL DEFAULT 0,
+                    rate_full_8_5_to_22 REAL DEFAULT 0,
+                    rates_effective_from TEXT,
+                    vat_rate REAL DEFAULT 0.20,
+                    updated_at TEXT,
+                    updated_by TEXT,
+                    sync_status TEXT DEFAULT 'synced'
+                )
+            ''')
+
             # System Settings table
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS system_settings (
