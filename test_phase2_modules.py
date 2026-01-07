@@ -8,6 +8,9 @@ import sys
 import os
 from datetime import datetime
 
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 # Test results tracker
 test_results = []
 errors_found = []
@@ -31,22 +34,22 @@ print()
 print("TEST 1: Core Module Imports")
 print("-" * 60)
 try:
-    from src.utilities.config import Config
-    test_result("Import Config", True)
+    from src.config import constants
+    test_result("Import constants", True)
 except Exception as e:
-    test_result("Import Config", False, str(e))
+    test_result("Import constants", False, str(e))
 
 try:
-    from src.utilities.cache_manager import CacheManager
-    test_result("Import CacheManager", True)
+    from src.data_access.sqlite_cache import SQLiteCacheManager
+    test_result("Import SQLiteCacheManager", True)
 except Exception as e:
-    test_result("Import CacheManager", False, str(e))
+    test_result("Import SQLiteCacheManager", False, str(e))
 
 try:
-    from src.utilities.auth import Authentication
-    test_result("Import Authentication", True)
+    from src.utilities.auth import AuthManager
+    test_result("Import AuthManager", True)
 except Exception as e:
-    test_result("Import Authentication", False, str(e))
+    test_result("Import AuthManager", False, str(e))
 
 print()
 
@@ -79,10 +82,10 @@ print()
 print("TEST 3: Main Window Import")
 print("-" * 60)
 try:
-    from src.gui.main_window import MainWindow
-    test_result("Import MainWindow", True)
+    from src.gui.main_window import BreweryMainWindow
+    test_result("Import BreweryMainWindow", True)
 except Exception as e:
-    test_result("Import MainWindow", False, str(e))
+    test_result("Import BreweryMainWindow", False, str(e))
 
 print()
 
@@ -90,8 +93,7 @@ print()
 print("TEST 4: Database Operations")
 print("-" * 60)
 try:
-    config = Config()
-    cache = CacheManager(config)
+    cache = SQLiteCacheManager()
     cache.connect()
     test_result("Database connection", True)
 
@@ -106,10 +108,14 @@ try:
         'invoices', 'invoice_lines', 'payments'
     ]
 
-    cursor = cache.conn.cursor()
+    cursor = cache.cursor
     for table in tables:
-        cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'")
-        exists = cursor.fetchone() is not None
+        # Use simple query to check existence
+        try:
+            cursor.execute(f"SELECT count(*) FROM {table}")
+            exists = True
+        except:
+            exists = False
         test_result(f"Table '{table}' exists", exists, "Table not found" if not exists else None)
 
     cache.close()
@@ -124,9 +130,11 @@ print()
 print("TEST 5: Authentication")
 print("-" * 60)
 try:
-    config = Config()
-    cache = CacheManager(config)
-    auth = Authentication(cache)
+    cache = SQLiteCacheManager()
+    auth = AuthManager(cache)
+
+    # Create default admin if not exists (so login works)
+    auth.create_default_admin()
 
     # Try login with default credentials
     user = auth.login("admin", "admin")
@@ -134,7 +142,7 @@ try:
         test_result("Admin login", True)
         test_result(f"User data complete (username={user.username}, role={user.role})", True)
     else:
-        test_result("Admin login", False, "Login returned None")
+        test_result("Admin login", False, "Login returned None. Make sure 'admin' user exists.")
 
 except Exception as e:
     test_result("Authentication", False, str(e))
@@ -200,9 +208,9 @@ print()
 print("TEST 8: Constants and Configuration")
 print("-" * 60)
 try:
-    from src.utilities.constants import DUTY_RATES, DRAUGHT_RELIEF_RATE, VAT_RATE
+    from src.config.constants import DUTY_RATES, DRAUGHT_RELIEF_BEER_CIDER, VAT_RATE
     test_result("Import DUTY_RATES", True)
-    test_result(f"DRAUGHT_RELIEF_RATE = {DRAUGHT_RELIEF_RATE}", True)
+    test_result(f"DRAUGHT_RELIEF_BEER_CIDER = {DRAUGHT_RELIEF_BEER_CIDER}", True)
     test_result(f"VAT_RATE = {VAT_RATE}", True)
 
     # Check duty rates structure
@@ -225,7 +233,7 @@ failed = sum(1 for _, p in test_results if not p)
 total = len(test_results)
 
 print(f"Total Tests: {total}")
-print(f"Passed: {passed} ({100*passed//total}%)")
+print(f"Passed: {passed} ({int(100*passed/total) if total > 0 else 0}%)")
 print(f"Failed: {failed}")
 print()
 

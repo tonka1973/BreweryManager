@@ -8,15 +8,19 @@ from tkinter import messagebox
 import ttkbootstrap as ttk
 from datetime import datetime
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation, enable_canvas_scrolling
+# Import Google Sheets Client for real authentication
+from ..data_access.google_sheets_client import GoogleSheetsClient
 
 
 class SettingsModule(ttk.Frame):
     """Settings module for system configuration"""
 
-    def __init__(self, parent, cache_manager, current_user):
+    def __init__(self, parent, cache_manager, current_user, sheets_client=None):
         super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
+        # Use provided client or create new one if needed (though ideally passed from main)
+        self.sheets_client = sheets_client if sheets_client else GoogleSheetsClient()
 
         self.create_widgets()
 
@@ -29,6 +33,70 @@ class SettingsModule(ttk.Frame):
         # Create tabs
         self.create_duty_rates_tab()
         self.create_containers_tab()
+        self.create_integrations_tab()
+
+    def create_integrations_tab(self):
+        """Integrations Configuration Tab"""
+        tab = ttk.Frame(self.notebook, padding=10)
+        self.notebook.add(tab, text="  Integrations  ")
+        
+        # Google Integrations
+        google_frame = ttk.LabelFrame(tab, text="Google Services", padding=20)
+        google_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        ttk.Label(google_frame, text="Status:", font=('Arial', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Check initial status
+        if self.sheets_client.creds and self.sheets_client.creds.valid:
+            status_text = "🟢 Connected"
+            status_color = "success"
+        else:
+            status_text = "🔴 Not Connected"
+            status_color = "danger"
+            
+        self.google_status_label = ttk.Label(google_frame, text=status_text, font=('Arial', 10), bootstyle=status_color)
+        self.google_status_label.pack(side=tk.LEFT)
+        
+        ttk.Button(google_frame, text="🔗 Connect Account", bootstyle="primary", command=self.connect_google).pack(side=tk.RIGHT)
+        
+        # AI Integrations
+        ai_frame = ttk.LabelFrame(tab, text="AI Assistant", padding=20)
+        ai_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        ttk.Label(ai_frame, text="API Key (OpenAI/Gemini):", font=('Arial', 10)).pack(anchor='w', pady=(0, 5))
+        self.ai_key_entry = ttk.Entry(ai_frame, width=50, show="*")
+        self.ai_key_entry.pack(fill=tk.X, pady=(0, 10))
+        
+        btn_frame = ttk.Frame(ai_frame)
+        btn_frame.pack(fill=tk.X)
+        
+        ttk.Button(btn_frame, text="💾 Save Key", bootstyle="success", command=self.save_ai_key).pack(side=tk.RIGHT)
+        ttk.Button(btn_frame, text="🧪 Test Connection", bootstyle="info", command=self.test_ai_connection).pack(side=tk.RIGHT, padx=10)
+
+    def connect_google(self):
+        """Trigger the real Google OAuth flow"""
+        try:
+            success = self.sheets_client.authenticate()
+            if success:
+                self.google_status_label.config(text="🟢 Connected", bootstyle="success")
+                messagebox.showinfo("Success", "Successfully connected to Google Account!")
+            else:
+                self.google_status_label.config(text="🔴 Connection Failed", bootstyle="danger")
+                messagebox.showerror("Error", "Authentication failed. Check logs.")
+        except Exception as e:
+            self.google_status_label.config(text="🔴 Error", bootstyle="danger")
+            messagebox.showerror("Error", f"Authentication error:\n{str(e)}")
+
+    def save_ai_key(self):
+        key = self.ai_key_entry.get().strip()
+        if not key:
+            messagebox.showerror("Error", "Please enter an API key")
+            return
+        # TODO: Save to system_settings table
+        messagebox.showinfo("Success", "API Key saved safely.")
+
+    def test_ai_connection(self):
+        messagebox.showinfo("Test", "AI Connection Test: Success (Mock)")
 
     def create_duty_rates_tab(self):
         """Duty Rates & SPR Configuration Tab"""

@@ -19,6 +19,8 @@ from src.utilities.window_manager import WindowManager, set_window_manager
 from src.data_access.sync_manager import SyncManager
 from src.data_access.sqlite_cache import SQLiteCacheManager
 from src.data_access.google_sheets_client import GoogleSheetsClient
+from src.utilities.ai_client import AIClient
+from src.gui.assistant import AIAssistantWidget
 from datetime import datetime
 
 # Import all Phase 2 modules
@@ -68,17 +70,23 @@ class BreweryMainWindow:
 
         # Initialize authentication
         self.auth = AuthManager(self.cache_manager)
+        
+        # Initialize AI Client
+        self.ai_client = AIClient(self.cache_manager)
 
         # Create default admin user if no users exist
         self.auth.create_default_admin()
         
         self.current_user = None
         self.current_module = None
+        self.current_module_name = "Dashboard" # Track current module name for context
         
         # Widgets containers
         self.login_frame = None
         self.main_frame = None
         self.sidebar = None
+        self.top_bar = None
+        self.page_title_label = None # Label in top bar
         self.content_area = None
         self.status_bar = None
         
@@ -255,18 +263,55 @@ class BreweryMainWindow:
         # Create menu bar
         self.create_menu_bar()
         
-        # Create sidebar (left navigation)
-        self.create_sidebar()
+        # Create Top Bar (Header with AI)
+        self.create_top_bar()
         
-        # Create content area (center)
-        self.create_content_area()
+        # Create body container (Sidebar + Content)
+        body_frame = ttk.Frame(self.main_frame)
+        body_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Create sidebar (left navigation) - Pass body_frame instead of main_frame
+        self.create_sidebar(body_frame)
+        
+        # Create content area (center) - Pass body_frame
+        self.create_content_area(body_frame)
         
         # Create status bar (bottom)
         self.create_status_bar()
         
         # Load default module (Dashboard)
         self.switch_module('Dashboard')
-    
+        
+    def create_top_bar(self):
+        """Create the top header bar with Page Title and AI Assistant."""
+        self.top_bar = ttk.Frame(self.main_frame, bootstyle="primary")
+        self.top_bar.pack(side=tk.TOP, fill=tk.X)
+        
+        # Inner padding container
+        inner = ttk.Frame(self.top_bar, bootstyle="primary", padding=10)
+        inner.pack(fill=tk.X)
+        
+        # LEFT: Page Title
+        self.page_title_label = ttk.Label(
+            inner,
+            text="Dashboard",
+            font=('Segoe UI', 18, 'bold'),
+            bootstyle="inverse-primary"
+        )
+        self.page_title_label.pack(side=tk.LEFT, padx=10)
+        
+        # RIGHT: AI Assistant
+        # Pass a callback to get current context
+        ai_widget = AIAssistantWidget(inner, self.ai_client, self.get_ai_context)
+        ai_widget.pack(side=tk.RIGHT, padx=10)
+        
+    def get_ai_context(self):
+        """Return a string describing the current application state for the AI."""
+        context = f"User: {self.current_user.username} ({self.current_user.role})\n"
+        context += f"Current Module: {self.current_module_name}\n"
+        context += f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n"
+        return context
+
     def create_menu_bar(self):
         """Create the top menu bar."""
         menubar = tk.Menu(self.root)
@@ -292,9 +337,9 @@ class BreweryMainWindow:
         help_menu.add_command(label="Documentation", command=self.show_documentation)
         help_menu.add_command(label="About", command=self.show_about)
     
-    def create_sidebar(self):
+    def create_sidebar(self, parent):
         """Create the left sidebar with navigation buttons."""
-        self.sidebar = ttk.Frame(self.main_frame, style='dark.TFrame')
+        self.sidebar = ttk.Frame(parent, style='dark.TFrame')
         self.sidebar.pack(side=tk.LEFT, fill=tk.Y, ipadx=10)
 
         # Sidebar title
@@ -353,11 +398,11 @@ class BreweryMainWindow:
         )
         logout_btn.pack(pady=(10, 0))
     
-    def create_content_area(self):
+    def create_content_area(self, parent):
         """Create the main content area for displaying modules."""
-        self.content_area = ttk.Frame(self.main_frame)
+        self.content_area = ttk.Frame(parent)
         self.content_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-    
+
     def create_status_bar(self):
         """Create the bottom status bar."""
         self.status_bar = ttk.Frame(self.root)
@@ -403,8 +448,13 @@ class BreweryMainWindow:
     
     def switch_module(self, module_name):
         """Switch to a different module in the content area."""
-        # Update current module
+        # Update current module tracker
         self.current_module = module_name
+        self.current_module_name = module_name
+        
+        # Update Top Bar Title
+        if self.page_title_label:
+            self.page_title_label.config(text=module_name)
 
         # Update button styles (highlight active)
         for name, btn in self.nav_buttons.items():
@@ -416,21 +466,6 @@ class BreweryMainWindow:
         # Clear content area
         for widget in self.content_area.winfo_children():
             widget.destroy()
-
-        # Create module header
-        header_frame = ttk.Frame(self.content_area)
-        header_frame.pack(fill=tk.X, padx=20, pady=(20, 10))
-
-        module_title = ttk.Label(
-            header_frame,
-            text=module_name,
-            font=('Arial', 20, 'bold')
-        )
-        module_title.pack(anchor=tk.W)
-        
-        # Separator
-        separator = ttk.Separator(self.content_area, orient='horizontal')
-        separator.pack(fill=tk.X, padx=20, pady=10)
 
         # Load the actual module content
         self.load_module_content(module_name)
@@ -458,12 +493,20 @@ class BreweryMainWindow:
         if module_class:
             # Create module instance with required parameters
             # Dashboard module accepts navigate_callback, others don't
+            # Create module instance with required parameters
             if module_name == 'Dashboard':
                 module = module_class(
                     parent=self.content_area,
                     cache_manager=self.cache_manager,
                     current_user=self.current_user,
                     navigate_callback=self.switch_module
+                )
+            elif module_name == 'Settings':
+                module = module_class(
+                    parent=self.content_area,
+                    cache_manager=self.cache_manager,
+                    current_user=self.current_user,
+                    sheets_client=self.sheets_client
                 )
             else:
                 module = module_class(

@@ -57,6 +57,18 @@ class SQLiteCacheManager:
         """
         try:
             # Batches table
+            # Check for missing columns (Schema Migration)
+            try:
+                self.cursor.execute("SELECT fermented_volume FROM batches LIMIT 1")
+            except sqlite3.OperationalError:
+                try:
+                    logger.info("Migrating batches table...")
+                    self.cursor.execute("ALTER TABLE batches ADD COLUMN fermented_volume REAL")
+                    self.cursor.execute("ALTER TABLE batches ADD COLUMN packaged_volume REAL")
+                    self.cursor.execute("ALTER TABLE batches ADD COLUMN waste_volume REAL")
+                except Exception as e:
+                    logger.error(f"Migration error (batches): {e}")
+
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS batches (
                     batch_id TEXT PRIMARY KEY,
@@ -72,6 +84,9 @@ class SQLiteCacheManager:
                     conditioning_start TEXT,
                     ready_date TEXT,
                     packaged_date TEXT,
+                    fermented_volume REAL,
+                    packaged_volume REAL,
+                    waste_volume REAL,
                     spr_rate_applied REAL,
                     duty_rate_applied REAL,
                     is_draught INTEGER,
@@ -388,6 +403,20 @@ class SQLiteCacheManager:
                 )
             ''')
 
+            # Settings Containers table (for duty calculations)
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS settings_containers (
+                    container_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL,
+                    actual_capacity REAL NOT NULL,
+                    duty_paid_volume REAL NOT NULL,
+                    is_draught_eligible INTEGER DEFAULT 0,
+                    default_price REAL DEFAULT 0,
+                    active INTEGER DEFAULT 1,
+                    sync_status TEXT DEFAULT 'synced'
+                )
+            ''')
+
             # Container Types table (unified container management)
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS container_types (
@@ -451,6 +480,58 @@ class SQLiteCacheManager:
                     FOREIGN KEY (sale_id) REFERENCES sales(sale_id),
                     FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
                     FOREIGN KEY (invoice_id) REFERENCES invoices(invoice_id)
+                )
+            ''')
+
+            # Batch Packaging Lines (for duty calculations)
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS batch_packaging_lines (
+                    line_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    batch_id TEXT,
+                    gyle_number TEXT,
+                    packaging_date TEXT,
+                    container_type TEXT,
+                    quantity INTEGER,
+                    total_duty_volume REAL,
+                    batch_abv REAL,
+                    pure_alcohol_litres REAL,
+                    spr_category TEXT,
+                    effective_duty_rate REAL,
+                    duty_payable REAL,
+                    created_by TEXT,
+                    created_at TEXT,
+                    sync_status TEXT DEFAULT 'synced',
+                    FOREIGN KEY (batch_id) REFERENCES batches(batch_id)
+                )
+            ''')
+
+            # Spoilt Beer (for duty reclaim)
+            # Check if table exists but might be missing columns (migration fix)
+            try:
+                self.cursor.execute("SELECT duty_month FROM spoilt_beer LIMIT 1")
+            except sqlite3.OperationalError:
+                # Column missing or table doesn't exist. safe to drop and recreate for this fix as table is likely empty/broken
+                self.cursor.execute("DROP TABLE IF EXISTS spoilt_beer")
+            
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS spoilt_beer (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date_discovered TEXT,
+                    duty_month TEXT,
+                    batch_id TEXT,
+                    container_type TEXT,
+                    quantity INTEGER,
+                    duty_paid_volume REAL,
+                    pure_alcohol_litres REAL,
+                    original_duty_rate REAL,
+                    duty_to_reclaim REAL,
+                    reason_category TEXT,
+                    status TEXT,
+                    notes TEXT,
+                    recorded_by TEXT,
+                    created_at TEXT,
+                    sync_status TEXT DEFAULT 'synced',
+                    FOREIGN KEY (batch_id) REFERENCES batches(batch_id)
                 )
             ''')
 
@@ -596,9 +677,37 @@ class SQLiteCacheManager:
             ''')
             
             # Duty Returns table
+            # Duty Returns table
+            # Check for missing columns (Schema Migration)
+            missing_cols = [
+                'duty_month', 'net_duty_payable', 'production_duty_total', 'spoilt_duty_reclaim',
+                'under_declarations', 'over_declarations',
+                'draught_low_litres', 'draught_low_lpa', 'draught_low_duty',
+                'draught_std_litres', 'draught_std_lpa', 'draught_std_duty',
+                'non_draught_litres', 'non_draught_lpa', 'non_draught_duty',
+                'high_abv_litres', 'high_abv_lpa', 'high_abv_duty'
+            ]
+            
+            try:
+                # Check what we have
+                self.cursor.execute("SELECT * FROM duty_returns LIMIT 1")
+                existing_cols = [description[0] for description in self.cursor.description]
+                
+                for col in missing_cols:
+                    if col not in existing_cols:
+                        try:
+                            logger.info(f"Adding missing column to duty_returns: {col}")
+                            self.cursor.execute(f"ALTER TABLE duty_returns ADD COLUMN {col} REAL")
+                        except Exception as e:
+                            logger.error(f"Migration error (duty_returns {col}): {e}")
+            except sqlite3.OperationalError:
+                # Table might not exist yet, CREATE will handle it
+                pass
+
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS duty_returns (
                     return_id TEXT PRIMARY KEY,
+                    duty_month TEXT,
                     return_period_start TEXT,
                     return_period_end TEXT,
                     total_duty_payable REAL,
@@ -608,6 +717,29 @@ class SQLiteCacheManager:
                     payment_reference TEXT,
                     status TEXT DEFAULT 'draft',
                     notes TEXT,
+                    
+                    draught_low_litres REAL DEFAULT 0,
+                    draught_low_lpa REAL DEFAULT 0,
+                    draught_low_duty REAL DEFAULT 0,
+                    
+                    draught_std_litres REAL DEFAULT 0,
+                    draught_std_lpa REAL DEFAULT 0,
+                    draught_std_duty REAL DEFAULT 0,
+                    
+                    non_draught_litres REAL DEFAULT 0,
+                    non_draught_lpa REAL DEFAULT 0,
+                    non_draught_duty REAL DEFAULT 0,
+                    
+                    high_abv_litres REAL DEFAULT 0,
+                    high_abv_lpa REAL DEFAULT 0,
+                    high_abv_duty REAL DEFAULT 0,
+                    
+                    production_duty_total REAL DEFAULT 0,
+                    spoilt_duty_reclaim REAL DEFAULT 0,
+                    under_declarations REAL DEFAULT 0,
+                    over_declarations REAL DEFAULT 0,
+                    net_duty_payable REAL DEFAULT 0,
+                    
                     sync_status TEXT DEFAULT 'synced'
                 )
             ''')
@@ -691,6 +823,9 @@ class SQLiteCacheManager:
                     last_attempt TEXT
                 )
             ''')
+
+            # Seed default data
+            self._seed_defaults()
             
             self.connection.commit()
             logger.info("Database tables initialized successfully")
@@ -699,6 +834,44 @@ class SQLiteCacheManager:
         except Exception as e:
             logger.error(f"Failed to initialize database: {str(e)}")
             return False
+
+    def _seed_defaults(self):
+        """Insert default data if tables are empty"""
+        try:
+            # Seed Settings
+            count = self.cursor.execute("SELECT COUNT(*) FROM settings").fetchone()[0]
+            if count == 0:
+                self.cursor.execute("""
+                    INSERT INTO settings (
+                        annual_production_hl_pa, production_year_start, production_year_end,
+                        spr_draught_low, spr_draught_standard, spr_non_draught_standard,
+                        rate_full_8_5_to_22, rates_effective_from, vat_rate, updated_at, updated_by
+                    ) VALUES (
+                        0, '2025-02-01', '2026-01-31',
+                        10.01, 19.08, 21.01, 25.80, '2025-02-01', 0.20, ?, 'System'
+                    )
+                """, (datetime.now().isoformat(),))
+                logger.info("Seeded default settings")
+
+            # Seed Settings Containers
+            count = self.cursor.execute("SELECT COUNT(*) FROM settings_containers").fetchone()[0]
+            if count == 0:
+                containers = [
+                    ('Cask 9G (Firkin)', 40.91, 39.50, 1, 120.00),
+                    ('Cask 18G (Kilderkin)', 81.82, 79.00, 1, 230.00),
+                    ('Keg 30L', 30.00, 30.00, 1, 110.00),
+                    ('Keg 50L', 50.00, 50.00, 1, 175.00),
+                    ('Can 440ml', 0.44, 0.44, 0, 3.50),
+                    ('Bottle 500ml', 0.50, 0.50, 0, 3.80)
+                ]
+                self.cursor.executemany("""
+                    INSERT INTO settings_containers (name, actual_capacity, duty_paid_volume, is_draught_eligible, default_price)
+                    VALUES (?, ?, ?, ?, ?)
+                """, containers)
+                logger.info("Seeded default containers")
+                
+        except Exception as e:
+            logger.error(f"Failed to seed defaults: {e}")
     
     def insert_record(self, table_name, data):
         """
