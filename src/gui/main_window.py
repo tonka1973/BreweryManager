@@ -9,6 +9,9 @@ import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 import sys
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
@@ -557,13 +560,15 @@ class BreweryMainWindow:
                 return
             
             # Perform sync
-            result = self.sync_manager.sync_all()
+            logger.info("Starting manual sync...")
+            result = self.sync_manager.incremental_sync()
             
-            if result:
+            if result and "error" not in result:
                 messagebox.showinfo("Sync Complete", "Data synchronized successfully!")
                 self.update_status_bar()
             else:
-                messagebox.showerror("Sync Failed", "Failed to synchronize data.")
+                error_msg = result.get("error", "Unknown error") if result else "Unknown error"
+                messagebox.showerror("Sync Failed", f"Failed to synchronize data.\nError: {error_msg}")
         
         except Exception as e:
             messagebox.showerror("Sync Error", f"An error occurred during sync:\n{str(e)}")

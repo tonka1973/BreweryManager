@@ -33,16 +33,55 @@ class GoogleSheetsClient:
         self.spreadsheet_id = None
         self.is_authenticated = False
         
+        # Try to authenticate silently on init
+        self.authenticate_silent()
+        
+    def authenticate_silent(self):
+        """
+        Attempt to authenticate using existing token without user interaction.
+        Returns True if successful, False otherwise.
+        """
+        try:
+            if os.path.exists(TOKEN_PATH):
+                with open(TOKEN_PATH, 'rb') as token:
+                    self.creds = pickle.load(token)
+                    
+                if self.creds and self.creds.valid:
+                    self.service = build('sheets', 'v4', credentials=self.creds)
+                    self.is_authenticated = True
+                    logger.info("Silently authenticated with Google Sheets")
+                    return True
+                
+                if self.creds and self.creds.expired and self.creds.refresh_token:
+                    try:
+                        self.creds.refresh(Request())
+                        # Save refreshed token
+                        with open(TOKEN_PATH, 'wb') as token:
+                            pickle.dump(self.creds, token)
+                            
+                        self.service = build('sheets', 'v4', credentials=self.creds)
+                        self.is_authenticated = True
+                        logger.info("Silently authenticated (refreshed token)")
+                        return True
+                    except Exception as e:
+                        logger.warning(f"Failed to refresh token: {e}")
+                        
+            return False
+        except Exception as e:
+            logger.error(f"Silent auth failed: {e}")
+            return False
+
     def authenticate(self):
         """
         Authenticate with Google and get credentials.
         Uses OAuth2 flow for first-time setup, then uses saved token.
         """
         try:
-            # Check if token already exists
-            if os.path.exists(TOKEN_PATH):
-                with open(TOKEN_PATH, 'rb') as token:
-                    self.creds = pickle.load(token)
+            # First try silent auth
+            if self.authenticate_silent():
+                return True
+            
+            # If silent failed, continue with full flow
             
             # If credentials are invalid or don't exist, get new ones
             if not self.creds or not self.creds.valid:
@@ -166,6 +205,41 @@ class GoogleSheetsClient:
         except HttpError as error:
             logger.error(f"Error reading sheet {sheet_name}: {error}")
             return []
+
+    def find_row_index(self, sheet_name, record_id, id_column_index=0):
+        """
+        Find the row index (1-based) of a record by its ID.
+        
+        Args:
+            sheet_name: Name of the sheet
+            record_id: The ID to search for
+            id_column_index: The column index to search in (default 0 for first column)
+            
+        Returns:
+            Row number (1-based) if found, None otherwise
+        """
+        try:
+            # For efficiency on large sheets, we could read just the ID column
+            # range_str = f"{sheet_name}!A:A" 
+            # But for now, reading the whole sheet is safer to ensure we have context if needed
+            # and sheets likely won't be massive for this use case
+            
+            rows = self.read_sheet(sheet_name)
+            
+            # Iterate through rows to find the ID
+            # Start from index 1 (skip header) if using read_sheet
+            # But read_sheet returns all values including header
+            
+            for i, row in enumerate(rows):
+                if len(row) > id_column_index:
+                    if str(row[id_column_index]) == str(record_id):
+                        return i + 1  # Sheets are 1-indexed
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error finding row index in {sheet_name}: {str(e)}")
+            return None
     
     def append_row(self, sheet_name, row_data):
         """

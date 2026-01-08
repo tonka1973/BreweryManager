@@ -54,11 +54,99 @@ class SyncManager:
             )
             self.is_online = True
             logger.info("Connection check: ONLINE")
+            
+            # --- PERSISTENCE & BOOTSTRAP LOGIC ---
+            # Try to get stored spreadsheet ID
+            if self.sheets_client.is_authenticated and not self.sheets_client.spreadsheet_id:
+                self.cache.connect()
+                setting = self.cache.get_record('system_settings', 'spreadsheet_id', 'setting_key')
+                self.cache.close()
+                
+                if setting:
+                    # ID exists in DB -> use it
+                    self.sheets_client.spreadsheet_id = setting.get('setting_value')
+                    logger.info(f"Loaded spreadsheet ID: {self.sheets_client.spreadsheet_id}")
+                else:
+                    # No ID in DB -> Create new spreadsheet
+                    logger.info("No spreadsheet ID found. Creating new spreadsheet...")
+                    new_id = self.sheets_client.create_spreadsheet()
+                    
+                    if new_id:
+                        # Save to DB
+                        self._update_system_setting('spreadsheet_id', new_id)
+                        logger.info(f"Created and saved new spreadsheet ID: {new_id}")
+                        
+                        # TRIGGER BOOTSTRAP: Push all local data to the new sheet
+                        self.bootstrap_sync()
+            
             return True
         except OSError:
             self.is_online = False
             logger.info("Connection check: OFFLINE")
             return False
+
+    def bootstrap_sync(self):
+        """
+        Perform initial upload of ALL local data to a fresh spreadsheet.
+        """
+        logger.info("Starting BOOTSTRAP SYNC (Initial Upload)...")
+        try:
+            self.cache.connect()
+            
+            for table_key, table_name in TABLES.items():
+                try:
+                    # Get all records for this table
+                    records = self.cache.get_all_records(table_key)
+                    if not records:
+                        continue
+                        
+                    logger.info(f"Bootstrapping {len(records)} records for {table_name}")
+                    
+                    # Get headers from first record or schema
+                    if records:
+                        # Use keys from first record as basis
+                        # ideally we should use schema definition to be safe
+                        headers = list(records[0].keys()) 
+                        # Note: create_spreadsheet usually initializes headers.
+                        # We just need to ensure values align with those headers.
+                        # For simplicity in Phase 1, we assume dict iteration order matches
+                        # (Python 3.7+ guarantees insertion order)
+                    
+                    # Prepare batch of rows
+                    rows_to_append = []
+                    for record in records:
+                        rows_to_append.append(list(record.values()))
+                        
+                        # Update local sync status
+                        record_id = record.get(f"{table_key}_id") or record.get('id')
+                        if record_id:
+                             self.cache.update_record(
+                                table_key, 
+                                record_id, 
+                                {'sync_status': 'synced'}
+                            )
+                    
+                    # We can use append_row in a loop, or implement batch_append in client
+                    # For now, looping append_row is safer/easier implemented even if slower
+                    sheets_table = TABLES.get(table_key)
+                    
+                    # Better: Implement batch append if list is huge, but let's stick to 
+                    # row-by-row or small chunks if we didn't add batch_append yet.
+                    # Actually, let's just loop for now.
+                    for row in rows_to_append:
+                        self.sheets_client.append_row(sheets_table, row)
+                        
+                    logger.info(f"Bootstrapped {table_name} successfully.")
+                    
+                except Exception as e:
+                    logger.error(f"Error bootstrapping {table_name}: {e}")
+            
+            self.cache.close()
+            logger.info("Bootstrap Sync Completed.")
+            
+        except Exception as e:
+            logger.error(f"Bootstrap sync failed: {e}")
+            if self.cache: self.cache.close()
     
     def full_sync_from_sheets(self) -> Dict[str, int]:
         """
@@ -161,18 +249,30 @@ class SyncManager:
                     if not sheets_table:
                         continue
                     
-                    # Check if record exists in Google Sheets
-                    # For now, we'll use append (add to end)
-                    # In production, you'd want to check and update existing records
-                    
                     # Convert record dict to list for Google Sheets
+                    # Note: We need to ensure the order matches headers. 
+                    # Ideally, we should read headers first or store schema order.
+                    # For now, assuming dict values turn into list in correct order is RISKY if python < 3.7 or dict modified
+                    # Robust way: Read header from sheet or config, then map.
+                    # As a safe fallback for this phase, we'll just use values() but TODO: Order by schema
                     values = list(record.values())
+
+                    # Check if record exists in Google Sheets to decide Update vs Append
+                    record_id = record.get(f"{table_name}_id") or record.get('id')
                     
-                    # Append to Google Sheets
-                    self.sheets_client.append_row(sheets_table, values)
+                    # Try to find row index (using first column as ID usually)
+                    row_index = self.sheets_client.find_row_index(sheets_table, record_id)
+                    
+                    if row_index:
+                        # UPDATE existing row
+                        self.sheets_client.update_row(sheets_table, row_index, values)
+                        logger.info(f"Updated record {record_id} in {table_name} at row {row_index}")
+                    else:
+                        # APPEND new row
+                        self.sheets_client.append_row(sheets_table, values)
+                        logger.info(f"Appended new record {record_id} to {table_name}")
                     
                     # Mark as synced in local cache
-                    record_id = record.get(f"{table_name}_id") or record.get('id')
                     self.cache.update_record(
                         table_name, 
                         record_id, 
@@ -213,13 +313,64 @@ class SyncManager:
             push_result = self.sync_local_changes_to_sheets()
             
             # Then, pull any changes from sheets
-            # (In a real implementation, you'd track timestamps and only pull changed records)
-            # For now, we'll just sync pending local changes
+            pulled_count = 0
+            
+            # If we don't have a last sync time, we can't do incremental (or treat as full sync?)
+            # For now, rely on last_sync_time. If None, arguably should do full sync, 
+            # but let's just default to a very old date or skip.
+            last_sync = self.last_sync_time or "2000-01-01 00:00:00"
+
+            self.cache.connect()
+            
+            for table_key, table_name in TABLES.items():
+                try:
+                    sheets_data = self.sheets_client.read_sheet(table_name)
+                    if not sheets_data: 
+                        continue
+                        
+                    headers = sheets_data[0]
+                    # Find 'last_modified' index if it exists in headers
+                    try:
+                        lm_index = headers.index('last_modified')
+                    except ValueError:
+                        # Table has no last_modified tracking, skip incremental pull for it
+                        continue
+
+                    # Check each row
+                    for row in sheets_data[1:]:
+                        if len(row) > lm_index:
+                            row_time = row[lm_index]
+                            
+                            # If row modified after last sync
+                            if row_time > last_sync:
+                                record_dict = dict(zip(headers, row))
+                                record_id = list(record_dict.values())[0] # Assume ID is first col
+                                
+                                # Check local version for conflict
+                                local_record = self.cache.get_record(table_key, record_id)
+                                
+                                if local_record:
+                                    # Conflict Resolution
+                                    resolution = self.resolve_conflicts(local_record, record_dict)
+                                    if resolution == record_dict:
+                                        # Remote wins
+                                        self.cache.update_record_by_id_column(table_key, record_id, record_dict)
+                                        pulled_count += 1
+                                else:
+                                    # New record from remote
+                                    self.cache.insert_record(table_key, record_dict)
+                                    pulled_count += 1
+                                    
+                except Exception as e:
+                    logger.error(f"Error pulling from {table_name}: {e}")
+
+            self.last_sync_time = datetime.now().strftime(DATETIME_FORMAT)
+            self._update_system_setting('last_full_sync', self.last_sync_time)
             
             return {
                 "pushed": push_result,
-                "pulled": 0,  # Simplified for now
-                "last_sync": datetime.now().strftime(DATETIME_FORMAT)
+                "pulled": pulled_count,
+                "last_sync": self.last_sync_time
             }
             
         except Exception as e:
@@ -276,7 +427,19 @@ class SyncManager:
                 "pending_syncs": 0,
                 "error": str(e)
             }
-    
+
+    def sync_all(self):
+        """
+        Wrapper for incremental_sync to match interface expected by UI.
+        """
+        return self.incremental_sync()
+
+    def get_last_sync_time(self) -> Optional[str]:
+        """
+        Get the timestamp of the last successful sync.
+        """
+        return self.last_sync_time
+        
     def _update_system_setting(self, key: str, value: str):
         """
         Update a system setting in the database.

@@ -922,6 +922,34 @@ class SQLiteCacheManager:
         except Exception as e:
             logger.error(f"Failed to update record in {table_name}: {str(e)}")
             return False
+
+    def update_record_by_id_column(self, table_name, record_id, data):
+        """
+        Update a record by automatically determining the primary key column.
+        Useful for generic sync updating.
+        """
+        try:
+            # 1. Try common pattern: table_name (singular) + "_id"
+            # simple singular conversion
+            singular = table_name[:-1] if table_name.endswith('s') else table_name
+            candidate_id = f"{singular}_id"
+            
+            # Verify if this column exists
+            self.cursor.execute(f"PRAGMA table_info({table_name})")
+            columns = [info[1] for info in self.cursor.fetchall()]
+            
+            id_col = 'id' # Default
+            if candidate_id in columns:
+                id_col = candidate_id
+            elif columns:
+                # Fallback: assume first column is PK
+                id_col = columns[0]
+                
+            return self.update_record(table_name, record_id, data, id_column=id_col)
+            
+        except Exception as e:
+            logger.error(f"Failed to auto-update record in {table_name}: {e}")
+            return False
     
     def get_record(self, table_name, record_id, id_column='id'):
         """
