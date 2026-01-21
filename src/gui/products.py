@@ -14,10 +14,11 @@ from ..utilities.window_manager import get_window_manager, enable_mousewheel_scr
 class ProductsModule(ttk.Frame):
     """Products module for tracking finished goods and sales"""
 
-    def __init__(self, parent, cache_manager, current_user):
+    def __init__(self, parent, cache_manager, current_user, sync_callback=None):
         super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
+        self.sync_callback = sync_callback
 
         self.create_widgets()
         self.load_products()
@@ -340,6 +341,7 @@ class ProductsModule(ttk.Frame):
         self.wait_window(dialog)
         self.populate_spoilt_month_filter()
         self.load_spoilt_beer()
+        if self.sync_callback: self.sync_callback()
 
     def edit_spoilt_beer(self):
         """Edit selected spoilt beer record"""
@@ -374,6 +376,7 @@ class ProductsModule(ttk.Frame):
         dialog = EditSpoiltBeerDialog(self, self.cache, record)
         self.wait_window(dialog)
         self.load_spoilt_beer()
+        if self.sync_callback: self.sync_callback()
 
     def delete_spoilt_beer(self):
         """Delete selected spoilt beer record"""
@@ -406,6 +409,7 @@ class ProductsModule(ttk.Frame):
         messagebox.showinfo("Success", "Spoilt beer record deleted.")
         self.populate_spoilt_month_filter()
         self.load_spoilt_beer()
+        if self.sync_callback: self.sync_callback()
 
     def load_products(self):
         """Load all products from database"""
@@ -462,6 +466,7 @@ class ProductsModule(ttk.Frame):
         dialog = AddProductDialog(self, self.cache, self.current_user)
         self.wait_window(dialog)
         self.load_products()
+        if self.sync_callback: self.sync_callback()
 
     def edit_product_name(self):
         """Edit product name (only if not locked)"""
@@ -493,6 +498,7 @@ class ProductsModule(ttk.Frame):
         dialog = EditProductNameDialog(self, self.cache, product)
         self.wait_window(dialog)
         self.load_products()
+        if self.sync_callback: self.sync_callback()
 
     def process_return(self):
         """Process returned containers"""
@@ -515,6 +521,7 @@ class ProductsModule(ttk.Frame):
         dialog = ProcessReturnDialog(self, self.cache, products[0])
         self.wait_window(dialog)
         self.load_products()
+        if self.sync_callback: self.sync_callback()
 
     def view_sales_history(self):
         """View sales history for selected product's gyle"""
@@ -564,6 +571,15 @@ class AddProductDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self, padding=10)
+        button_frame.pack(fill=tk.X, side=tk.TOP)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10, 0))
+        ttk.Button(button_frame, text="Add Product", bootstyle="success",
+                  command=self.save).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -613,13 +629,6 @@ class AddProductDialog(tk.Toplevel):
         fields_frame.grid_columnconfigure(0, weight=1)
 
         # Buttons
-        button_frame = ttk.Frame(self, padding=10)
-        button_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
-
-        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
-                  command=self.destroy).pack(side=tk.RIGHT, padx=(10, 0))
-        ttk.Button(button_frame, text="Add Product", bootstyle="success",
-                  command=self.save).pack(side=tk.RIGHT)
 
     def save(self):
         """Save new product"""
@@ -698,6 +707,15 @@ class EditProductNameDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self)
+        button_frame.pack(fill=tk.X, side=tk.TOP, pady=(0, 10))
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10, 0))
+        ttk.Button(button_frame, text="Save", bootstyle="success",
+                  command=self.save).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -713,13 +731,6 @@ class EditProductNameDialog(tk.Toplevel):
         self.name_entry.pack(fill=tk.X, pady=(0, 20))
 
         # Buttons
-        button_frame = ttk.Frame(frame)
-        button_frame.pack(fill=tk.X, pady=(10, 0))
-
-        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
-                  command=self.destroy).pack(side=tk.RIGHT, padx=(10, 0))
-        ttk.Button(button_frame, text="Save", bootstyle="success",
-                  command=self.save).pack(side=tk.RIGHT)
 
     def save(self):
         """Save updated name"""
@@ -766,6 +777,15 @@ class ProcessReturnDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self, padding=20)
+        button_frame.pack(fill=tk.X, side=tk.TOP) # Using self instead of frame, and packing side=TOP
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10, 0))
+        ttk.Button(button_frame, text="Process Return", bootstyle="success",
+                  command=self.process).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -791,13 +811,6 @@ Total Sold: {self.product.get('quantity_sold', 0)} units"""
                  foreground='#666').pack(anchor='w')
 
         # Buttons
-        button_frame = ttk.Frame(frame)
-        button_frame.pack(fill=tk.X, pady=(20, 0))
-
-        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
-                  command=self.destroy).pack(side=tk.RIGHT, padx=(10, 0))
-        ttk.Button(button_frame, text="Process Return", bootstyle="success",
-                  command=self.process).pack(side=tk.RIGHT)
 
     def process(self):
         """Process the return"""

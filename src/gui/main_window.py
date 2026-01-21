@@ -10,6 +10,7 @@ from ttkbootstrap.constants import *
 import sys
 import os
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ from src.data_access.google_sheets_client import GoogleSheetsClient
 from src.utilities.ai_client import AIClient
 from src.gui.assistant import AIAssistantWidget
 from datetime import datetime
+from src.utilities.date_utils import format_datetime_for_display
 
 # Import all Phase 2 modules
 from src.gui.dashboard import DashboardModule
@@ -67,9 +69,17 @@ class BreweryMainWindow:
         self.cache_manager.close()
 
         self.sheets_client = GoogleSheetsClient()
+        
+        # Trigger interactive auth if silent auth failed (e.g. missing scopes)
+        if not self.sheets_client.is_authenticated:
+            # This opens the browser for OAuth
+            self.sheets_client.authenticate()
 
         # Initialize sync manager
         self.sync_manager = SyncManager(self.sheets_client, self.cache_manager)
+        
+        # Initialize sync state (load settings, etc)
+        self.sync_manager.initialize()
 
         # Initialize authentication
         self.auth = AuthManager(self.cache_manager)
@@ -259,6 +269,9 @@ class BreweryMainWindow:
         if self.login_frame:
             self.login_frame.destroy()
 
+        # Create status bar (bottom) - Pack FIRST to reserve space
+        self.create_status_bar()
+
         # Create main container
         self.main_frame = ttk.Frame(self.root)
         self.main_frame.pack(fill=tk.BOTH, expand=True)
@@ -279,11 +292,17 @@ class BreweryMainWindow:
         # Create content area (center) - Pass body_frame
         self.create_content_area(body_frame)
         
-        # Create status bar (bottom)
-        self.create_status_bar()
-        
         # Load default module (Dashboard)
         self.switch_module('Dashboard')
+        
+        # Start connection monitoring
+        self.monitor_connection()
+        
+        # Trigger startup sync
+        self.perform_startup_sync()
+        
+        # Start background polling (every 5 mins)
+        self.monitor_background_sync()
         
     def create_top_bar(self):
         """Create the top header bar with Page Title and AI Assistant."""
@@ -414,9 +433,9 @@ class BreweryMainWindow:
         # Connection status
         self.status_connection = ttk.Label(
             self.status_bar,
-            text="🟢 Online",
+            text="⚪ Checking...",
             font=('Arial', 9),
-            bootstyle="success"
+            bootstyle="secondary"
         )
         self.status_connection.pack(side=tk.LEFT, padx=10, pady=5)
 
@@ -509,7 +528,29 @@ class BreweryMainWindow:
                     parent=self.content_area,
                     cache_manager=self.cache_manager,
                     current_user=self.current_user,
-                    sheets_client=self.sheets_client
+                    sheets_client=self.sheets_client,
+                    sync_callback=self.trigger_auto_save_sync
+                )
+            elif module_name == 'Brewery Inventory':
+                module = module_class(
+                    parent=self.content_area,
+                    cache_manager=self.cache_manager,
+                    current_user=self.current_user,
+                    sync_callback=self.trigger_auto_save_sync
+                )
+            elif module_name == 'Production':
+                module = module_class(
+                    parent=self.content_area,
+                    cache_manager=self.cache_manager,
+                    current_user=self.current_user,
+                    sync_callback=self.trigger_auto_save_sync
+                )
+            elif module_name in ['Recipes', 'Duty', 'Products', 'Customers', 'Sales', 'Invoicing']:
+                module = module_class(
+                    parent=self.content_area,
+                    cache_manager=self.cache_manager,
+                    current_user=self.current_user,
+                    sync_callback=self.trigger_auto_save_sync
                 )
             else:
                 module = module_class(
@@ -533,20 +574,25 @@ class BreweryMainWindow:
     
     def update_status_bar(self):
         """Update the status bar information."""
-        # Check connection status
-        is_online = self.sync_manager.check_connection()
+        # Use cached status from SyncManager instead of blocking check
+        is_online = self.sync_manager.is_online
 
         if is_online:
             self.status_connection.config(text="🟢 Online", bootstyle="success")
         else:
             self.status_connection.config(text="🔴 Offline", bootstyle="danger")
         
-        # Update last sync time
-        last_sync = self.sync_manager.get_last_sync_time()
-        if last_sync:
-            self.status_sync.config(text=f"Last sync: {last_sync}")
+        if self.sync_manager.sync_in_progress:
+            self.status_sync.config(text="🔄 Syncing...", bootstyle="info")
         else:
-            self.status_sync.config(text="Last sync: Never")
+            # Update last sync time
+            last_sync = self.sync_manager.get_last_sync_time()
+            if last_sync:
+                # Format from DB format (YYYY-MM-DD HH:MM:SS) to Display (DD/MM/YYYY HH:MM)
+                display_sync = format_datetime_for_display(last_sync)
+                self.status_sync.config(text=f"Last sync: {display_sync}", bootstyle="default")
+            else:
+                self.status_sync.config(text="Last sync: Never", bootstyle="default")
     
     def manual_sync(self):
         """Manually trigger a sync operation."""
@@ -586,6 +632,72 @@ class BreweryMainWindow:
             
             # Show login screen
             self.create_login_screen()
+
+    def perform_startup_sync(self):
+        """Perform an automatic sync on startup."""
+        def sync_task():
+            # Wait a few seconds for connection check to settle
+            import time
+            time.sleep(2) 
+            
+            if self.sync_manager.check_connection():
+                logger.info("Performing startup sync...")
+                # UI update handled by monitor_connection -> update_status_bar
+                
+                result = self.sync_manager.incremental_sync()
+                
+                # Final UI update handled by monitor_connection
+            else:
+                logger.info("Skipping startup sync (offline)")
+
+        threading.Thread(target=sync_task, daemon=True).start()
+
+    def trigger_auto_save_sync(self):
+        """Trigger a background sync after a save operation."""
+        def sync_task():
+            if self.sync_manager.is_online: # Use cached status for speed check
+                logger.info("Auto-syncing after save...")
+                 # UI update handled by monitor_connection -> update_status_bar
+                
+                self.sync_manager.incremental_sync()
+                
+                # Final UI update handled by monitor_connection
+
+        threading.Thread(target=sync_task, daemon=True).start()
+
+    def monitor_connection(self):
+        """Periodically check connection status in background."""
+        if self.main_frame and self.main_frame.winfo_exists():
+            # Run blocking check in a thread
+            thread = threading.Thread(target=self._check_connection_thread, daemon=True)
+            thread.start()
+            
+            # Schedule next check in 3 seconds
+            self.root.after(3000, self.monitor_connection)
+
+    def monitor_background_sync(self):
+        """Periodically run background sync (every 5 minutes)."""
+        if self.main_frame and self.main_frame.winfo_exists():
+            # Run blocking check in a thread
+            def bg_sync_task():
+                if self.sync_manager.is_online and not self.sync_manager.sync_in_progress:
+                   # UI update handled by monitor_connection -> update_status_bar 
+                   logger.info("Starting background auto-sync...")
+                   self.sync_manager.incremental_sync()
+                   
+            threading.Thread(target=bg_sync_task, daemon=True).start()
+            
+            # Schedule next check in 5 minutes (300,000 ms)
+            self.root.after(300000, self.monitor_background_sync)
+
+    def _check_connection_thread(self):
+        """Worker thread checking connection."""
+        try:
+            self.sync_manager.check_connection()
+            # Update UI on main thread
+            self.root.after(0, self.update_status_bar)
+        except Exception as e:
+            logger.error(f"Error in connection thread: {e}")
     
     def show_settings(self):
         """Show settings dialog (placeholder)."""

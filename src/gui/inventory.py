@@ -19,10 +19,11 @@ from ..utilities.window_manager import get_window_manager, enable_mousewheel_scr
 class InventoryModule(ttk.Frame):
     """Inventory module for tracking materials and finished goods"""
 
-    def __init__(self, parent, cache_manager, current_user):
+    def __init__(self, parent, cache_manager, current_user, sync_callback=None):
         super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
+        self.sync_callback = sync_callback
         self.current_category = 'all'  # Track selected category
 
         self.create_widgets()
@@ -231,10 +232,12 @@ class InventoryModule(ttk.Frame):
             dialog = ContainerTypeDialog(self, self.cache, self.current_user, mode='add')
             self.wait_window(dialog)
             self.load_containers()
+            if self.sync_callback: self.sync_callback()
         else:
             dialog = MaterialDialog(self, self.cache, self.current_user, mode='add')
             self.wait_window(dialog)
             self.load_materials()
+            if self.sync_callback: self.sync_callback()
 
     def edit_material(self):
         """Edit selected material"""
@@ -254,6 +257,7 @@ class InventoryModule(ttk.Frame):
             dialog = MaterialDialog(self, self.cache, self.current_user, mode='edit', material=materials[0])
             self.wait_window(dialog)
             self.load_materials()
+            if self.sync_callback: self.sync_callback()
 
     def adjust_stock(self):
         """Adjust stock levels"""
@@ -277,6 +281,7 @@ class InventoryModule(ttk.Frame):
                 dialog = ContainerTypeAdjustDialog(self, self.cache, self.current_user, containers[0])
                 self.wait_window(dialog)
                 self.load_containers()
+                if self.sync_callback: self.sync_callback()
         else:
             # Handle material adjustment
             material_id = tags[1] if len(tags) > 1 else None
@@ -289,6 +294,7 @@ class InventoryModule(ttk.Frame):
                 dialog = StockAdjustDialog(self, self.cache, self.current_user, materials[0])
                 self.wait_window(dialog)
                 self.load_materials()
+                if self.sync_callback: self.sync_callback()
 
     def delete_material(self):
         """Delete material or container"""
@@ -314,12 +320,14 @@ class InventoryModule(ttk.Frame):
                 self.cache.close()
                 messagebox.showinfo("Success", "Container type deactivated.")
                 self.load_containers()
+                if self.sync_callback: self.sync_callback()
             else:
                 material_id = tags[1] if len(tags) > 1 else None
                 self.cache.delete_record('inventory_materials', material_id, 'material_id')
                 self.cache.close()
                 messagebox.showinfo("Success", "Material deleted.")
                 self.load_materials()
+                if self.sync_callback: self.sync_callback()
 
     def open_logbook(self):
         """Open inventory logbook dialog"""
@@ -536,6 +544,15 @@ class MaterialDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
+        # Buttons (Bottom) - PACK FIRST
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X, side=tk.BOTTOM)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save", bootstyle="success",
+                  command=self.save).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -554,7 +571,10 @@ class MaterialDialog(tk.Toplevel):
         self.stock_entry.grid(row=5, column=0, sticky='w', pady=(0,15))
 
         ttk.Label(frame, text="Unit *", font=('Arial', 10, 'bold')).grid(row=4, column=1, sticky='w', pady=(0,5), padx=(20,0))
-        self.unit_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
+        self.unit_var = tk.StringVar()
+        self.unit_entry = ttk.Combobox(frame, textvariable=self.unit_var, 
+                                      values=['kg', 'g', 'L', 'ml', 'oz', 'lb', 'units'],
+                                      font=('Arial', 10), width=13)
         self.unit_entry.grid(row=5, column=1, sticky='w', pady=(0,15), padx=(20,0))
 
         ttk.Label(frame, text="Reorder Level", font=('Arial', 10, 'bold')).grid(row=6, column=0, sticky='w', pady=(0,5))
@@ -572,20 +592,14 @@ class MaterialDialog(tk.Toplevel):
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
 
-        button_frame = ttk.Frame(self, padding=(20, 10, 20, 20))
-        button_frame.pack(fill=tk.X)
-
-        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
-                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Save", bootstyle="success",
-                 command=self.save).pack(side=tk.RIGHT)
+        
 
     def populate_fields(self):
         """Populate fields with material data"""
         self.name_entry.insert(0, self.material.get('material_name', ''))
         self.type_var.set(self.material.get('material_type', 'grain'))
         self.stock_entry.insert(0, str(self.material.get('current_stock', '')))
-        self.unit_entry.insert(0, self.material.get('unit', ''))
+        self.unit_entry.set(self.material.get('unit', ''))
         self.reorder_entry.insert(0, str(self.material.get('reorder_level', '')))
         self.cost_entry.insert(0, str(self.material.get('cost_per_unit', '')))
         self.supplier_entry.insert(0, self.material.get('supplier', ''))
@@ -656,6 +670,15 @@ class StockAdjustDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
+        # Buttons (Bottom) - PACK FIRST
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X, side=tk.BOTTOM)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Apply", bootstyle="warning",
+                  command=self.apply_adjustment).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -675,14 +698,6 @@ class StockAdjustDialog(tk.Toplevel):
         ttk.Label(frame, text="Reason/Notes", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
         self.notes_text = tk.Text(frame, font=('Arial', 10), width=40, height=4)
         self.notes_text.pack(pady=(0,15))
-
-        button_frame = ttk.Frame(self, padding=(20, 10))
-        button_frame.pack(fill=tk.X)
-
-        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
-                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Apply", bootstyle="warning",
-                 command=self.apply_adjustment).pack(side=tk.RIGHT)
 
     def apply_adjustment(self):
         """Apply stock adjustment"""
@@ -755,6 +770,15 @@ class ContainerDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
+        # Buttons (Bottom) - PACK FIRST
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X, side=tk.BOTTOM)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save", bootstyle="success",
+                  command=self.save).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -787,14 +811,6 @@ class ContainerDialog(tk.Toplevel):
         self.notes_text.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(0,15))
 
         frame.grid_columnconfigure(0, weight=1)
-
-        button_frame = ttk.Frame(self, padding=(20, 10, 20, 20))
-        button_frame.pack(fill=tk.X)
-
-        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
-                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Save", bootstyle="success",
-                 command=self.save).pack(side=tk.RIGHT)
 
         # Initialize size options
         self.on_type_change()
@@ -967,6 +983,15 @@ class ContainerAdjustDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X, side=tk.TOP)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Apply", bootstyle="warning",
+                  command=self.apply_adjustment).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -987,13 +1012,6 @@ class ContainerAdjustDialog(tk.Toplevel):
         self.notes_text = tk.Text(frame, font=('Arial', 10), width=40, height=3)
         self.notes_text.pack(pady=(0,15))
 
-        button_frame = ttk.Frame(self, padding=(20, 10))
-        button_frame.pack(fill=tk.X)
-
-        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
-                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Apply", bootstyle="warning",
-                 command=self.apply_adjustment).pack(side=tk.RIGHT)
 
     def apply_adjustment(self):
         """Apply stock adjustment"""
@@ -1052,6 +1070,15 @@ class ContainerTypeDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X, side=tk.TOP)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save", bootstyle="success",
+                  command=self.save).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -1081,13 +1108,6 @@ class ContainerTypeDialog(tk.Toplevel):
 
         frame.grid_columnconfigure(0, weight=1)
 
-        button_frame = ttk.Frame(self, padding=(20, 10, 20, 20))
-        button_frame.pack(fill=tk.X)
-
-        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
-                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Save", bootstyle="success",
-                 command=self.save).pack(side=tk.RIGHT)
 
     def save(self):
         """Save container type"""
@@ -1170,6 +1190,14 @@ class ContainerTypeAdjustDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
+        button_frame = ttk.Frame(self, padding=(20, 10, 20, 10))
+        button_frame.pack(fill=tk.X, side=tk.TOP)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Update Stock", bootstyle="success",
+                 command=self.update_stock).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -1196,13 +1224,6 @@ class ContainerTypeAdjustDialog(tk.Toplevel):
         self.qty_entry.insert(0, str(self.container_type.get('quantity_available', 0)))
         self.qty_entry.focus()
 
-        button_frame = ttk.Frame(self, padding=(20, 10, 20, 20))
-        button_frame.pack(fill=tk.X)
-
-        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
-                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Update Stock", bootstyle="success",
-                 command=self.update_stock).pack(side=tk.RIGHT)
 
     def update_stock(self):
         """Update stock level"""
@@ -1265,6 +1286,13 @@ class InventoryLogbookDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X, side=tk.TOP)
+
+        ttk.Button(button_frame, text="Close", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -1373,11 +1401,6 @@ class InventoryLogbookDialog(tk.Toplevel):
         self.tree.tag_configure('remove', background='#ffebee')  # Red for removals
 
         # Close button
-        button_frame = ttk.Frame(self, padding=(20, 0, 20, 20))
-        button_frame.pack(fill=tk.X)
-
-        ttk.Button(button_frame, text="Close", bootstyle="secondary",
-                  command=self.destroy).pack(side=tk.RIGHT)
 
     def switch_category(self, category):
         """Switch to a different category"""

@@ -15,10 +15,11 @@ from ..utilities.window_manager import get_window_manager, enable_mousewheel_scr
 class CustomersModule(ttk.Frame):
     """Customers CRM module"""
 
-    def __init__(self, parent, cache_manager, current_user):
+    def __init__(self, parent, cache_manager, current_user, sync_callback=None):
         super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
+        self.sync_callback = sync_callback
 
         self.create_widgets()
         self.load_customers()
@@ -120,6 +121,7 @@ class CustomersModule(ttk.Frame):
         dialog = CustomerDialog(self, self.cache, self.current_user, mode='add')
         self.wait_window(dialog)
         self.load_customers()
+        if self.sync_callback: self.sync_callback()
 
     def edit_customer(self):
         """Edit selected customer"""
@@ -139,6 +141,7 @@ class CustomersModule(ttk.Frame):
             dialog = CustomerDialog(self, self.cache, self.current_user, mode='edit', customer=customers[0])
             self.wait_window(dialog)
             self.load_customers()
+            if self.sync_callback: self.sync_callback()
 
     def view_customer(self):
         """View customer details"""
@@ -175,7 +178,9 @@ class CustomersModule(ttk.Frame):
             self.cache.close()
 
             messagebox.showinfo("Success", "Customer deactivated.")
+            messagebox.showinfo("Success", "Customer deactivated.")
             self.load_customers()
+            if self.sync_callback: self.sync_callback()
 
 
 class CustomerDialog(tk.Toplevel):
@@ -208,6 +213,15 @@ class CustomerDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self)
+        button_frame.pack(fill=tk.X, padx=20, pady=10, side=tk.TOP)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save Customer", bootstyle="success",
+                  command=self.save).pack(side=tk.RIGHT)
+
         canvas = tk.Canvas(self)
         scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
         frame = ttk.Frame(canvas)

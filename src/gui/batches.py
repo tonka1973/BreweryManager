@@ -22,10 +22,11 @@ from ..utilities.label_printer import print_labels_for_batch
 class BatchesModule(ttk.Frame):
     """Batches module for production tracking"""
 
-    def __init__(self, parent, cache_manager, current_user):
+    def __init__(self, parent, cache_manager, current_user, sync_callback=None):
         super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
+        self.sync_callback = sync_callback
 
         self.create_widgets()
         self.load_batches()
@@ -178,6 +179,7 @@ class BatchesModule(ttk.Frame):
         dialog = BatchDialog(self, self.cache, self.current_user, mode='add')
         self.wait_window(dialog)
         self.load_batches()
+        if self.sync_callback: self.sync_callback()
 
     def edit_batch(self):
         """Edit selected batch (fermenting only)"""
@@ -202,6 +204,7 @@ class BatchesModule(ttk.Frame):
                 dialog = BatchDialog(self, self.cache, self.current_user, mode='edit', batch=batch)
                 self.wait_window(dialog)
                 self.load_batches()
+                if self.sync_callback: self.sync_callback()
 
     def package_batch(self):
         """Open package dialog for selected batch"""
@@ -227,6 +230,7 @@ class BatchesModule(ttk.Frame):
             dialog = PackageDialog(self, self.cache, self.current_user, batch)
             self.wait_window(dialog)
             self.load_batches()
+            if self.sync_callback: self.sync_callback()
 
     def edit_packaged_batch(self):
         """Open edit dialog for packaged batch"""
@@ -245,6 +249,7 @@ class BatchesModule(ttk.Frame):
             dialog = EditPackagedBatchDialog(self, self.cache, self.current_user, batches[0])
             self.wait_window(dialog)
             self.load_batches()
+            if self.sync_callback: self.sync_callback()
 
 
 class BatchDialog(tk.Toplevel):
@@ -276,6 +281,15 @@ class BatchDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
+        # Buttons (Bottom) - PACK FIRST
+        button_frame = ttk.Frame(self, padding=10)
+        button_frame.pack(fill=tk.X, side=tk.BOTTOM)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save Batch", bootstyle="success",
+                  command=self.save).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -334,14 +348,7 @@ class BatchDialog(tk.Toplevel):
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
 
-        # Buttons
-        button_frame = ttk.Frame(self, padding=10)
-        button_frame.pack(fill=tk.X, padx=20, pady=(0,20))
 
-        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
-                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Save Batch", bootstyle="success",
-                  command=self.save).pack(side=tk.RIGHT)
 
     def on_recipe_selected(self, event=None):
         """Handle recipe selection - no batch size needed anymore"""
@@ -609,6 +616,19 @@ class PackageDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
+        # Buttons (Bottom) - PACK FIRST
+        button_frame = ttk.Frame(self, padding=10)
+        button_frame.pack(fill=tk.X, side=tk.BOTTOM)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Package", bootstyle="success",
+                  command=self.package).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save", bootstyle="primary",
+                  command=self.save).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Print Labels", bootstyle="info",
+                  command=self.print_labels).pack(side=tk.RIGHT, padx=(10,0))
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -715,18 +735,6 @@ O.G.: {og_text}"""
         # Bind remove action
         self.container_tree.bind('<Button-1>', self.on_tree_click)
 
-        # Buttons
-        button_frame = ttk.Frame(self, padding=10)
-        button_frame.pack(fill=tk.X, padx=20, pady=(0,20))
-
-        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
-                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Package", bootstyle="success",
-                  command=self.package).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Save", bootstyle="primary",
-                  command=self.save).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Print Labels", bootstyle="info",
-                  command=self.print_labels).pack(side=tk.RIGHT, padx=(10,0))
 
     def load_containers(self):
         """Load available containers from settings_containers table"""
@@ -1168,6 +1176,15 @@ class EditPackagedBatchDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self, padding=10)
+        button_frame.pack(fill=tk.X, side=tk.TOP)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save Changes", bootstyle="success",
+                  command=self.save).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -1295,14 +1312,6 @@ Current Duty ABV: {duty_abv_text}"""
         ttk.Label(note_frame, text=note_text, font=('Arial', 9, 'italic'),
                  foreground='#666').pack(anchor='w')
 
-        # Buttons
-        button_frame = ttk.Frame(self, padding=10)
-        button_frame.pack(fill=tk.X, padx=20, pady=(0,20))
-
-        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
-                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Save Changes", bootstyle="success",
-                  command=self.save).pack(side=tk.RIGHT)
 
     def add_container(self):
         """Add selected container to list"""

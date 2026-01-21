@@ -21,7 +21,10 @@ TOKEN_PATH = APP_DATA_DIR / "token.json"
 os.makedirs(APP_DATA_DIR, exist_ok=True)
 
 # Google Sheets Configuration
-GOOGLE_SHEETS_SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+GOOGLE_SHEETS_SCOPES = [
+    'https://www.googleapis.com/auth/spreadsheets',
+    'https://www.googleapis.com/auth/cloud-platform'
+]
 SPREADSHEET_NAME = "BreweryManager_Data"
 
 # Sync Configuration
@@ -114,6 +117,10 @@ MIN_DRAUGHT_CONTAINER_SIZE = 20.0  # litres
 TABLES = {
     "recipes": "Recipes",
     "recipe_ingredients": "Recipe_Ingredients",
+    "recipe_grains": "Recipe_Grains",
+    "recipe_hops": "Recipe_Hops",
+    "recipe_yeast": "Recipe_Yeast",
+    "recipe_adjuncts": "Recipe_Adjuncts",
     "inventory_materials": "Inventory_Materials",
     "inventory_transactions": "Inventory_Transactions",
     "casks_empty": "Casks_Empty",
@@ -136,7 +143,11 @@ TABLES = {
     "customer_pricing_overrides": "Customer_Pricing_Overrides",
     "users": "Users",
     "system_settings": "System_Settings",
-    "audit_log": "Audit_Log",
+    "container_types": "Container_Types",
+    "products": "Products",
+    "product_sales": "Product_Sales",
+    "batch_packaging_lines": "Batch_Packaging_Lines",
+    "spoilt_beer": "Spoilt_Beer",
 }
 
 # User Roles

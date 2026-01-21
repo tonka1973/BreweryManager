@@ -74,8 +74,23 @@ def check_credentials_setup():
 def main():
     """Main application entry point."""
     try:
-        # Configure logging to print to console if file logging fails
-        logging.basicConfig(level=logging.INFO)
+        # Configure logging
+        from src.config.constants import LOG_FILE_PATH
+        
+        # Create handlers
+        file_handler = logging.FileHandler(LOG_FILE_PATH)
+        console_handler = logging.StreamHandler()
+        
+        # Set format
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+        console_handler.setFormatter(formatter)
+        
+        # Configure root logger
+        logging.basicConfig(
+            level=logging.INFO,
+            handlers=[file_handler, console_handler]
+        )
         
         # Check for credentials on First Run
         check_credentials_setup()

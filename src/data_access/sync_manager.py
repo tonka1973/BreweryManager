@@ -16,6 +16,46 @@ from ..config.constants import (
     DATETIME_FORMAT
 )
 
+PRIMARY_KEYS = {
+    "recipes": "recipe_id",
+    "recipe_ingredients": "ingredient_id",
+    "recipe_grains": "grain_id",
+    "recipe_hops": "hop_id",
+    "recipe_yeast": "yeast_id",
+    "recipe_adjuncts": "adjunct_id",
+    "inventory_materials": "material_id",
+    "inventory_transactions": "transaction_id",
+    "casks_empty": "cask_id",
+    "batches": "batch_id",
+    "fermentation_logs": "log_id",
+    "casks_full": "cask_record_id",
+    "bottles_stock": "bottle_record_id",
+    "customers": "customer_id",
+    "sales_calendar": "event_id",
+    "call_log": "call_id",
+    "tasks": "task_id",
+    "sales_pipeline": "opportunity_id",
+    "sales": "sale_id",
+    "invoices": "invoice_id",
+    "invoice_lines": "line_id",
+    "payments": "payment_id",
+    "duty_returns": "return_id",
+    "duty_return_lines": "line_id",
+    "pricing": "price_id",
+    "customer_pricing_overrides": "override_id",
+    "users": "user_id",
+    "system_settings": "setting_key",
+    "container_types": "container_type_id",
+    "products": "product_id",
+    "product_sales": "product_sale_id",
+    "batch_packaging_lines": "line_id",
+    "spoilt_beer": "id",
+    "cans_empty": "can_id",
+    "bottles_empty": "bottle_id",
+    "settings_containers": "container_id",
+    "settings": "id"
+}
+
 logger = logging.getLogger(__name__)
 
 
@@ -39,36 +79,35 @@ class SyncManager:
         self.last_sync_time = None
         self.sync_in_progress = False
         
-    def check_connection(self) -> bool:
+    def initialize(self):
         """
-        Check if we have internet connectivity.
-        
-        Returns:
-            True if online, False if offline
+        Initialize sync state, persistence, and bootstrap if needed.
+        Should be called after initialization.
         """
         try:
-            # Try to connect to Google's DNS server
-            socket.create_connection(
-                ("8.8.8.8", 53),
-                timeout=CONNECTION_TIMEOUT_SECONDS
-            )
-            self.is_online = True
-            logger.info("Connection check: ONLINE")
-            
-            # --- PERSISTENCE & BOOTSTRAP LOGIC ---
-            # Try to get stored spreadsheet ID
+            # 1. Try to load spreadsheet ID from local DB (works offline)
             if self.sheets_client.is_authenticated and not self.sheets_client.spreadsheet_id:
                 self.cache.connect()
-                setting = self.cache.get_record('system_settings', 'spreadsheet_id', 'setting_key')
-                self.cache.close()
-                
-                if setting:
-                    # ID exists in DB -> use it
-                    self.sheets_client.spreadsheet_id = setting.get('setting_value')
-                    logger.info(f"Loaded spreadsheet ID: {self.sheets_client.spreadsheet_id}")
-                else:
-                    # No ID in DB -> Create new spreadsheet
-                    logger.info("No spreadsheet ID found. Creating new spreadsheet...")
+                try:
+                    setting = self.cache.get_record('system_settings', 'spreadsheet_id', 'setting_key')
+                    
+                    if setting:
+                        # ID exists in DB -> use it
+                        self.sheets_client.spreadsheet_id = setting.get('setting_value')
+                        logger.info(f"Loaded spreadsheet ID: {self.sheets_client.spreadsheet_id}")
+                        
+                    # Load last sync time
+                    sync_setting = self.cache.get_record('system_settings', 'last_full_sync', 'setting_key')
+                    if sync_setting:
+                        self.last_sync_time = sync_setting.get('setting_value')
+                        logger.info(f"Loaded last sync time: {self.last_sync_time}")
+                finally:
+                    self.cache.close()
+
+            # 2. If no ID found, try to create new spreadsheet (requires online)
+            if not self.sheets_client.spreadsheet_id:
+                if self.check_connection():
+                    logger.info("No spreadsheet ID found and Online. Creating new spreadsheet...")
                     new_id = self.sheets_client.create_spreadsheet()
                     
                     if new_id:
@@ -78,12 +117,41 @@ class SyncManager:
                         
                         # TRIGGER BOOTSTRAP: Push all local data to the new sheet
                         self.bootstrap_sync()
-            
+                else:
+                     logger.warning("No spreadsheet ID found and Offline. Cannot create sync sheet.")
+
+        except Exception as e:
+            logger.error(f"Error during sync initialization: {e}")
+            # Ensure cache is closed if it was left open
+            if self.cache.connection:
+                self.cache.close()
+
+    def check_connection(self) -> bool:
+        """
+        Check if we have internet connectivity.
+        Tries DNS first, then HTTP fallback.
+        
+        Returns:
+            True if online, False if offline
+        """
+        try:
+            # 1. Try fast DNS socket check
+            socket.create_connection(
+                ("8.8.8.8", 53),
+                timeout=CONNECTION_TIMEOUT_SECONDS
+            )
+            self.is_online = True
             return True
         except OSError:
-            self.is_online = False
-            logger.info("Connection check: OFFLINE")
-            return False
+            # 2. Fallback to HTTP check (can be slower but more robust)
+            try:
+                import urllib.request
+                urllib.request.urlopen('http://google.com', timeout=CONNECTION_TIMEOUT_SECONDS)
+                self.is_online = True
+                return True
+            except:
+                self.is_online = False
+                return False
 
     def bootstrap_sync(self):
         """
@@ -118,12 +186,15 @@ class SyncManager:
                         rows_to_append.append(list(record.values()))
                         
                         # Update local sync status
-                        record_id = record.get(f"{table_key}_id") or record.get('id')
+                        pk = PRIMARY_KEYS.get(table_key, 'id')
+                        record_id = record.get(pk)
+                        
                         if record_id:
                              self.cache.update_record(
                                 table_key, 
                                 record_id, 
-                                {'sync_status': 'synced'}
+                                {'sync_status': 'synced'},
+                                id_column=pk
                             )
                     
                     # We can use append_row in a loop, or implement batch_append in client
@@ -258,10 +329,16 @@ class SyncManager:
                     values = list(record.values())
 
                     # Check if record exists in Google Sheets to decide Update vs Append
-                    record_id = record.get(f"{table_name}_id") or record.get('id')
+                    pk = PRIMARY_KEYS.get(table_name, 'id')
+                    record_id = record.get(pk) or record.get('id')
                     
                     # Try to find row index (using first column as ID usually)
-                    row_index = self.sheets_client.find_row_index(sheets_table, record_id)
+                    row_index = None
+                    try:
+                        row_index = self.sheets_client.find_row_index(sheets_table, record_id)
+                    except Exception as e:
+                        logger.warning(f"Failed to find row index: {e}")
+                        row_index = None
                     
                     if row_index:
                         # UPDATE existing row
@@ -273,10 +350,13 @@ class SyncManager:
                         logger.info(f"Appended new record {record_id} to {table_name}")
                     
                     # Mark as synced in local cache
+                    # Mark as synced in local cache
+                    pk = PRIMARY_KEYS.get(table_name, 'id')
                     self.cache.update_record(
                         table_name, 
                         record_id, 
-                        {'sync_status': 'synced'}
+                        {'sync_status': 'synced'},
+                        id_column=pk
                     )
                     
                     synced_count += 1
@@ -308,6 +388,12 @@ class SyncManager:
         if not self.check_connection():
             return {"error": "offline"}
         
+        if self.sync_in_progress:
+            logger.warning("Sync already in progress")
+            return {"error": "sync_in_progress"}
+
+        self.sync_in_progress = True
+        
         try:
             # First, push any local changes to sheets
             push_result = self.sync_local_changes_to_sheets()
@@ -324,7 +410,15 @@ class SyncManager:
             
             for table_key, table_name in TABLES.items():
                 try:
-                    sheets_data = self.sheets_client.read_sheet(table_name)
+                    # RATE LIMIT: Sleep 0.2 seconds between table reads to avoid 429 errors
+                    time.sleep(0.2)
+                    
+                    try:
+                        sheets_data = self.sheets_client.read_sheet(table_name)
+                    except Exception as e:
+                        logger.error(f"Failed to read sheet {table_name}: {e}")
+                        sheets_data = []
+
                     if not sheets_data: 
                         continue
                         
@@ -344,17 +438,19 @@ class SyncManager:
                             # If row modified after last sync
                             if row_time > last_sync:
                                 record_dict = dict(zip(headers, row))
-                                record_id = list(record_dict.values())[0] # Assume ID is first col
+                                pk = PRIMARY_KEYS.get(table_key, 'id')
+                                record_id = record_dict.get(pk) or list(record_dict.values())[0]
                                 
                                 # Check local version for conflict
-                                local_record = self.cache.get_record(table_key, record_id)
+                                local_record = self.cache.get_record(table_key, record_id, id_column=pk)
                                 
                                 if local_record:
                                     # Conflict Resolution
                                     resolution = self.resolve_conflicts(local_record, record_dict)
                                     if resolution == record_dict:
                                         # Remote wins
-                                        self.cache.update_record_by_id_column(table_key, record_id, record_dict)
+                                        pk = PRIMARY_KEYS.get(table_key, 'id')
+                                        self.cache.update_record(table_key, record_id, record_dict, id_column=pk)
                                         pulled_count += 1
                                 else:
                                     # New record from remote
@@ -363,6 +459,9 @@ class SyncManager:
                                     
                 except Exception as e:
                     logger.error(f"Error pulling from {table_name}: {e}")
+                    # If rate limit hit (429), pause longer
+                    if "429" in str(e):
+                         time.sleep(10)
 
             self.last_sync_time = datetime.now().strftime(DATETIME_FORMAT)
             self._update_system_setting('last_full_sync', self.last_sync_time)
@@ -376,6 +475,8 @@ class SyncManager:
         except Exception as e:
             logger.error(f"Incremental sync failed: {str(e)}")
             return {"error": str(e)}
+        finally:
+            self.sync_in_progress = False
     
     def auto_sync_if_online(self) -> bool:
         """

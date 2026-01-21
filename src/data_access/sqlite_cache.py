@@ -38,6 +38,10 @@ class SQLiteCacheManager:
             self.cursor = self.connection.cursor()
             
             logger.info(f"Connected to SQLite database at {self.db_path}")
+            
+            # Enable WAL mode for better concurrency (UI reads + Background writes)
+            self.connection.execute("PRAGMA journal_mode=WAL;")
+            
             return True
             
         except Exception as e:
@@ -57,7 +61,7 @@ class SQLiteCacheManager:
         """
         try:
             # Batches table
-            # Check for missing columns (Schema Migration)
+            # Check for missing columns (Schema Migration - Batches)
             try:
                 self.cursor.execute("SELECT fermented_volume FROM batches LIMIT 1")
             except sqlite3.OperationalError:
@@ -68,6 +72,49 @@ class SQLiteCacheManager:
                     self.cursor.execute("ALTER TABLE batches ADD COLUMN waste_volume REAL")
                 except Exception as e:
                     logger.error(f"Migration error (batches): {e}")
+
+            # Check for original_gravity (Schema Migration - Batches Update)
+            try:
+                self.cursor.execute("SELECT original_gravity FROM batches LIMIT 1")
+            except sqlite3.OperationalError:
+                try:
+                    logger.info("Migrating batches table (adding original_gravity)...")
+                    self.cursor.execute("ALTER TABLE batches ADD COLUMN original_gravity REAL")
+                except Exception as e:
+                    logger.error(f"Migration error (batches OG): {e}")
+
+            # Check for final_gravity and ABVs (Schema Migration - Batches Packaging)
+            try:
+                self.cursor.execute("SELECT final_gravity FROM batches LIMIT 1")
+            except sqlite3.OperationalError:
+                try:
+                    logger.info("Migrating batches table (adding packaging columns)...")
+                    self.cursor.execute("ALTER TABLE batches ADD COLUMN final_gravity REAL")
+                    self.cursor.execute("ALTER TABLE batches ADD COLUMN actual_abv REAL")
+                    self.cursor.execute("ALTER TABLE batches ADD COLUMN measured_abv REAL")
+                    self.cursor.execute("ALTER TABLE batches ADD COLUMN waste_percentage REAL")
+                except Exception as e:
+                    logger.error(f"Migration error (batches packaging): {e}")
+
+            # Check for waste_percentage (Schema Migration - Batches Waste)
+            try:
+                self.cursor.execute("SELECT waste_percentage FROM batches LIMIT 1")
+            except sqlite3.OperationalError:
+                try:
+                    logger.info("Migrating batches table (adding waste_percentage)...")
+                    self.cursor.execute("ALTER TABLE batches ADD COLUMN waste_percentage REAL")
+                except Exception as e:
+                    logger.error(f"Migration error (batches waste_percentage): {e}")
+
+            # Check for missing columns (Schema Migration - Recipes)
+            try:
+                self.cursor.execute("SELECT allergens FROM recipes LIMIT 1")
+            except sqlite3.OperationalError:
+                try:
+                    logger.info("Migrating recipes table...")
+                    self.cursor.execute("ALTER TABLE recipes ADD COLUMN allergens TEXT")
+                except Exception as e:
+                    logger.error(f"Migration error (recipes): {e}")
 
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS batches (
@@ -87,6 +134,11 @@ class SQLiteCacheManager:
                     fermented_volume REAL,
                     packaged_volume REAL,
                     waste_volume REAL,
+                    original_gravity REAL,
+                    final_gravity REAL,
+                    actual_abv REAL,
+                    measured_abv REAL,
+                    waste_percentage REAL,
                     spr_rate_applied REAL,
                     duty_rate_applied REAL,
                     is_draught INTEGER,
@@ -111,7 +163,25 @@ class SQLiteCacheManager:
                     last_modified TEXT,
                     is_active INTEGER DEFAULT 1,
                     brewing_notes TEXT,
+                    allergens TEXT,
                     sync_status TEXT DEFAULT 'synced'
+                )
+            ''')
+            
+            # Recipe Ingredients table (Legacy/Unified for GUI)
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS recipe_ingredients (
+                    ingredient_id TEXT PRIMARY KEY,
+                    recipe_id TEXT,
+                    ingredient_name TEXT,
+                    ingredient_type TEXT,
+                    quantity REAL,
+                    unit TEXT,
+                    timing TEXT,
+                    notes TEXT,
+                    inventory_item_id TEXT,
+                    sync_status TEXT DEFAULT 'synced',
+                    FOREIGN KEY (recipe_id) REFERENCES recipes(recipe_id)
                 )
             ''')
             
@@ -484,6 +554,33 @@ class SQLiteCacheManager:
             ''')
 
             # Batch Packaging Lines (for duty calculations)
+            # Check for missing columns (Schema Migration - Packaging Lines)
+            try:
+                self.cursor.execute("SELECT container_actual_size FROM batch_packaging_lines LIMIT 1")
+            except sqlite3.OperationalError:
+                try:
+                    # Check if table exists first before trying to alter
+                    self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='batch_packaging_lines'")
+                    if self.cursor.fetchone():
+                        logger.info("Migrating batch_packaging_lines table...")
+                        try:
+                            self.cursor.execute("ALTER TABLE batch_packaging_lines ADD COLUMN container_actual_size REAL")
+                        except: pass
+                        try:
+                            self.cursor.execute("ALTER TABLE batch_packaging_lines ADD COLUMN container_duty_volume REAL")
+                        except: pass
+                        try:
+                            self.cursor.execute("ALTER TABLE batch_packaging_lines ADD COLUMN spr_rate_applied REAL")
+                        except: pass
+                        try:
+                            self.cursor.execute("ALTER TABLE batch_packaging_lines ADD COLUMN full_duty_rate REAL")
+                        except: pass
+                        try:
+                            self.cursor.execute("ALTER TABLE batch_packaging_lines ADD COLUMN is_draught_eligible INTEGER")
+                        except: pass
+                except Exception as e:
+                    logger.error(f"Migration error (batch_packaging_lines): {e}")
+
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS batch_packaging_lines (
                     line_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -492,12 +589,17 @@ class SQLiteCacheManager:
                     packaging_date TEXT,
                     container_type TEXT,
                     quantity INTEGER,
+                    container_actual_size REAL,
+                    container_duty_volume REAL,
                     total_duty_volume REAL,
                     batch_abv REAL,
                     pure_alcohol_litres REAL,
                     spr_category TEXT,
+                    spr_rate_applied REAL,
+                    full_duty_rate REAL,
                     effective_duty_rate REAL,
                     duty_payable REAL,
+                    is_draught_eligible INTEGER,
                     created_by TEXT,
                     created_at TEXT,
                     sync_status TEXT DEFAULT 'synced',

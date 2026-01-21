@@ -15,10 +15,11 @@ from ..utilities.window_manager import get_window_manager, enable_mousewheel_scr
 class SalesModule(ttk.Frame):
     """Sales module for recording sales and deliveries"""
 
-    def __init__(self, parent, cache_manager, current_user):
+    def __init__(self, parent, cache_manager, current_user, sync_callback=None):
         super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
+        self.sync_callback = sync_callback
 
         self.create_widgets()
         self.load_sales()
@@ -128,6 +129,7 @@ class SalesModule(ttk.Frame):
         dialog = SaleDialog(self, self.cache, self.current_user, mode='add')
         self.wait_window(dialog)
         self.load_sales()
+        if self.sync_callback: self.sync_callback()
 
     def edit_sale(self):
         """Edit selected sale"""
@@ -147,6 +149,7 @@ class SalesModule(ttk.Frame):
             dialog = SaleDialog(self, self.cache, self.current_user, mode='edit', sale=sales[0])
             self.wait_window(dialog)
             self.load_sales()
+            if self.sync_callback: self.sync_callback()
 
     def mark_delivered(self):
         """Mark sale as delivered"""
@@ -175,6 +178,7 @@ class SalesModule(ttk.Frame):
 
                 messagebox.showinfo("Success", "Sale marked as delivered!")
                 self.load_sales()
+                if self.sync_callback: self.sync_callback()
         else:
             messagebox.showinfo("Info", "Sale already delivered.")
 
@@ -209,6 +213,15 @@ class SaleDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X, side=tk.TOP)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle='secondary',
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Save Sale", bootstyle='success',
+                  command=self.save).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -291,14 +304,7 @@ class SaleDialog(tk.Toplevel):
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
 
-        # Buttons
-        button_frame = ttk.Frame(self, padding=(20, 0, 20, 20))
-        button_frame.pack(fill=tk.X)
-
-        ttk.Button(button_frame, text="Cancel", bootstyle='secondary',
-                 command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Save Sale", bootstyle='success',
-                 command=self.save).pack(side=tk.RIGHT)
+        
 
     def on_product_selected(self, event=None):
         """Auto-fill beer name and container type when product selected"""

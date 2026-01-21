@@ -14,10 +14,11 @@ from ..utilities.window_manager import get_window_manager, enable_mousewheel_scr
 class DutyModule(ttk.Frame):
     """Monthly HMRC duty return module"""
 
-    def __init__(self, parent, cache_manager, current_user):
+    def __init__(self, parent, cache_manager, current_user, sync_callback=None):
         super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
+        self.sync_callback = sync_callback
 
         self.current_month = datetime.now().strftime('%Y-%m')
         self.return_data = None
@@ -599,6 +600,7 @@ class DutyModule(ttk.Frame):
 
         messagebox.showinfo("Success", f"Duty return for {duty_month} saved successfully!")
         self.load_duty_return()  # Reload
+        if self.sync_callback: self.sync_callback()
 
     def submit_return(self):
         """Mark return as submitted to HMRC"""
@@ -627,6 +629,7 @@ class DutyModule(ttk.Frame):
 
         messagebox.showinfo("Submitted", f"Duty return for {self.current_month} marked as submitted!")
         self.load_duty_return()
+        if self.sync_callback: self.sync_callback()
 
     def mark_paid(self):
         """Mark return as paid"""
@@ -657,6 +660,7 @@ class DutyModule(ttk.Frame):
 
         messagebox.showinfo("Success", f"Duty return for {self.current_month} marked as paid!")
         self.load_duty_return()
+        if self.sync_callback: self.sync_callback()
 
     def view_packaging_lines(self):
         """View all packaging lines for this month"""

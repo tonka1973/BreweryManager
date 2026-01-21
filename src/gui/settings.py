@@ -15,10 +15,11 @@ from ..data_access.google_sheets_client import GoogleSheetsClient
 class SettingsModule(ttk.Frame):
     """Settings module for system configuration"""
 
-    def __init__(self, parent, cache_manager, current_user, sheets_client=None):
+    def __init__(self, parent, cache_manager, current_user, sheets_client=None, sync_callback=None):
         super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
+        self.sync_callback = sync_callback
         # Use provided client or create new one if needed (though ideally passed from main)
         self.sheets_client = sheets_client if sheets_client else GoogleSheetsClient()
 
@@ -492,6 +493,7 @@ class SettingsModule(ttk.Frame):
                               "SPR rates saved successfully!\n\n"
                               "Changes will apply to NEW packaging only.\n"
                               "Historical records keep their original rates.")
+            if self.sync_callback: self.sync_callback()
 
         except Exception as e:
             if self.cache:
@@ -546,6 +548,7 @@ class SettingsModule(ttk.Frame):
                               "Full duty rate saved successfully!\n\n"
                               "Changes will apply to NEW packaging only.\n"
                               "Historical records keep their original rates.")
+            if self.sync_callback: self.sync_callback()
 
         except Exception as e:
             if self.cache:
@@ -591,6 +594,7 @@ class SettingsModule(ttk.Frame):
                               f"VAT rate saved successfully ({rate_percentage:.0f}%)!\n\n"
                               "New invoices will use this VAT rate.\n"
                               "Existing invoices keep their original VAT rate.")
+            if self.sync_callback: self.sync_callback()
 
         except Exception as e:
             if self.cache:
@@ -646,6 +650,7 @@ class SettingsModule(ttk.Frame):
 
         # Reload containers
         self.load_containers()
+        if self.sync_callback: self.sync_callback()
 
 
 class EditContainerDialog(tk.Toplevel):
@@ -675,6 +680,15 @@ class EditContainerDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self, padding=10)
+        button_frame.pack(fill=tk.X, side=tk.TOP, pady=(0, 10))
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10, 0))
+        ttk.Button(button_frame, text="Save Changes", bootstyle="success",
+                  command=self.save).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -750,17 +764,6 @@ class EditContainerDialog(tk.Toplevel):
                  foreground='orange',
                  justify=tk.LEFT).pack(anchor='w')
 
-        # Buttons
-        button_frame = ttk.Frame(self, padding=10)
-        button_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
-
-        ttk.Button(button_frame, text="Cancel",
-                  bootstyle="secondary",
-                  command=self.destroy).pack(side=tk.RIGHT, padx=(10, 0))
-
-        ttk.Button(button_frame, text="💾 Save Changes",
-                  bootstyle="success",
-                  command=self.save).pack(side=tk.RIGHT)
 
     def load_container(self):
         """Load container data from database"""

@@ -11,12 +11,16 @@ from datetime import datetime
 from typing import Optional
 from ..utilities.date_utils import format_date_for_display, format_datetime_for_display, get_today_db, get_now_db
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation, enable_canvas_scrolling
+import logging
+import re
+
+logger = logging.getLogger(__name__)
 
 
 class RecipesModule(ttk.Frame):
     """Recipes module for creating and managing beer recipes"""
 
-    def __init__(self, parent, cache_manager, current_user):
+    def __init__(self, parent, cache_manager, current_user, sync_callback=None):
         """
         Initialize the Recipes module.
 
@@ -24,10 +28,12 @@ class RecipesModule(ttk.Frame):
             parent: Parent widget
             cache_manager: SQLiteCacheManager instance
             current_user: Current logged-in user
+            sync_callback: Optional callback to trigger sync after changes
         """
         super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
+        self.sync_callback = sync_callback
 
         # Create module layout
         self.create_widgets()
@@ -414,6 +420,7 @@ class RecipesModule(ttk.Frame):
         # Re-select the newly created recipe
         if recipe_id:
             self.select_recipe_by_id(recipe_id)
+            if self.sync_callback: self.sync_callback()
 
     def edit_recipe(self):
         """Edit selected recipe"""
@@ -451,6 +458,7 @@ class RecipesModule(ttk.Frame):
         # Re-select the edited recipe
         if saved_recipe_id:
             self.select_recipe_by_id(saved_recipe_id)
+            if self.sync_callback: self.sync_callback()
 
     def view_recipe_details(self):
         """View detailed recipe information"""
@@ -519,6 +527,7 @@ class RecipesModule(ttk.Frame):
 
         messagebox.showinfo("Success", "Recipe deleted successfully.")
         self.load_recipes()
+        if self.sync_callback: self.sync_callback()
 
 
 class RecipeDialog(tk.Toplevel):
@@ -556,9 +565,9 @@ class RecipeDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
-        # Create button frame first (pack at bottom)
+        # Create button frame first (pack at top)
         button_frame = ttk.Frame(self)
-        button_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=20, pady=(0, 20))
+        button_frame.pack(side=tk.TOP, fill=tk.X, padx=20, pady=(0, 20))
 
         # Create canvas with scrollbar for content
         canvas = tk.Canvas(self, highlightthickness=0)
@@ -925,6 +934,7 @@ class RecipeDialog(tk.Toplevel):
 
             else:
                 # Version unchanged - update existing recipe
+                logger.info(f"Updating existing recipe: {self.recipe['recipe_id']}")
                 recipe_id = self.recipe['recipe_id']
                 recipe_data = {
                     'recipe_name': name,
@@ -940,18 +950,28 @@ class RecipeDialog(tk.Toplevel):
                 }
 
                 self.cache.connect()
-                self.cache.update_record('recipes', recipe_id, recipe_data, id_column='recipe_id')
+                success = self.cache.update_record('recipes', recipe_id, recipe_data, id_column='recipe_id')
+                if not success:
+                    logger.error(f"Failed to update recipe record {recipe_id}")
+                    messagebox.showerror("Error", "Failed to update recipe in database.")
+                    self.cache.close()
+                    return
 
                 # Delete old ingredients and save new ones
-                self.cache.cursor.execute("DELETE FROM recipe_ingredients WHERE recipe_id = ?", (recipe_id,))
-                self.cache.connection.commit()
+                try:
+                    self.cache.cursor.execute("DELETE FROM recipe_ingredients WHERE recipe_id = ?", (recipe_id,))
+                    self.cache.connection.commit()
+                except Exception as e:
+                    logger.error(f"Failed to delete old ingredients: {e}")
+                
                 self.save_ingredients(recipe_id)
 
                 self.cache.close()
 
                 # Store recipe_id so parent can re-select it
                 self.saved_recipe_id = recipe_id
-
+                
+                logger.info("Recipe updated successfully")
                 messagebox.showinfo("Success", "Recipe updated successfully!")
 
         self.destroy()
@@ -1000,6 +1020,13 @@ class RecipeDetailsDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self, padding=10)
+        button_frame.pack(fill=tk.X, side=tk.TOP)
+
+        ttk.Button(button_frame, text="Close", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10, 0))
+
         # Main container with scrollbar
         canvas = tk.Canvas(self, highlightthickness=0)
         scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
@@ -1100,18 +1127,6 @@ Last Modified: {self.recipe.get('last_modified', 'N/A')}
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        # Close button
-        button_frame = ttk.Frame(self)
-        button_frame.pack(fill=tk.X, padx=20, pady=10)
-
-        close_btn = ttk.Button(
-            button_frame,
-            text="Close",
-            bootstyle="secondary",
-            command=self.destroy
-        )
-        close_btn.pack(side=tk.RIGHT)
-
 
 class IngredientDialog(tk.Toplevel):
     """Dialog for adding/editing ingredients"""
@@ -1146,6 +1161,15 @@ class IngredientDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create dialog widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self, padding=10)
+        button_frame.pack(fill=tk.X, side=tk.TOP)
+
+        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10, 0))
+        ttk.Button(button_frame, text="Save", bootstyle="success",
+                  command=self.save_ingredient).pack(side=tk.RIGHT)
+
         main_frame = ttk.Frame(self)
         main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
@@ -1214,17 +1238,38 @@ class IngredientDialog(tk.Toplevel):
         )
         unit_combo.grid(row=6, column=1, sticky='w', pady=(0, 15), padx=(20, 0))
 
-        # Timing
-        ttk.Label(main_frame, text="Timing", font=('Arial', 10, 'bold')).grid(row=7, column=0, sticky='w', pady=(0, 5))
-        self.timing_var = tk.StringVar()
-        timing_combo = ttk.Combobox(
+        # Stage
+        ttk.Label(main_frame, text="Stage", font=('Arial', 10, 'bold')).grid(row=7, column=0, sticky='w', pady=(0, 5))
+        self.stage_var = tk.StringVar()
+        stage_combo = ttk.Combobox(
             main_frame,
-            textvariable=self.timing_var,
-            values=['Mash', '90 min', '60 min', '30 min', '15 min', '10 min', '5 min', 'Flameout', 'Whirlpool', 'Dry hop', 'Primary', 'Secondary'],
+            textvariable=self.stage_var,
+            values=['Mash', 'Boil', 'Whirlpool', 'Fermentation', 'Dry Hop', 'Conditioning', 'Primary', 'Secondary', 'Bottle/Keg'],
             font=('Arial', 10),
-            width=15
+            width=20
         )
-        timing_combo.grid(row=8, column=0, sticky='w', pady=(0, 15))
+        stage_combo.grid(row=8, column=0, sticky='w', pady=(0, 15))
+
+        # Duration
+        ttk.Label(main_frame, text="Duration", font=('Arial', 10, 'bold')).grid(row=7, column=1, sticky='w', pady=(0, 5), padx=(20, 0))
+        
+        duration_frame = ttk.Frame(main_frame)
+        duration_frame.grid(row=8, column=1, sticky='w', pady=(0, 15), padx=(20, 0))
+        
+        self.duration_var = tk.StringVar()
+        duration_entry = ttk.Entry(duration_frame, textvariable=self.duration_var, font=('Arial', 10), width=10)
+        duration_entry.pack(side=tk.LEFT, padx=(0, 5))
+
+        self.duration_unit_var = tk.StringVar(value='min')
+        duration_unit_combo = ttk.Combobox(
+            duration_frame,
+            textvariable=self.duration_unit_var,
+            values=['min', 'days', 'hours'],
+            font=('Arial', 10),
+            width=8,
+            state='readonly'
+        )
+        duration_unit_combo.pack(side=tk.LEFT)
 
         # Notes
         ttk.Label(main_frame, text="Notes", font=('Arial', 10, 'bold')).grid(row=9, column=0, sticky='w', pady=(0, 5))
@@ -1235,25 +1280,6 @@ class IngredientDialog(tk.Toplevel):
         main_frame.grid_columnconfigure(0, weight=1)
         main_frame.grid_columnconfigure(1, weight=1)
 
-        # Buttons
-        button_frame = ttk.Frame(self)
-        button_frame.pack(fill=tk.X, padx=20, pady=(0, 20))
-
-        cancel_btn = ttk.Button(
-            button_frame,
-            text="Cancel",
-            bootstyle="secondary",
-            command=self.destroy
-        )
-        cancel_btn.pack(side=tk.RIGHT, padx=(10, 0))
-
-        save_btn = ttk.Button(
-            button_frame,
-            text="Save",
-            bootstyle="success",
-            command=self.save_ingredient
-        )
-        save_btn.pack(side=tk.RIGHT)
 
         # Set initial type selection (done after all widgets are created)
         self.select_type('Malt')
@@ -1348,7 +1374,32 @@ class IngredientDialog(tk.Toplevel):
         self.name_var.set(self.ingredient.get('name', ''))
         self.quantity_entry.insert(0, str(self.ingredient.get('quantity', '')))
         self.unit_var.set(self.ingredient.get('unit', 'kg'))
-        self.timing_var.set(self.ingredient.get('timing', ''))
+        # Parse timing string into Stage, Duration, Unit
+        timing_str = self.ingredient.get('timing', '')
+        
+        # Pattern match "Stage (Duration Unit)" e.g. "Boil (60 min)"
+        match = re.match(r'^(.*?) \((\d+(?:\.\d+)?) (\w+)\)$', timing_str)
+        
+        if match:
+            self.stage_var.set(match.group(1))
+            self.duration_var.set(match.group(2))
+            self.duration_unit_var.set(match.group(3))
+        else:
+            # Fallback - just text or basic "90 min"
+            # If it looks like just a duration "90 min", put it in duration
+            match_simple = re.match(r'^(\d+(?:\.\d+)?)\s*(min|mins|day|days|hour|hours)$', timing_str, re.IGNORECASE)
+            if match_simple:
+                self.stage_var.set('Boil') 
+                self.duration_var.set(match_simple.group(1))
+                # Normalize unit
+                unit = match_simple.group(2).lower()
+                if 'min' in unit: unit = 'min'
+                elif 'day' in unit: unit = 'days'
+                elif 'hour' in unit: unit = 'hours'
+                self.duration_unit_var.set(unit)
+            else:
+                self.stage_var.set(timing_str)
+                self.duration_var.set('')
 
         notes = self.ingredient.get('notes', '')
         if notes:
@@ -1360,7 +1411,22 @@ class IngredientDialog(tk.Toplevel):
         ing_type = self.type_var.get()
         quantity_str = self.quantity_entry.get().strip()
         unit = self.unit_var.get()
-        timing = self.timing_var.get().strip()
+        stage = self.stage_var.get().strip()
+        duration_str = self.duration_var.get().strip()
+        duration_unit = self.duration_unit_var.get()
+        
+        # Construct timing string
+        timing = stage
+        if duration_str:
+            try:
+                duration = float(duration_str)
+                # Remove .0 if integer
+                if duration.is_integer():
+                    duration = int(duration)
+                timing = f"{stage} ({duration} {duration_unit})"
+            except ValueError:
+                messagebox.showerror("Validation Error", "Duration must be a number.")
+                return
         notes = self.notes_text.get('1.0', tk.END).strip()
 
         if not name:

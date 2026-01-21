@@ -10,15 +10,19 @@ import uuid
 from datetime import datetime, timedelta
 from ..utilities.date_utils import format_date_for_display, parse_display_date, get_today_display, get_today_db
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class InvoicingModule(ttk.Frame):
     """Invoicing module for invoice generation and payment tracking"""
 
-    def __init__(self, parent, cache_manager, current_user):
+    def __init__(self, parent, cache_manager, current_user, sync_callback=None):
         super().__init__(parent)
         self.cache = cache_manager
         self.current_user = current_user
+        self.sync_callback = sync_callback
 
         self.create_widgets()
         self.load_invoices()
@@ -90,33 +94,39 @@ class InvoicingModule(ttk.Frame):
         where = None if status_filter == 'all' else f"payment_status = '{status_filter}'"
 
         self.cache.connect()
-        invoices = self.cache.get_all_records('invoices', where, 'invoice_date DESC')
-        self.cache.close()
+        try:
+            invoices = self.cache.get_all_records('invoices', where, 'invoice_date DESC')
+            logger.info(f"Loaded {len(invoices)} invoices from DB")
+            
+            for inv in invoices:
+                try:
+                    # Get customer name
+                    customer_name = 'Unknown'
+                    if inv.get('customer_id'):
+                        customers = self.cache.get_all_records('customers', f"customer_id = '{inv['customer_id']}'")
+                        if customers:
+                            customer_name = customers[0]['customer_name']
 
-        for inv in invoices:
-            # Get customer name
-            customer_name = 'Unknown'
-            if inv.get('customer_id'):
-                self.cache.connect()
-                customers = self.cache.get_all_records('customers', f"customer_id = '{inv['customer_id']}'")
-                self.cache.close()
-                if customers:
-                    customer_name = customers[0]['customer_name']
+                    values = (
+                        inv.get('invoice_number') or '',
+                        format_date_for_display(inv.get('invoice_date')),
+                        customer_name,
+                        f"£{(inv.get('subtotal') or 0):.2f}",
+                        f"£{(inv.get('vat_amount') or 0):.2f}",
+                        f"£{(inv.get('total') or 0):.2f}",
+                        f"£{(inv.get('amount_paid') or 0):.2f}",
+                        f"£{(inv.get('amount_outstanding') or 0):.2f}",
+                        (inv.get('payment_status') or '').replace('_', ' ').title()
+                    )
 
-            values = (
-                inv.get('invoice_number', ''),
-                format_date_for_display(inv.get('invoice_date', '')),
-                customer_name,
-                f"£{inv.get('subtotal', 0):.2f}",
-                f"£{inv.get('vat_amount', 0):.2f}",
-                f"£{inv.get('total', 0):.2f}",
-                f"£{inv.get('amount_paid', 0):.2f}",
-                f"£{inv.get('amount_outstanding', 0):.2f}",
-                inv.get('payment_status', '').replace('_', ' ').title()
-            )
-
-            status = inv.get('payment_status', 'unpaid')
-            self.tree.insert('', 'end', values=values, tags=(f'status_{status}', inv['invoice_id']))
+                    status = inv.get('payment_status', 'unpaid')
+                    self.tree.insert('', 'end', values=values, tags=(f'status_{status}', inv['invoice_id']))
+                except Exception as e:
+                    logger.error(f"Error loading invoice row: {e}")
+        except Exception as e:
+            logger.error(f"Error fetching invoices: {e}")
+        finally:
+            self.cache.close()
 
         self.tree.tag_configure('status_unpaid', background='#ffebee')
         self.tree.tag_configure('status_partially_paid', background='#fff3e0')
@@ -127,6 +137,7 @@ class InvoicingModule(ttk.Frame):
         dialog = InvoiceCreateDialog(self, self.cache, self.current_user)
         self.wait_window(dialog)
         self.load_invoices()
+        if self.sync_callback: self.sync_callback()
 
     def record_payment(self):
         """Record payment for invoice"""
@@ -146,6 +157,7 @@ class InvoicingModule(ttk.Frame):
             dialog = PaymentDialog(self, self.cache, self.current_user, invoices[0])
             self.wait_window(dialog)
             self.load_invoices()
+            if self.sync_callback: self.sync_callback()
 
     def view_invoice(self):
         """View invoice details"""
@@ -193,6 +205,17 @@ class InvoiceCreateDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X, side=tk.TOP)
+
+        ttk.Button(button_frame, text="Cancel",
+                  bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Create Invoice",
+                  bootstyle="success",
+                  command=self.create).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -262,16 +285,6 @@ class InvoiceCreateDialog(tk.Toplevel):
                  width=10).pack(side=tk.LEFT)
         ttk.Label(vat_frame, text="%", font=('Arial', 10)).pack(side=tk.LEFT, padx=(5,0))
 
-        # Buttons
-        button_frame = ttk.Frame(self, padding=(20, 10))
-        button_frame.pack(fill=tk.X)
-
-        ttk.Button(button_frame, text="Cancel",
-                  bootstyle="secondary",
-                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Create Invoice",
-                  bootstyle="success",
-                  command=self.create).pack(side=tk.RIGHT)
 
     def load_sales(self, event=None):
         """Load uninvoiced sales for customer"""
@@ -420,6 +433,17 @@ class PaymentDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X, side=tk.TOP)
+
+        ttk.Button(button_frame, text="Cancel",
+                  bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
+        ttk.Button(button_frame, text="Record Payment",
+                  bootstyle="success",
+                  command=self.record).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -452,16 +476,6 @@ class PaymentDialog(tk.Toplevel):
         self.ref_entry = ttk.Entry(frame, font=('Arial', 10), width=30)
         self.ref_entry.pack(anchor='w', pady=(0,15))
 
-        # Buttons
-        button_frame = ttk.Frame(self, padding=(20, 10))
-        button_frame.pack(fill=tk.X)
-
-        ttk.Button(button_frame, text="Cancel",
-                  bootstyle="secondary",
-                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Record Payment",
-                  bootstyle="success",
-                  command=self.record).pack(side=tk.RIGHT)
 
     def record(self):
         """Record payment"""
@@ -552,6 +566,14 @@ class InvoiceViewDialog(tk.Toplevel):
 
     def create_widgets(self):
         """Create widgets"""
+        # Buttons (Top)
+        button_frame = ttk.Frame(self, padding=(20, 10))
+        button_frame.pack(fill=tk.X, side=tk.TOP)
+
+        ttk.Button(button_frame, text="Close",
+                  bootstyle="secondary",
+                  command=self.destroy).pack(side=tk.RIGHT)
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -609,6 +631,3 @@ Outstanding: £{self.invoice.get('amount_outstanding', 0):.2f}
         tk.Label(totals_frame, text=totals.strip(), font=('Arial', 10, 'bold'),
                 bg='#fff3e0', justify=tk.RIGHT).pack(padx=10, pady=10, anchor='e')
 
-        ttk.Button(self, text="Close",
-                  bootstyle="secondary",
-                  command=self.destroy).pack(pady=(0,20))
