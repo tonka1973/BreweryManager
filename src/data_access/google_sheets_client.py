@@ -47,6 +47,12 @@ class GoogleSheetsClient:
                     self.creds = pickle.load(token)
                     
                 if self.creds and self.creds.valid:
+                    # Check if we have all required scopes
+                    if not self.creds.has_scopes(GOOGLE_SHEETS_SCOPES):
+                        logger.warning("Stored credentials missing required scopes. Forcing re-auth.")
+                        self.creds = None
+                        return False
+                        
                     self.service = build('sheets', 'v4', credentials=self.creds)
                     self.is_authenticated = True
                     logger.info("Silently authenticated with Google Sheets")
@@ -55,6 +61,13 @@ class GoogleSheetsClient:
                 if self.creds and self.creds.expired and self.creds.refresh_token:
                     try:
                         self.creds.refresh(Request())
+                        
+                        # Check scopes after refresh
+                        if not self.creds.has_scopes(GOOGLE_SHEETS_SCOPES):
+                             logger.warning("Refreshed credentials missing required scopes. Forcing re-auth.")
+                             self.creds = None
+                             return False
+
                         # Save refreshed token
                         with open(TOKEN_PATH, 'wb') as token:
                             pickle.dump(self.creds, token)
@@ -84,10 +97,18 @@ class GoogleSheetsClient:
             # If silent failed, continue with full flow
             
             # If credentials are invalid or don't exist, get new ones
+            # If credentials are invalid or don't exist, get new ones
             if not self.creds or not self.creds.valid:
+                # Try to refresh if possible
                 if self.creds and self.creds.expired and self.creds.refresh_token:
-                    self.creds.refresh(Request())
-                else:
+                    try:
+                        self.creds.refresh(Request())
+                    except Exception as e:
+                        logger.warning(f"Refresh failed during explicit auth: {str(e)}. Falling back to new login.")
+                        self.creds = None
+
+                # If we still don't have valid credentials (refresh failed or didn't run), get new ones
+                if not self.creds or not self.creds.valid:
                     # First time setup - need credentials.json
                     if not os.path.exists(CREDENTIALS_PATH):
                         raise FileNotFoundError(
@@ -156,6 +177,42 @@ class GoogleSheetsClient:
         except HttpError as error:
             logger.error(f"Error creating spreadsheet: {error}")
             return None
+
+    def create_sheet(self, sheet_title):
+        """
+        Create a new sheet (tab) in the existing spreadsheet.
+        
+        Args:
+            sheet_title: Name of the new sheet
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if not self.is_authenticated or not self.spreadsheet_id:
+                return False
+
+            body = {
+                'requests': [{
+                    'addSheet': {
+                        'properties': {
+                            'title': sheet_title
+                        }
+                    }
+                }]
+            }
+
+            self.service.spreadsheets().batchUpdate(
+                spreadsheetId=self.spreadsheet_id,
+                body=body
+            ).execute()
+            
+            logger.info(f"Created new sheet: {sheet_title}")
+            return True
+
+        except HttpError as error:
+            logger.error(f"Error creating sheet {sheet_title}: {error}")
+            return False
     
     def find_spreadsheet(self):
         """
@@ -203,6 +260,14 @@ class GoogleSheetsClient:
             return values
             
         except HttpError as error:
+            # Check if error is due to missing sheet (400 or Unable to parse range)
+            error_str = str(error)
+            if "Unable to parse range" in error_str or "HttpError 400" in error_str:
+                logger.warning(f"Sheet {sheet_name} missing (read). Creating it...")
+                if self.create_sheet(sheet_name):
+                    # Retry read (will be empty)
+                    return []
+            
             logger.error(f"Error reading sheet {sheet_name}: {error}")
             return []
 
@@ -270,6 +335,25 @@ class GoogleSheetsClient:
             return True
             
         except HttpError as error:
+            # Check if error is due to missing sheet (400 or Unable to parse range)
+            error_str = str(error)
+            if "Unable to parse range" in error_str or "HttpError 400" in error_str:
+                logger.warning(f"Sheet {sheet_name} missing (append). Creating it...")
+                if self.create_sheet(sheet_name):
+                    # Retry append
+                    try:
+                        self.service.spreadsheets().values().append(
+                            spreadsheetId=self.spreadsheet_id,
+                            range=sheet_name,
+                            valueInputOption='USER_ENTERED',
+                            body=body
+                        ).execute()
+                        logger.info(f"Retry append to {sheet_name} successful")
+                        return True
+                    except Exception as retry_error:
+                         logger.error(f"Retry append failed: {retry_error}")
+                         return False
+
             logger.error(f"Error appending row to {sheet_name}: {error}")
             return False
     
@@ -305,6 +389,25 @@ class GoogleSheetsClient:
             return True
             
         except HttpError as error:
+            # Check if error is due to missing sheet (400 or Unable to parse range)
+            error_str = str(error)
+            if "Unable to parse range" in error_str or "HttpError 400" in error_str:
+                logger.warning(f"Sheet {sheet_name} missing (update). Creating it...")
+                if self.create_sheet(sheet_name):
+                     # Retry update
+                    try:
+                        self.service.spreadsheets().values().update(
+                            spreadsheetId=self.spreadsheet_id,
+                            range=range_str,
+                            valueInputOption='USER_ENTERED',
+                            body=body
+                        ).execute()
+                        logger.info(f"Retry update to {sheet_name} successful")
+                        return True
+                    except Exception as retry_error:
+                         logger.error(f"Retry update failed: {retry_error}")
+                         return False
+
             logger.error(f"Error updating row in {sheet_name}: {error}")
             return False
     
