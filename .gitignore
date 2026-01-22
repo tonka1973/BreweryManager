@@ -46,4 +46,4 @@ token.json
 
 # Build artifacts
 *.exe
-*.spec
+# *.spec
