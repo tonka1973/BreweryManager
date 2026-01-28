@@ -40,6 +40,7 @@ from src.gui.duty import DutyModule
 from src.gui.products import ProductsModule
 from src.gui.reports import ReportsModule
 from src.gui.settings import SettingsModule
+from src.gui.delivery import DeliveryModule
 
 
 class BreweryMainWindow:
@@ -383,6 +384,7 @@ class BreweryMainWindow:
             'Products',
             'Customers',
             'Sales',
+            'Delivery',
             'Invoicing',
             'Reports',
             'Settings'
@@ -497,6 +499,7 @@ class BreweryMainWindow:
         # Map module names to their classes
         module_map = {
             'Dashboard': DashboardModule,
+            'Delivery': DeliveryModule,
             'Brewery Inventory': InventoryModule,
             'Recipes': RecipesModule,
             'Production': BatchesModule,
@@ -545,7 +548,7 @@ class BreweryMainWindow:
                     current_user=self.current_user,
                     sync_callback=self.trigger_auto_save_sync
                 )
-            elif module_name in ['Recipes', 'Duty', 'Products', 'Customers', 'Sales', 'Invoicing']:
+            elif module_name in ['Recipes', 'Duty', 'Products', 'Customers', 'Sales', 'Invoicing', 'Delivery']:
                 module = module_class(
                     parent=self.content_area,
                     cache_manager=self.cache_manager,

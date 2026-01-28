@@ -113,3 +113,33 @@ def get_now_db():
         Current datetime as YYYY-MM-DD HH:MM:SS string
     """
     return datetime.now().strftime(DATETIME_FORMAT)
+
+
+def get_next_weekday_date(day_name):
+    """
+    Get the next date for a given weekday name.
+    
+    Args:
+        day_name: Full day name (e.g., 'Monday', 'Tuesday')
+        
+    Returns:
+        datetime object of the next occurrence of that day
+    """
+    days = {
+        'monday': 0, 'tuesday': 1, 'wednesday': 2, 
+        'thursday': 3, 'friday': 4, 'saturday': 5, 'sunday': 6
+    }
+    
+    target_day = days.get(day_name.lower())
+    if target_day is None:
+        return datetime.now() # Fallback
+        
+    today_dt = datetime.now()
+    current_day = today_dt.weekday()
+    
+    days_ahead = target_day - current_day
+    if days_ahead <= 0: # Target day already happened this week
+        days_ahead += 7
+        
+    from datetime import timedelta
+    return today_dt + timedelta(days=days_ahead)

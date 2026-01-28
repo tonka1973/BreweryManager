@@ -17,6 +17,7 @@ from ..utilities.date_utils import format_date_for_display, parse_display_date, 
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
 from ..utilities.calculations import calculate_abv_from_gravity
 from ..utilities.label_printer import print_labels_for_batch
+from .components import ScrollableFrame
 
 
 class BatchesModule(ttk.Frame):
@@ -290,7 +291,11 @@ class BatchDialog(tk.Toplevel):
         ttk.Button(button_frame, text="Save Batch", bootstyle="success",
                   command=self.save).pack(side=tk.RIGHT)
 
-        frame = ttk.Frame(self, padding=20)
+        # Main scrollable container
+        scroll_frame = ScrollableFrame(self)
+        scroll_frame.pack(fill=tk.BOTH, expand=True)
+
+        frame = ttk.Frame(scroll_frame.inner_frame, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
         # Recipe selection with enhanced format
@@ -299,6 +304,26 @@ class BatchDialog(tk.Toplevel):
         self.cache.connect()
         recipes = self.cache.get_all_records('recipes', 'is_active = 1', 'recipe_name')
         self.cache.close()
+
+        # History Frame (New)
+        history_frame = ttk.LabelFrame(frame, text="Last Brew History", padding=10)
+        history_frame.grid(row=8, column=0, columnspan=2, sticky='ew', pady=(10, 15))
+        
+        self.history_og_label = ttk.Label(history_frame, text="O.G.: N/A")
+        self.history_og_label.pack(side=tk.LEFT, padx=(0, 20))
+        self.history_fg_label = ttk.Label(history_frame, text="F.G.: N/A")
+        self.history_fg_label.pack(side=tk.LEFT, padx=(0, 20))
+        self.history_abv_label = ttk.Label(history_frame, text="ABV: N/A")
+        self.history_abv_label.pack(side=tk.LEFT, padx=(0, 20))
+        self.history_notes_label = ttk.Label(history_frame, text="Notes: -")
+        self.history_notes_label.pack(side=tk.LEFT)
+
+        # Warnings Frame (New)
+        self.warning_frame = ttk.LabelFrame(frame, text="Warnings", padding=10, bootstyle="danger")
+        self.warning_label = ttk.Label(self.warning_frame, text="", foreground="red", wraplength=450)
+        self.warning_label.pack()
+        # Hidden by default
+        # self.warning_frame.grid(...) inside logic
 
         # Format: "Recipe Name - ABV% - vX.X - Volume L"
         self.recipe_dict = {}
@@ -351,8 +376,97 @@ class BatchDialog(tk.Toplevel):
 
 
     def on_recipe_selected(self, event=None):
-        """Handle recipe selection - no batch size needed anymore"""
-        pass
+        """Handle recipe selection - Load History & Check Inventory"""
+        recipe_display = self.recipe_var.get()
+        if not recipe_display or recipe_display not in self.recipe_dict:
+            return
+
+        recipe = self.recipe_dict[recipe_display]
+        recipe_id = recipe['recipe_id']
+
+        # 1. Load Last Brew History
+        self.cache.connect()
+        last_batches = self.cache.get_all_records(
+            'batches', 
+            f"recipe_id = '{recipe_id}' AND status IN ('packaged', 'completed')", 
+            'brew_date DESC'
+        )
+        
+        last_batch = last_batches[0] if last_batches else None
+        
+        if last_batch:
+            self.history_og_label.config(text=f"O.G.: {last_batch.get('original_gravity', 'N/A')}")
+            self.history_fg_label.config(text=f"F.G.: {last_batch.get('final_gravity', 'N/A')}")
+            self.history_abv_label.config(text=f"ABV: {last_batch.get('actual_abv', 'N/A')}%")
+            notes = last_batch.get('brewing_notes', '-')
+            self.history_notes_label.config(text=f"Notes: {notes[:30]}..." if len(notes) > 30 else f"Notes: {notes}")
+        else:
+            self.history_og_label.config(text="O.G.: N/A")
+            self.history_fg_label.config(text="F.G.: N/A")
+            self.history_abv_label.config(text="ABV: N/A")
+            self.history_notes_label.config(text="Notes: First brew of this recipe")
+
+        # 2. Check Inventory Warnings (Mixed Batch or Batch Change)
+        warnings = []
+        
+        # Get recipe ingredients
+        ingredients = self.cache.get_all_records('recipe_ingredients', f"recipe_id = '{recipe_id}'")
+        
+        for ing in ingredients:
+            inv_id = ing.get('inventory_item_id')
+            if not inv_id: continue
+            
+            qty_needed = ing.get('quantity', 0)
+            
+            # Simulate FIFO
+            allocations = self.simulate_fifo_usage(inv_id, qty_needed)
+            if not allocations: continue # Stock check handled elsewhere
+            
+            # Warning: Mixed Batch
+            if len(allocations) > 1:
+                batches_str = " & ".join([f"{b['batch_num']} ({b['qty']:.1f})" for b in allocations])
+                warnings.append(f"⚠️ Mixing Batches for {ing.get('ingredient_name')}: {batches_str}")
+            
+            # Warning: Batch Change
+            if last_batch:
+                # Parse last batch's source string "Pale: B001, Wheat: B010"
+                last_sources = last_batch.get('ingredient_source_batches', '') or ""
+                # Simple check: extract current primary batch
+                current_primary = allocations[0]['batch_num']
+                
+                # Check if current primary was used in last batch
+                # Ideally we check per ingredient, but strict string parsing is brittle.
+                # Heuristic: If ingredient name is in last source, but current primary batch is NOT, warn.
+                ing_name = ing.get('ingredient_name', '')
+                if ing_name in last_sources and current_primary not in last_sources:
+                    warnings.append(f"⚠️ New Grain Batch: {ing_name} changed to {current_primary}")
+
+        self.cache.close()
+
+        if warnings:
+            self.warning_label.config(text="\n".join(warnings))
+            self.warning_frame.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(10, 15))
+        else:
+            self.warning_frame.grid_forget()
+
+    def simulate_fifo_usage(self, material_id, qty_needed):
+        """Return list of {batch_num, qty} to be used"""
+        allocations = []
+        remaining = qty_needed
+        
+        batches = self.cache.get_all_records(
+            'inventory_batches', 
+            f"material_id = '{material_id}' AND quantity_remaining > 0",
+            order_by='received_date ASC'
+        )
+        
+        for b in batches:
+            if remaining <= 0: break
+            take = min(b['quantity_remaining'], remaining)
+            allocations.append({'batch_num': b.get('batch_number', 'Unknown'), 'qty': take})
+            remaining -= take
+            
+        return allocations
 
     def generate_gyle_number(self):
         """Generate next gyle number"""
@@ -458,16 +572,15 @@ class BatchDialog(tk.Toplevel):
         self.destroy()
 
     def deduct_ingredients_from_inventory(self, recipe_id, gyle_number):
-        """Deduct recipe ingredients from brewery inventory when creating a batch"""
-        # Get all recipe ingredients from recipe_ingredients table
+        """Deduct recipe ingredients from brewery inventory using FIFO logic"""
         ingredients = self.cache.get_all_records('recipe_ingredients', f"recipe_id = '{recipe_id}'")
-
         deducted_items = []
         insufficient_stock_items = []
         total_ingredients_found = len(ingredients)
+        
+        source_records = [] # To store "Pale Malt: B001" strings
 
         for ingredient in ingredients:
-            # Get the inventory_item_id which links to inventory_materials
             inventory_item_id = ingredient.get('inventory_item_id')
             quantity_needed = ingredient.get('quantity', 0)
             ingredient_name = ingredient.get('ingredient_name', 'Unknown')
@@ -476,12 +589,9 @@ class BatchDialog(tk.Toplevel):
             if not inventory_item_id or quantity_needed <= 0:
                 continue
 
-            # Get material from inventory using inventory_item_id
-            materials = self.cache.get_all_records('inventory_materials',
-                f"material_id = '{inventory_item_id}'")
+            materials = self.cache.get_all_records('inventory_materials', f"material_id = '{inventory_item_id}'")
 
             if not materials:
-                # Ingredient not linked to inventory
                 continue
 
             material = materials[0]
@@ -489,22 +599,51 @@ class BatchDialog(tk.Toplevel):
             current_stock = material.get('current_stock', 0)
             inventory_unit = material.get('unit', '')
 
-            # Convert ingredient quantity to inventory unit
             converted_quantity = self.convert_units(quantity_needed, ingredient_unit, inventory_unit)
 
             if converted_quantity is None:
-                # Unable to convert units - skip this ingredient
-                insufficient_stock_items.append(
-                    f"{material_name}: Cannot convert {ingredient_unit} to {inventory_unit}")
+                insufficient_stock_items.append(f"{material_name}: Unit mismatch")
                 continue
 
-            # Check if sufficient stock
             if current_stock < converted_quantity:
-                insufficient_stock_items.append(
-                    f"{material_name}: Need {converted_quantity:.1f}{inventory_unit} ({quantity_needed:.1f}{ingredient_unit}), only {current_stock:.1f}{inventory_unit} available")
+                insufficient_stock_items.append(f"{material_name}: Insufficient Stock")
                 continue
 
-            # Deduct from inventory
+            # --- FIFO Deduction ---
+            remaining_to_deduct = converted_quantity
+            used_batches = []
+            
+            # Get batches sorted by date
+            batches = self.cache.get_all_records(
+                'inventory_batches', 
+                f"material_id = '{inventory_item_id}' AND quantity_remaining > 0",
+                order_by='received_date ASC'
+            )
+            
+            # If no batches exist (legacy issue?), just update total stock (fallback)
+            if not batches:
+                # Log legacy usage?
+                used_batches.append("LEGACY")
+            else:
+                for batch in batches:
+                    if remaining_to_deduct <= 0: break
+                    
+                    available = batch['quantity_remaining']
+                    take = min(available, remaining_to_deduct)
+                    
+                    new_batch_qty = available - take
+                    self.cache.update_record(
+                        'inventory_batches', 
+                        batch['batch_id'], 
+                        {'quantity_remaining': new_batch_qty, 'sync_status': 'pending'}, 
+                        'batch_id'
+                    )
+                    
+                    print(f"DEBUG: Deducting {take} from batch {batch['batch_number']}") 
+                    used_batches.append(batch.get('batch_number', 'Unknown'))
+                    remaining_to_deduct -= take
+
+            # Update TOTAL stock
             new_stock = current_stock - converted_quantity
             self.cache.update_record('inventory_materials', inventory_item_id, {
                 'current_stock': new_stock,
@@ -522,29 +661,32 @@ class BatchDialog(tk.Toplevel):
                 'new_balance': new_stock,
                 'reference': f'Batch {gyle_number}',
                 'username': self.current_user.username,
-                'notes': f'Ingredients used for batch {gyle_number}',
+                'notes': f'Used for {gyle_number}. Batches: {", ".join(used_batches)}',
                 'sync_status': 'pending'
             }
             self.cache.insert_record('inventory_transactions', trans_data)
+            
+            source_records.append(f"{material_name}: {', '.join(used_batches)}")
+            deducted_items.append(f"{material_name}: {quantity_needed:.1f}{ingredient_unit}")
 
-            deducted_items.append(f"{material_name}: {quantity_needed:.1f}{ingredient_unit} ({converted_quantity:.1f}{inventory_unit})")
+        # Update the Batch record with source info
+        if source_records:
+            source_str = "; ".join(source_records)
+            # Find the batch we just created (using gyle_number as proxy since we don't pass ID easily here, 
+            # actually we do, but let's just update by gyle for safety or fetch ID)
+            # Better: The caller 'save' method created the batch. We should probably return this string 
+            # and let 'save' update it, OR just update it here.
+            # We don't have batch_id here easily without passing it.
+            # Let's update by Gyle.
+            batches = self.cache.get_all_records('batches', f"gyle_number = '{gyle_number}'")
+            if batches:
+                self.cache.update_record('batches', batches[0]['batch_id'], {'ingredient_source_batches': source_str, 'sync_status': 'pending'}, 'batch_id')
 
-        # Show warning if any items had insufficient stock
+        # Show warning if needed
         if insufficient_stock_items:
-            messagebox.showwarning("Insufficient Stock",
-                "The following items had insufficient stock and were NOT deducted:\n\n" +
-                "\n".join(insufficient_stock_items) +
-                "\n\nPlease update inventory manually.")
-
-        # Show status message about what was processed
-        if total_ingredients_found == 0:
-            messagebox.showinfo("No Ingredients Found",
-                f"This recipe has no ingredients linked.\n\n"
-                f"Please add ingredients to the recipe in the Recipes module.")
+            messagebox.showwarning("Insufficient Stock", "\n".join(insufficient_stock_items))
         elif deducted_items:
-            messagebox.showinfo("Inventory Updated",
-                f"The following ingredients were deducted from inventory:\n\n" +
-                "\n".join(deducted_items))
+            messagebox.showinfo("Inventory Updated", "\n".join(deducted_items))
 
     def convert_units(self, quantity, from_unit, to_unit):
         """Convert quantity from one unit to another. Returns None if conversion not possible."""
@@ -629,7 +771,11 @@ class PackageDialog(tk.Toplevel):
         ttk.Button(button_frame, text="Print Labels", bootstyle="info",
                   command=self.print_labels).pack(side=tk.RIGHT, padx=(10,0))
 
-        frame = ttk.Frame(self, padding=20)
+        # Main scrollable container
+        scroll_frame = ScrollableFrame(self)
+        scroll_frame.pack(fill=tk.BOTH, expand=True)
+
+        frame = ttk.Frame(scroll_frame.inner_frame, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
         # Header - Read-only batch info
@@ -1185,7 +1331,11 @@ class EditPackagedBatchDialog(tk.Toplevel):
         ttk.Button(button_frame, text="Save Changes", bootstyle="success",
                   command=self.save).pack(side=tk.RIGHT)
 
-        frame = ttk.Frame(self, padding=20)
+        # Main scrollable container
+        scroll_frame = ScrollableFrame(self)
+        scroll_frame.pack(fill=tk.BOTH, expand=True)
+
+        frame = ttk.Frame(scroll_frame.inner_frame, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
         # Header - Read-only batch info

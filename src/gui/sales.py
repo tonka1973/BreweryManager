@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime
 from ..utilities.date_utils import format_date_for_display, parse_display_date, get_today_display, get_today_db
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
+from .components import ScrollableFrame
 
 
 class SalesModule(ttk.Frame):
@@ -222,7 +223,11 @@ class SaleDialog(tk.Toplevel):
         ttk.Button(button_frame, text="Save Sale", bootstyle='success',
                   command=self.save).pack(side=tk.RIGHT)
 
-        frame = ttk.Frame(self, padding=20)
+        # Main scrollable container
+        scroll_frame = ScrollableFrame(self)
+        scroll_frame.pack(fill=tk.BOTH, expand=True)
+
+        frame = ttk.Frame(scroll_frame.inner_frame, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
         # Customer
@@ -232,8 +237,10 @@ class SaleDialog(tk.Toplevel):
         customers = self.cache.get_all_records('customers', 'is_active = 1', 'customer_name')
         self.cache.close()
         self.customer_list = {c['customer_name']: c['customer_id'] for c in customers}
-        ttk.Combobox(frame, textvariable=self.customer_var,
-                    values=list(self.customer_list.keys()), width=37, state='readonly').grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0,15))
+        self.customer_combo = ttk.Combobox(frame, textvariable=self.customer_var,
+                    values=list(self.customer_list.keys()), width=37, state='readonly')
+        self.customer_combo.grid(row=1, column=0, columnspan=2, sticky='ew', pady=(0,15))
+        self.customer_combo.bind('<<ComboboxSelected>>', self.on_customer_selected)
 
         # Product (from Products module)
         ttk.Label(frame, text="Product *", font=('Arial', 10, 'bold')).grid(row=2, column=0, sticky='w', pady=(0,5))
@@ -327,6 +334,40 @@ class SaleDialog(tk.Toplevel):
             container = product.get('container_type', '')
             if container in container_map:
                 self.container_var.set(container_map[container])
+
+    def on_customer_selected(self, event=None):
+        """Handle customer selection: Smart Scheduling"""
+        customer_name = self.customer_var.get()
+        if not customer_name: return
+
+        customer_id = self.customer_list.get(customer_name)
+        if not customer_id: return
+
+        self.cache.connect()
+        try:
+            # Get customer delivery area
+            customer = self.cache.get_all_records('customers', f"customer_id = '{customer_id}'")
+            if not customer: return 
+            area = customer[0].get('delivery_area')
+
+            if area:
+                # Find runs for this area
+                runs = self.cache.get_all_records('delivery_runs', f"area_id = '{area}'")
+                if runs:
+                    # Logic to find next date
+                    # For now, just take the first run's day
+                    # Ideally we parse 'Monday', 'Tuesday' etc.
+                    day_of_week = runs[0].get('day_of_week')
+                    if day_of_week:
+                        from ..utilities.date_utils import get_next_weekday_date
+                        next_date = get_next_weekday_date(day_of_week)
+                        
+                        self.delivery_entry.config(state='normal')
+                        self.delivery_entry.delete(0, tk.END)
+                        self.delivery_entry.insert(0, format_date_for_display(next_date))
+                        # Could show a label here saying "Route: {runs[0]['run_name']}"
+        finally:
+            self.cache.close()
 
     def populate_fields(self):
         """Populate fields with sale data"""

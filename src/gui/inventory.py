@@ -14,6 +14,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from ..utilities.date_utils import get_today_db
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
+from .components import ScrollableFrame
 
 
 class InventoryModule(ttk.Frame):
@@ -553,7 +554,11 @@ class MaterialDialog(tk.Toplevel):
         ttk.Button(button_frame, text="Save", bootstyle="success",
                   command=self.save).pack(side=tk.RIGHT)
 
-        frame = ttk.Frame(self, padding=20)
+        # Main scrollable container
+        scroll_frame = ScrollableFrame(self)
+        scroll_frame.pack(fill=tk.BOTH, expand=True)
+
+        frame = ttk.Frame(scroll_frame.inner_frame, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
         ttk.Label(frame, text="Material Name *", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0,5))
@@ -577,17 +582,28 @@ class MaterialDialog(tk.Toplevel):
                                       font=('Arial', 10), width=13)
         self.unit_entry.grid(row=5, column=1, sticky='w', pady=(0,15), padx=(20,0))
 
-        ttk.Label(frame, text="Reorder Level", font=('Arial', 10, 'bold')).grid(row=6, column=0, sticky='w', pady=(0,5))
+        # Initial Batch Details (Optional, only if stock > 0 effectively)
+        self.batch_label = ttk.Label(frame, text="Initial Batch Number", font=('Arial', 10, 'bold'))
+        self.batch_label.grid(row=6, column=0, sticky='w', pady=(0,5))
+        self.batch_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
+        self.batch_entry.grid(row=7, column=0, sticky='w', pady=(0,15))
+
+        self.expiry_label = ttk.Label(frame, text="Expiry (DD/MM/YYYY)", font=('Arial', 10, 'bold'))
+        self.expiry_label.grid(row=6, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        self.expiry_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
+        self.expiry_entry.grid(row=7, column=1, sticky='w', pady=(0,15), padx=(20,0))
+
+        ttk.Label(frame, text="Reorder Level", font=('Arial', 10, 'bold')).grid(row=8, column=0, sticky='w', pady=(0,5))
         self.reorder_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
-        self.reorder_entry.grid(row=7, column=0, sticky='w', pady=(0,15))
+        self.reorder_entry.grid(row=9, column=0, sticky='w', pady=(0,15))
 
-        ttk.Label(frame, text="Cost per Unit (£)", font=('Arial', 10, 'bold')).grid(row=6, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        ttk.Label(frame, text="Cost per Unit (£)", font=('Arial', 10, 'bold')).grid(row=8, column=1, sticky='w', pady=(0,5), padx=(20,0))
         self.cost_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
-        self.cost_entry.grid(row=7, column=1, sticky='w', pady=(0,15), padx=(20,0))
+        self.cost_entry.grid(row=9, column=1, sticky='w', pady=(0,15), padx=(20,0))
 
-        ttk.Label(frame, text="Supplier", font=('Arial', 10, 'bold')).grid(row=8, column=0, sticky='w', pady=(0,5))
+        ttk.Label(frame, text="Supplier", font=('Arial', 10, 'bold')).grid(row=10, column=0, sticky='w', pady=(0,5))
         self.supplier_entry = ttk.Entry(frame, font=('Arial', 10), width=40)
-        self.supplier_entry.grid(row=9, column=0, columnspan=2, sticky='ew', pady=(0,15))
+        self.supplier_entry.grid(row=11, column=0, columnspan=2, sticky='ew', pady=(0,15))
 
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
@@ -635,6 +651,37 @@ class MaterialDialog(tk.Toplevel):
         if self.mode == 'add':
             data['material_id'] = str(uuid.uuid4())
             self.cache.insert_record('inventory_materials', data)
+
+            # Create initial batch if stock > 0
+            if stock > 0:
+                batch_num = self.batch_entry.get().strip() or f"BATCH-{get_today_db()}"
+                expiry_str = self.expiry_entry.get().strip()
+                expiry = None
+                
+                if expiry_str:
+                    try:
+                        # Convert UK format DD/MM/YYYY to DB format YYYY-MM-DD
+                        expiry = datetime.strptime(expiry_str, "%d/%m/%Y").strftime("%Y-%m-%d")
+                    except ValueError:
+                        # Fallback try original format or just warn? For now, try original
+                        try:
+                            expiry = datetime.strptime(expiry_str, "%Y-%m-%d").strftime("%Y-%m-%d")
+                        except ValueError:
+                            messagebox.showwarning("Date Warning", "Expiry format should be DD/MM/YYYY. Date not saved.")
+                            expiry = None # Invalid date
+
+                batch_data = {
+                    'batch_id': str(uuid.uuid4()),
+                    'material_id': data['material_id'],
+                    'batch_number': batch_num,
+                    'expiry_date': expiry,
+                    'quantity_initial': stock,
+                    'quantity_remaining': stock,
+                    'received_date': get_today_db(),
+                    'sync_status': 'pending'
+                }
+                self.cache.insert_record('inventory_batches', batch_data)
+
         else:
             self.cache.update_record('inventory_materials', self.material['material_id'], data, 'material_id')
         self.cache.close()
@@ -659,11 +706,11 @@ class StockAdjustDialog(tk.Toplevel):
         # Use window manager for sizing if available
         wm = get_window_manager()
         if wm:
-            wm.setup_dialog(self, 'stock_adjust_dialog', width_pct=0.3, height_pct=0.4,
+            wm.setup_dialog(self, 'stock_adjust_dialog', width_pct=0.4, height_pct=0.6,
                           add_grip=True, save_on_close=True, resizable=True)
         else:
             # Fallback to hardcoded size
-            self.geometry("400x350")
+            self.geometry("600x600")
             self.resizable(True, True)
 
         self.create_widgets()
@@ -679,25 +726,167 @@ class StockAdjustDialog(tk.Toplevel):
         ttk.Button(button_frame, text="Apply", bootstyle="warning",
                   command=self.apply_adjustment).pack(side=tk.RIGHT)
 
-        frame = ttk.Frame(self, padding=20)
-        frame.pack(fill=tk.BOTH, expand=True)
+        # Tabs
+        self.notebook = ttk.Notebook(self)
+        self.notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
+        # Tab 1: Overview & Adjust
+        self.tab_overview_container = ttk.Frame(self.notebook)
+        self.notebook.add(self.tab_overview_container, text="Overview & Adjust")
+
+        self.scroll_overview = ScrollableFrame(self.tab_overview_container)
+        self.scroll_overview.pack(fill=tk.BOTH, expand=True)
+
+        self.tab_overview = ttk.Frame(self.scroll_overview.inner_frame, padding=10)
+        self.tab_overview.pack(fill=tk.BOTH, expand=True)
+
+        # Tab 2: History
+        self.tab_history = ttk.Frame(self.notebook, padding=10)
+        self.notebook.add(self.tab_history, text="History")
+
+        self.setup_overview_tab()
+        self.setup_history_tab()
+
+    def setup_overview_tab(self):
+        """Tab 1 Content: Batches + Adjust Form"""
+        frame = self.tab_overview
+
+        # 1. Total Stock Header
         current = self.material.get('current_stock', 0)
-        ttk.Label(frame, text=f"Current Stock: {current:.1f} {self.material.get('unit', '')}",
-                font=('Arial', 12, 'bold')).pack(pady=(0,20))
+        unit = self.material.get('unit', '')
+        ttk.Label(frame, text=f"Total Stock: {current:.1f} {unit}",
+                font=('Arial', 12, 'bold')).pack(anchor='w', pady=(0,10))
 
-        ttk.Label(frame, text="Adjustment Type", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
+        # 2. Active Batches List
+        ttk.Label(frame, text="Active Batches (FIFO Order):", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
+        
+        batch_cols = ('batch', 'expiry', 'qty')
+        self.batch_tree = ttk.Treeview(frame, columns=batch_cols, show='headings', height=5)
+        self.batch_tree.heading('batch', text='Batch #', anchor='center')
+        self.batch_tree.heading('expiry', text='Expiry', anchor='center')
+        self.batch_tree.heading('qty', text=f'Remaining ({unit})', anchor='center')
+        
+        self.batch_tree.column('batch', width=120, anchor='center')
+        self.batch_tree.column('expiry', width=100, anchor='center')
+        self.batch_tree.column('qty', width=100, anchor='center')
+        
+        self.batch_tree.pack(fill=tk.X, pady=(0,10))
+        self.load_batches()
+
+        # 3. Adjustment Section (Separator)
+        ttk.Separator(frame, orient='horizontal').pack(fill=tk.X, pady=10)
+        ttk.Label(frame, text="Adjust Stock", font=('Arial', 11, 'bold')).pack(anchor='w', pady=(0,10))
+
+        # Adjust Widgets (Similar to before)
+        adj_frame = ttk.Frame(frame)
+        adj_frame.pack(fill=tk.X)
+
+        ttk.Label(adj_frame, text="Type:", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0,5))
         self.adj_type = tk.StringVar(value='add')
-        ttk.Radiobutton(frame, text="Add Stock", variable=self.adj_type, value='add').pack(anchor='w')
-        ttk.Radiobutton(frame, text="Remove Stock", variable=self.adj_type, value='remove').pack(anchor='w', pady=(0,15))
+        
+        def toggle_batch_fields():
+            if self.adj_type.get() == 'add':
+                self.batch_frame.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0,10))
+            else:
+                self.batch_frame.grid_remove()
 
-        ttk.Label(frame, text="Quantity", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
-        self.qty_entry = ttk.Entry(frame, font=('Arial', 11), width=15)
-        self.qty_entry.pack(anchor='w', pady=(0,15))
+        rb_frame = ttk.Frame(adj_frame)
+        rb_frame.grid(row=0, column=1, sticky='w', padx=(10,0))
+        ttk.Radiobutton(rb_frame, text="Add", variable=self.adj_type, value='add', command=toggle_batch_fields).pack(side=tk.LEFT, padx=(0,10))
+        ttk.Radiobutton(rb_frame, text="Remove", variable=self.adj_type, value='remove', command=toggle_batch_fields).pack(side=tk.LEFT)
 
-        ttk.Label(frame, text="Reason/Notes", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
-        self.notes_text = tk.Text(frame, font=('Arial', 10), width=40, height=4)
-        self.notes_text.pack(pady=(0,15))
+        # Batch Details (Only for Add)
+        self.batch_frame = ttk.Frame(adj_frame)
+        self.batch_frame.grid(row=2, column=0, columnspan=2, sticky='ew', pady=(0,10))
+        
+        ttk.Label(self.batch_frame, text="New Batch # (Opt):", font=('Arial', 10)).pack(anchor='w')
+        self.batch_num_entry = ttk.Entry(self.batch_frame, width=20)
+        self.batch_num_entry.pack(anchor='w', pady=(0,5))
+        
+        ttk.Label(self.batch_frame, text="Expiry (DD/MM/YYYY):", font=('Arial', 10)).pack(anchor='w')
+        self.expiry_entry = ttk.Entry(self.batch_frame, width=20)
+        self.expiry_entry.pack(anchor='w')
+
+        # Qty
+        ttk.Label(adj_frame, text="Quantity:", font=('Arial', 10, 'bold')).grid(row=3, column=0, sticky='w', pady=(0,5))
+        self.qty_entry = ttk.Entry(adj_frame, width=15)
+        self.qty_entry.grid(row=3, column=1, sticky='w', padx=(10,0))
+
+        # Notes
+        ttk.Label(adj_frame, text="Reason/Notes:", font=('Arial', 10, 'bold')).grid(row=4, column=0, sticky='w', pady=(0,5))
+        self.notes_text = tk.Text(adj_frame, width=30, height=3, font=('Arial', 10))
+        self.notes_text.grid(row=4, column=1, sticky='w', padx=(10,0))
+
+    def setup_history_tab(self):
+        """Tab 2: Transaction History"""
+        frame = self.tab_history
+        
+        hist_cols = ('date', 'type', 'change', 'balance', 'notes')
+        self.hist_tree = ttk.Treeview(frame, columns=hist_cols, show='headings')
+        self.hist_tree.heading('date', text='Date', anchor='center')
+        self.hist_tree.heading('type', text='Type', anchor='center')
+        self.hist_tree.heading('change', text='Change', anchor='center')
+        self.hist_tree.heading('balance', text='Bal', anchor='center')
+        self.hist_tree.heading('notes', text='Notes/Ref', anchor='w')
+        
+        self.hist_tree.column('date', width=90, anchor='center')
+        self.hist_tree.column('type', width=60, anchor='center')
+        self.hist_tree.column('change', width=70, anchor='center')
+        self.hist_tree.column('balance', width=70, anchor='center')
+        self.hist_tree.column('notes', width=200)
+        
+        # Scrollbar
+        sb = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=self.hist_tree.yview)
+        self.hist_tree.configure(yscroll=sb.set)
+        
+        self.hist_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        sb.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        self.load_history()
+
+    def load_batches(self):
+        """Load active batches for treeview"""
+        self.batch_tree.delete(*self.batch_tree.get_children())
+        self.cache.connect()
+        batches = self.cache.get_all_records(
+            'inventory_batches',
+            f"material_id = '{self.material['material_id']}' AND quantity_remaining > 0",
+            order_by='received_date ASC'
+        )
+        self.cache.close()
+        
+        for b in batches:
+            self.batch_tree.insert('', 'end', values=(
+                b.get('batch_number', '-'),
+                b.get('expiry_date', '-'),
+                f"{b.get('quantity_remaining', 0):.1f}"
+            ))
+
+    def load_history(self):
+        """Load transaction history"""
+        self.hist_tree.delete(*self.hist_tree.get_children())
+        self.cache.connect()
+        # Join logic needed? No, just get transactions
+        trans = self.cache.get_all_records(
+            'inventory_transactions',
+            f"material_id = '{self.material['material_id']}'",
+            order_by='transaction_date DESC'
+        )
+        self.cache.close()
+        
+        for t in trans:
+            qty_change = t.get('quantity_change', 0)
+            sign = "+" if qty_change > 0 else ""
+            
+            notes = t.get('notes', '') or t.get('reference', '')
+            
+            self.hist_tree.insert('', 'end', values=(
+                t.get('transaction_date', '-'),
+                t.get('transaction_type', '-'),
+                f"{sign}{qty_change:.1f}",
+                f"{t.get('new_balance', 0):.1f}",
+                notes
+            ))
 
     def apply_adjustment(self):
         """Apply stock adjustment"""
@@ -737,6 +926,64 @@ class StockAdjustDialog(tk.Toplevel):
             'sync_status': 'pending'
         }
         self.cache.insert_record('inventory_transactions', trans_data)
+
+        # Handle Batch Logic
+        if self.adj_type.get() == 'add':
+            # Create new batch record
+            batch_num = self.batch_num_entry.get().strip() or f"BATCH-{get_today_db()}"
+            expiry_str = self.expiry_entry.get().strip()
+            expiry = None
+            
+            if expiry_str:
+                try:
+                    expiry = datetime.strptime(expiry_str, "%d/%m/%Y").strftime("%Y-%m-%d")
+                except ValueError:
+                    try:
+                        expiry = datetime.strptime(expiry_str, "%Y-%m-%d").strftime("%Y-%m-%d")
+                    except ValueError:
+                         messagebox.showwarning("Date Warning", "Expiry format should be DD/MM/YYYY. Date not saved.")
+                         expiry = None
+
+            batch_data = {
+                'batch_id': str(uuid.uuid4()),
+                'material_id': self.material['material_id'],
+                'batch_number': batch_num,
+                'expiry_date': expiry,
+                'quantity_initial': qty,
+                'quantity_remaining': qty,
+                'received_date': get_today_db(),
+                'sync_status': 'pending'
+            }
+            self.cache.insert_record('inventory_batches', batch_data)
+        
+        elif self.adj_type.get() == 'remove':
+            # FIFO Deduction Logic
+            remaining_qty_to_remove = qty
+            
+            # Get available batches sorted by date (FIFO)
+            batches = self.cache.get_all_records(
+                'inventory_batches', 
+                f"material_id = '{self.material['material_id']}' AND quantity_remaining > 0",
+                order_by='received_date ASC'
+            )
+            
+            for batch in batches:
+                if remaining_qty_to_remove <= 0:
+                    break
+                    
+                deduct = min(batch['quantity_remaining'], remaining_qty_to_remove)
+                new_qty = batch['quantity_remaining'] - deduct
+                
+                # Update batch
+                self.cache.update_record(
+                    'inventory_batches', 
+                    batch['batch_id'],
+                    {'quantity_remaining': new_qty, 'sync_status': 'pending'},
+                    'batch_id'
+                )
+                
+                remaining_qty_to_remove -= deduct
+
         self.cache.close()
 
         messagebox.showinfo("Success", f"Stock updated to {new_stock:.1f}")
@@ -1079,7 +1326,11 @@ class ContainerTypeDialog(tk.Toplevel):
         ttk.Button(button_frame, text="Save", bootstyle="success",
                   command=self.save).pack(side=tk.RIGHT)
 
-        frame = ttk.Frame(self, padding=20)
+        # Main scrollable container
+        scroll_frame = ScrollableFrame(self)
+        scroll_frame.pack(fill=tk.BOTH, expand=True)
+
+        frame = ttk.Frame(scroll_frame.inner_frame, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
         ttk.Label(frame, text="Container Name *", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0,5))
@@ -1198,7 +1449,11 @@ class ContainerTypeAdjustDialog(tk.Toplevel):
         ttk.Button(button_frame, text="Update Stock", bootstyle="success",
                  command=self.update_stock).pack(side=tk.RIGHT)
 
-        frame = ttk.Frame(self, padding=20)
+        # Main scrollable container
+        scroll_frame = ScrollableFrame(self)
+        scroll_frame.pack(fill=tk.BOTH, expand=True)
+
+        frame = ttk.Frame(scroll_frame.inner_frame, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
         # Display current info

@@ -16,6 +16,8 @@ openai>=1.12.0
 # GUI
 # tkinter is built-in to Python
 ttkbootstrap==1.10.1
+# Map Integration
+tkintermapview>=1.29
 
 # PDF Generation (for later phases)
 reportlab>=4.0.7

@@ -116,6 +116,39 @@ class SQLiteCacheManager:
                 except Exception as e:
                     logger.error(f"Migration error (recipes): {e}")
 
+            # Check for ingredient_source_batches (Schema Migration - Batches Warning System)
+            try:
+                self.cursor.execute("SELECT ingredient_source_batches FROM batches LIMIT 1")
+            except sqlite3.OperationalError:
+                try:
+                    logger.info("Migrating batches table (adding ingredient_source_batches)...")
+                    self.cursor.execute("ALTER TABLE batches ADD COLUMN ingredient_source_batches TEXT")
+                except Exception as e:
+                    logger.error(f"Migration error (batches ingredient_source_batches): {e}")
+
+            # Check for delivery_area (Schema Migration - Customers)
+            try:
+                self.cursor.execute("SELECT delivery_area FROM customers LIMIT 1")
+            except sqlite3.OperationalError:
+                try:
+                    logger.info("Migrating customers table (adding delivery_area)...")
+                    self.cursor.execute("ALTER TABLE customers ADD COLUMN delivery_area TEXT")
+                except Exception as e:
+                    logger.error(f"Migration error (customers delivery_area): {e}")
+
+            # Delivery Runs table
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS delivery_runs (
+                    run_id TEXT PRIMARY KEY,
+                    run_name TEXT NOT NULL,
+                    day_of_week TEXT,
+                    area_id TEXT,
+                    description TEXT,
+                    driver_name TEXT,
+                    sync_status TEXT DEFAULT 'synced'
+                )
+            ''')
+
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS batches (
                     batch_id TEXT PRIMARY KEY,
@@ -145,7 +178,8 @@ class SQLiteCacheManager:
                     brewing_notes TEXT,
                     created_by TEXT,
                     last_modified TEXT,
-                    sync_status TEXT DEFAULT 'synced'
+                    sync_status TEXT DEFAULT 'synced',
+                    ingredient_source_batches TEXT
                 )
             ''')
             
@@ -262,6 +296,45 @@ class SQLiteCacheManager:
                     sync_status TEXT DEFAULT 'synced'
                 )
             ''')
+            
+            # Inventory Batches table (New - FIFO Tracking)
+            self.cursor.execute('''
+                CREATE TABLE IF NOT EXISTS inventory_batches (
+                    batch_id TEXT PRIMARY KEY,
+                    material_id TEXT,
+                    batch_number TEXT,
+                    expiry_date TEXT,
+                    quantity_initial REAL,
+                    quantity_remaining REAL,
+                    received_date TEXT,
+                    sync_status TEXT DEFAULT 'synced',
+                    FOREIGN KEY (material_id) REFERENCES inventory_materials(material_id)
+                )
+            ''')
+
+            # Migration: Create Legacy Batches for existing stock
+            try:
+                # Check if inventory_batches is empty
+                self.cursor.execute("SELECT COUNT(*) FROM inventory_batches")
+                count = self.cursor.fetchone()[0]
+                if count == 0:
+                    logger.info("Migrating existing inventory to legacy batches...")
+                    # Get all materials with stock > 0
+                    self.cursor.execute("SELECT material_id, current_stock, last_updated FROM inventory_materials WHERE current_stock > 0")
+                    items = self.cursor.fetchall()
+                    
+                    for item in items:
+                        import uuid
+                        batch_id = str(uuid.uuid4())
+                        # Create a "Legacy" batch for the current stock
+                        self.cursor.execute('''
+                            INSERT INTO inventory_batches (batch_id, material_id, batch_number, quantity_initial, quantity_remaining, received_date, sync_status)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ''', (batch_id, item['material_id'], 'LEGACY-STOCK', item['current_stock'], item['current_stock'], item['last_updated'] or get_today_db(), 'pending'))
+                    
+                    self.cursor.connection.commit()
+            except Exception as e:
+                logger.error(f"Migration error (legacy inventory batches): {e}")
             
             # Inventory Transactions table
             self.cursor.execute('''

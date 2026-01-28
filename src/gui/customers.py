@@ -8,8 +8,9 @@ from tkinter import messagebox
 import ttkbootstrap as ttk
 import uuid
 from datetime import datetime
-from ..utilities.date_utils import get_today_db
+from ..utilities.date_utils import get_today_db, format_date_for_display
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation, enable_canvas_scrolling
+from .components import ScrollableFrame
 
 
 class CustomersModule(ttk.Frame):
@@ -158,7 +159,7 @@ class CustomersModule(ttk.Frame):
         self.cache.close()
 
         if customers:
-            dialog = CustomerDetailsDialog(self, customers[0], self.cache)
+            dialog = CustomerDashboard(self, customers[0], self.cache, self.current_user)
             self.wait_window(dialog)
 
     def deactivate_customer(self):
@@ -222,13 +223,10 @@ class CustomerDialog(tk.Toplevel):
         ttk.Button(button_frame, text="Save Customer", bootstyle="success",
                   command=self.save).pack(side=tk.RIGHT)
 
-        canvas = tk.Canvas(self)
-        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
-        frame = ttk.Frame(canvas)
+        scroll_frame = ScrollableFrame(self)
+        scroll_frame.pack(fill=tk.BOTH, expand=True)
 
-        frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+        frame = ttk.Frame(scroll_frame.inner_frame)
 
         # Customer Name
         ttk.Label(frame, text="Customer Name *", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0,5), padx=(20,0))
@@ -280,6 +278,12 @@ class CustomerDialog(tk.Toplevel):
         self.credit_entry.insert(0, "1000.00")
         self.credit_entry.grid(row=13, column=0, sticky='w', pady=(0,15), padx=(20,0))
 
+        # Delivery Area (Smart Scheduling)
+        ttk.Label(frame, text="Delivery Area", font=('Arial', 10, 'bold')).grid(row=12, column=1, sticky='w', pady=(0,5), padx=(20,0))
+        # We could use a combobox later if we load runs, but for now simple text matching
+        self.area_entry = ttk.Entry(frame, font=('Arial', 10), width=20)
+        self.area_entry.grid(row=13, column=1, sticky='w', pady=(0,15), padx=(20,20))
+
         # Delivery Day
         ttk.Label(frame, text="Preferred Delivery Day", font=('Arial', 10, 'bold')).grid(row=14, column=0, sticky='w', pady=(0,5), padx=(20,0))
         self.day_var = tk.StringVar()
@@ -311,19 +315,7 @@ class CustomerDialog(tk.Toplevel):
         frame.grid_columnconfigure(0, weight=1)
         frame.grid_columnconfigure(1, weight=1)
 
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
 
-        enable_canvas_scrolling(canvas)
-
-        # Buttons
-        button_frame = ttk.Frame(self)
-        button_frame.pack(fill=tk.X, padx=20, pady=10)
-
-        ttk.Button(button_frame, text="Cancel", bootstyle="secondary",
-                  command=self.destroy).pack(side=tk.RIGHT, padx=(10,0))
-        ttk.Button(button_frame, text="Save Customer", bootstyle="success",
-                  command=self.save).pack(side=tk.RIGHT)
 
     def populate_fields(self):
         """Populate fields with customer data"""
@@ -337,6 +329,11 @@ class CustomerDialog(tk.Toplevel):
         self.terms_var.set(self.customer.get('payment_terms', 'net_30'))
         self.credit_entry.delete(0, tk.END)
         self.credit_entry.insert(0, str(self.customer.get('credit_limit', '')))
+        
+        self.area_entry.delete(0, tk.END)
+        if self.customer.get('delivery_area'):
+            self.area_entry.insert(0, self.customer.get('delivery_area', ''))
+
         self.day_var.set(self.customer.get('preferred_delivery_day', ''))
         self.time_entry.delete(0, tk.END)
         self.time_entry.insert(0, self.customer.get('preferred_delivery_time', ''))
@@ -367,6 +364,7 @@ class CustomerDialog(tk.Toplevel):
             'customer_type': self.type_var.get(),
             'payment_terms': self.terms_var.get(),
             'credit_limit': credit,
+            'delivery_area': self.area_entry.get().strip(),
             'preferred_delivery_day': self.day_var.get(),
             'preferred_delivery_time': self.time_entry.get().strip(),
             'likes': self.likes_entry.get().strip(),
@@ -389,68 +387,294 @@ class CustomerDialog(tk.Toplevel):
         self.destroy()
 
 
-class CustomerDetailsDialog(tk.Toplevel):
-    """Dialog for viewing customer details"""
+class CustomerDashboard(tk.Toplevel):
+    """Enhanced dashboard for viewing and managing a customer"""
 
-    def __init__(self, parent, customer, cache):
+    def __init__(self, parent, customer, cache, current_user):
         super().__init__(parent)
         self.customer = customer
         self.cache = cache
-
-        self.title(f"Customer: {customer.get('customer_name', 'Unknown')}")
-        self.transient(parent)
-        self.grab_set()
-
-        # Use window manager for sizing if available
-        wm = get_window_manager()
-        if wm:
-            wm.setup_dialog(self, 'customer_details_dialog', width_pct=0.4, height_pct=0.65,
-                          add_grip=True, save_on_close=True, resizable=True)
-        else:
-            # Fallback to hardcoded size
-            self.geometry("600x600")
-            self.resizable(True, True)
-
+        self.current_user = current_user
+        
+        self.title(f"Dashboard: {customer.get('customer_name', 'Unknown')}")
+        self.state('zoomed')  # Open maximized for dashboard feel
+        
         self.create_widgets()
+        self.load_dashboard_data()
 
     def create_widgets(self):
-        """Create widgets"""
-        frame = ttk.Frame(self, padding=(30, 20))
-        frame.pack(fill=tk.BOTH, expand=True)
+        """Create dashboard layout"""
+        # Main container
+        main_container = ttk.Frame(self, padding=20)
+        main_container.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(frame, text=self.customer.get('customer_name', 'Unknown'),
-                 font=('Arial', 18, 'bold')).pack(anchor='w', pady=(0,20))
+        # --- Header Section ---
+        header_frame = ttk.Frame(main_container)
+        header_frame.pack(fill=tk.X, pady=(0, 20))
 
-        info = f"""
-Contact: {self.customer.get('contact_person', 'N/A')}
-Phone: {self.customer.get('phone', 'N/A')}
-Email: {self.customer.get('email', 'N/A')}
+        # Title and Status
+        title_frame = ttk.Frame(header_frame)
+        title_frame.pack(side=tk.LEFT)
 
-Delivery Address:
-{self.customer.get('delivery_address', 'N/A')}
+        ttk.Label(title_frame, 
+                 text=self.customer.get('customer_name', 'Unknown'), 
+                 font=('Arial', 24, 'bold')).pack(anchor='w')
+        
+        status = "Active" if self.customer.get('is_active', 1) else "Inactive"
+        status_color = "success" if status == "Active" else "danger"
+        ttk.Label(title_frame, text=status, bootstyle=f"{status_color}-inverse").pack(anchor='w', pady=(5,0))
 
-Type: {self.customer.get('customer_type', 'N/A').capitalize()}
-Payment Terms: {self.customer.get('payment_terms', 'N/A')}
-Credit Limit: £{self.customer.get('credit_limit', 0):.2f}
+        # Action Bar (Right side)
+        action_frame = ttk.Frame(header_frame)
+        action_frame.pack(side=tk.RIGHT)
 
-Preferred Delivery: {self.customer.get('preferred_delivery_day', 'N/A')} at {self.customer.get('preferred_delivery_time', 'N/A')}
+        ttk.Button(action_frame, text="➕ Place New Order", 
+                  bootstyle="success", 
+                  command=self.place_order).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(action_frame, text="✏️ Edit Details", 
+                  bootstyle="primary-outline", 
+                  command=self.edit_customer).pack(side=tk.LEFT, padx=5)
 
-Likes: {self.customer.get('likes', 'None specified')}
-Dislikes: {self.customer.get('dislikes', 'None specified')}
+        ttk.Button(action_frame, text="Current Statement", 
+                  bootstyle="info-outline", 
+                  state="disabled").pack(side=tk.LEFT, padx=5) # Placeholder
+        
+        ttk.Button(action_frame, text="Close", 
+                  bootstyle="secondary", 
+                  command=self.destroy).pack(side=tk.LEFT, padx=5)
 
-Status: {'Active' if self.customer.get('is_active') else 'Inactive'}
-        """
+        # --- Tabbed Content ---
+        self.notebook = ttk.Notebook(main_container)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(frame, text=info.strip(), font=('Arial', 10),
-                 justify=tk.LEFT).pack(anchor='w', pady=(0,20))
+        # Create Tabs
+        self.tab_overview = ttk.Frame(self.notebook, padding=15)
+        self.tab_deliveries = ttk.Frame(self.notebook, padding=15)
+        self.tab_financials = ttk.Frame(self.notebook, padding=15)
 
-        if self.customer.get('notes'):
-            ttk.Label(frame, text="Notes:", font=('Arial', 11, 'bold')).pack(anchor='w', pady=(0,5))
-            # Keep tk.Frame with specific background color for notes section
-            notes_frame = tk.Frame(frame, bg='#f5f5f5', relief=tk.SOLID, borderwidth=1)
-            notes_frame.pack(fill=tk.X)
-            tk.Label(notes_frame, text=self.customer['notes'], font=('Arial', 10),
-                    bg='#f5f5f5', justify=tk.LEFT, wraplength=500).pack(padx=10, pady=10, anchor='w')
+        self.notebook.add(self.tab_overview, text="Overview")
+        self.notebook.add(self.tab_deliveries, text="Deliveries")
+        self.notebook.add(self.tab_financials, text="Financials")
 
-        ttk.Button(self, text="Close", bootstyle="secondary",
-                  command=self.destroy).pack(pady=(0,20))
+        # Build Overview Tab
+        self.build_overview_tab()
+        # Build Other tabs (placeholders for now)
+        self.build_deliveries_tab()
+        self.build_financials_tab()
+
+    def build_overview_tab(self):
+        """Build the Overview tab content"""
+        # Top Stats Row
+        stats_frame = ttk.Frame(self.tab_overview)
+        stats_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        self.create_stat_card(stats_frame, "Total Outstanding", "£0.00", "danger").pack(side=tk.LEFT, padx=(0, 20), fill=tk.X, expand=True)
+        self.create_stat_card(stats_frame, "Credit Available", "£0.00", "success").pack(side=tk.LEFT, padx=(0, 20), fill=tk.X, expand=True)
+        self.create_stat_card(stats_frame, "Last Order", "Never", "info").pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        # Content Grid
+        content_frame = ttk.Frame(self.tab_overview)
+        content_frame.pack(fill=tk.BOTH, expand=True)
+        content_frame.columnconfigure(0, weight=1)
+        content_frame.columnconfigure(1, weight=1)
+
+        # Left Column: Contact & Details
+        details_frame = ttk.LabelFrame(content_frame, text="Contact Details", padding=15)
+        details_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        
+        # Helper to create label pairs
+        def add_detail(parent, label, value):
+            f = ttk.Frame(parent)
+            f.pack(fill=tk.X, pady=2)
+            ttk.Label(f, text=label, font=('Arial', 9, 'bold'), width=15).pack(side=tk.LEFT)
+            ttk.Label(f, text=value, font=('Arial', 9)).pack(side=tk.LEFT, fill=tk.X, expand=True)
+
+        add_detail(details_frame, "Contact Person:", self.customer.get('contact_person', 'N/A'))
+        add_detail(details_frame, "Phone:", self.customer.get('phone', 'N/A'))
+        add_detail(details_frame, "Email:", self.customer.get('email', 'N/A'))
+        
+        ttk.Separator(details_frame).pack(fill=tk.X, pady=10)
+        
+        ttk.Label(details_frame, text="Delivery Address:", font=('Arial', 9, 'bold')).pack(anchor='w')
+        ttk.Label(details_frame, text=self.customer.get('delivery_address', 'N/A'), wraplength=300).pack(anchor='w', pady=(0, 10))
+
+        ttk.Label(details_frame, text="Billing Address:", font=('Arial', 9, 'bold')).pack(anchor='w')
+        ttk.Label(details_frame, text=self.customer.get('billing_address', 'N/A'), wraplength=300).pack(anchor='w')
+
+        # Right Column: Preferences & Notes
+        prefs_frame = ttk.Frame(content_frame)
+        prefs_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
+        
+        # Payment Info
+        payment_frame = ttk.LabelFrame(prefs_frame, text="Trading Terms", padding=15)
+        payment_frame.pack(fill=tk.X, pady=(0, 20))
+        add_detail(payment_frame, "Payment Terms:", self.customer.get('payment_terms', 'N/A'))
+        add_detail(payment_frame, "Credit Limit:", f"£{self.customer.get('credit_limit', 0):.2f}")
+        
+        # Preferences
+        beer_frame = ttk.LabelFrame(prefs_frame, text="Preferences", padding=15)
+        beer_frame.pack(fill=tk.X, pady=(0, 20))
+        
+        ttk.Label(beer_frame, text="Likes:", font=('Arial', 9, 'bold')).pack(anchor='w')
+        ttk.Label(beer_frame, text=self.customer.get('likes', 'None'), wraplength=300).pack(anchor='w', pady=(0, 10))
+        
+        ttk.Label(beer_frame, text="Dislikes:", font=('Arial', 9, 'bold')).pack(anchor='w')
+        ttk.Label(beer_frame, text=self.customer.get('dislikes', 'None'), wraplength=300).pack(anchor='w')
+
+        # Notes
+        notes_frame = ttk.LabelFrame(prefs_frame, text="Notes", padding=15)
+        notes_frame.pack(fill=tk.BOTH, expand=True)
+        ttk.Label(notes_frame, text=self.customer.get('notes', ''), wraplength=300).pack(anchor='w')
+
+    def create_stat_card(self, parent, title, value, color):
+        """Create a styled statistic card"""
+        card = ttk.Frame(parent, bootstyle=f"{color}-bg", padding=15)
+        
+        # Inner frame for white text
+        ttk.Label(card, text=title, font=('Arial', 10), bootstyle=f"inverse-{color}").pack(anchor='w')
+        label = ttk.Label(card, text=value, font=('Arial', 20, 'bold'), bootstyle=f"inverse-{color}")
+        label.pack(anchor='w')
+        
+        # Store reference to update later
+        setattr(self, f"stat_{title.lower().replace(' ', '_')}", label)
+        
+        return card
+
+    def build_deliveries_tab(self):
+        """Build Deliveries tab"""
+        # Pending Deliveries
+        pending_frame = ttk.LabelFrame(self.tab_deliveries, text="Pending / Reserved Orders", padding=10)
+        pending_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        columns = ('Date', 'Status', 'Items', 'Total')
+        self.tree_pending = ttk.Treeview(pending_frame, columns=columns, show='headings', height=5)
+        for col in columns:
+            self.tree_pending.heading(col, text=col)
+            self.tree_pending.column(col, width=100)
+        
+        self.tree_pending.pack(fill=tk.BOTH, expand=True)
+        enable_mousewheel_scrolling(self.tree_pending)
+
+        # Delivery History
+        history_frame = ttk.LabelFrame(self.tab_deliveries, text="Delivery History (Last 10)", padding=10)
+        history_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.tree_history = ttk.Treeview(history_frame, columns=columns, show='headings', height=5)
+        for col in columns:
+            self.tree_history.heading(col, text=col)
+            self.tree_history.column(col, width=100)
+        
+        self.tree_history.pack(fill=tk.BOTH, expand=True)
+        enable_mousewheel_scrolling(self.tree_history)
+
+    def build_financials_tab(self):
+        """Build Financials tab"""
+        # Outstanding Invoices
+        inv_frame = ttk.LabelFrame(self.tab_financials, text="Outstanding Invoices", padding=10)
+        inv_frame.pack(fill=tk.BOTH, expand=True)
+
+        columns = ('Invoice #', 'Date', 'Due Date', 'Outstanding', 'Total', 'Status')
+        self.tree_invoices = ttk.Treeview(inv_frame, columns=columns, show='headings')
+        for col in columns:
+            self.tree_invoices.heading(col, text=col)
+            self.tree_invoices.column(col, width=100)
+        
+        self.tree_invoices.pack(fill=tk.BOTH, expand=True)
+        enable_mousewheel_scrolling(self.tree_invoices)
+
+    def load_dashboard_data(self):
+        """Fetch data for all tabs"""
+        customer_id = self.customer['customer_id']
+        self.cache.connect()
+        try:
+            # --- Overview & Stats ---
+            invoices = self.cache.get_all_records('invoices', f"customer_id = '{customer_id}' AND payment_status != 'paid'")
+            total_outstanding = sum(inv.get('amount_outstanding', 0) for inv in invoices)
+            
+            sales_history = self.cache.get_all_records('sales', f"customer_id = '{customer_id}' AND status = 'delivered'", "delivery_date DESC")
+            last_order = "Never"
+            if sales_history:
+                last_order = format_date_for_display(sales_history[0].get('delivery_date'))
+            
+            credit_limit = self.customer.get('credit_limit', 0)
+            credit_available = credit_limit - total_outstanding
+            
+            # Update Stats
+            if hasattr(self, 'stat_total_outstanding'):
+                self.stat_total_outstanding.configure(text=f"£{total_outstanding:.2f}")
+            
+            if hasattr(self, 'stat_credit_available'):
+                self.stat_credit_available.configure(text=f"£{credit_available:.2f}")
+                if credit_available < 0:
+                    self.stat_credit_available.configure(bootstyle="inverse-danger")
+                else:
+                    self.stat_credit_available.configure(bootstyle="inverse-success")
+                    
+            if hasattr(self, 'stat_last_order'):
+                self.stat_last_order.configure(text=last_order)
+
+            # --- Deliveries Tab ---
+            # Pending
+            pending_sales = self.cache.get_all_records('sales', f"customer_id = '{customer_id}' AND status = 'reserved'", "delivery_date ASC")
+            
+            if hasattr(self, 'tree_pending'):
+                self.tree_pending.delete(*self.tree_pending.get_children())
+                for sale in pending_sales:
+                    values = (
+                        format_date_for_display(sale.get('delivery_date')),
+                        sale.get('status', '').title(),
+                        f"{sale.get('quantity')} x {sale.get('beer_name')}",
+                        f"£{sale.get('line_total', 0):.2f}"
+                    )
+                    self.tree_pending.insert('', 'end', values=values)
+
+            # History
+            if hasattr(self, 'tree_history'):
+                self.tree_history.delete(*self.tree_history.get_children())
+                for sale in sales_history[:10]: # Limit to 10
+                    values = (
+                        format_date_for_display(sale.get('delivery_date')),
+                        sale.get('status', '').title(),
+                        f"{sale.get('quantity')} x {sale.get('beer_name')}",
+                        f"£{sale.get('line_total', 0):.2f}"
+                    )
+                    self.tree_history.insert('', 'end', values=values)
+
+            # --- Financials Tab ---
+            if hasattr(self, 'tree_invoices'):
+                self.tree_invoices.delete(*self.tree_invoices.get_children())
+                for inv in invoices:
+                    values = (
+                        inv.get('invoice_number'),
+                        format_date_for_display(inv.get('invoice_date')),
+                        format_date_for_display(inv.get('due_date')),
+                        f"£{inv.get('amount_outstanding', 0):.2f}",
+                        f"£{inv.get('total', 0):.2f}",
+                        inv.get('payment_status', '').replace('_', ' ').title()
+                    )
+                    self.tree_invoices.insert('', 'end', values=values)
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load dashboard data: {e}")
+        finally:
+            self.cache.close()
+
+    def place_order(self):
+        """Open Sales Dialog"""
+        from .sales import SaleDialog  # Local import to avoid circular dependency
+        dialog = SaleDialog(self, self.cache, self.current_user, mode='add')
+        # Here we would ideally pre-select the customer, but the SaleDialog logic might need tweaking 
+        # to accept a pre-selected customer_id. For now, it opens the dialog.
+        self.wait_window(dialog)
+        self.load_dashboard_data() # Refresh after sale
+
+    def edit_customer(self):
+        """Edit customer details"""
+        # Close dashboard temporarily or refresh after
+        dialog = CustomerDialog(self, self.cache, self.current_user, mode='edit', customer=self.customer)
+        self.wait_window(dialog)
+        # In a real app we'd reload the customer data from DB
+        # self.customer = self.cache.get_customer(self.customer['customer_id'])
+        # self.create_widgets() # Rebuild UI
+        pass

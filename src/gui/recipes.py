@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Optional
 from ..utilities.date_utils import format_date_for_display, format_datetime_for_display, get_today_db, get_now_db
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation, enable_canvas_scrolling
+from .components import ScrollableFrame
 import logging
 import re
 
@@ -569,30 +570,11 @@ class RecipeDialog(tk.Toplevel):
         button_frame = ttk.Frame(self)
         button_frame.pack(side=tk.TOP, fill=tk.X, padx=20, pady=(0, 20))
 
-        # Create canvas with scrollbar for content
-        canvas = tk.Canvas(self, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
-        canvas.configure(yscrollcommand=scrollbar.set)
+        scroll_frame = ScrollableFrame(self)
+        scroll_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Pack scrollbar and canvas
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-
-        # Create frame inside canvas for all content
-        main_frame = ttk.Frame(canvas)
-        canvas_window = canvas.create_window((0, 0), window=main_frame, anchor='nw')
-
-        # Configure canvas scrolling
-        def configure_scroll_region(event):
-            canvas.configure(scrollregion=canvas.bbox("all"))
-
-        def configure_canvas_width(event):
-            canvas.itemconfig(canvas_window, width=event.width)
-
-        main_frame.bind('<Configure>', configure_scroll_region)
-        canvas.bind('<Configure>', configure_canvas_width)
-
-        enable_canvas_scrolling(canvas)
+        main_frame = ttk.Frame(scroll_frame.inner_frame)
+        main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Recipe Name
         ttk.Label(main_frame, text="Recipe Name *", font=('Arial', 10, 'bold')).grid(row=0, column=0, sticky='w', pady=(0, 5), padx=20)
@@ -1027,21 +1009,11 @@ class RecipeDetailsDialog(tk.Toplevel):
         ttk.Button(button_frame, text="Close", bootstyle="secondary",
                   command=self.destroy).pack(side=tk.RIGHT, padx=(10, 0))
 
-        # Main container with scrollbar
-        canvas = tk.Canvas(self, highlightthickness=0)
-        scrollbar = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
-
-        scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
-
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
+        scroll_frame = ScrollableFrame(self)
+        scroll_frame.pack(fill=tk.BOTH, expand=True)
 
         # Content
-        content = ttk.Frame(scrollable_frame)
+        content = ttk.Frame(scroll_frame.inner_frame)
         content.pack(fill=tk.BOTH, expand=True, padx=30, pady=20)
 
         # Recipe info
@@ -1123,9 +1095,7 @@ Last Modified: {self.recipe.get('last_modified', 'N/A')}
                 font=('Arial', 10, 'italic')
             ).pack(anchor='w')
 
-        # Pack canvas and scrollbar
-        canvas.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+
 
 
 class IngredientDialog(tk.Toplevel):
