@@ -14,7 +14,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from ..utilities.date_utils import get_today_db
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
-from .components import ScrollableFrame
+from .components import ScrollableFrame, DateEntry
 
 
 class InventoryModule(ttk.Frame):
@@ -590,7 +590,7 @@ class MaterialDialog(tk.Toplevel):
 
         self.expiry_label = ttk.Label(frame, text="Expiry (DD/MM/YYYY)", font=('Arial', 10, 'bold'))
         self.expiry_label.grid(row=6, column=1, sticky='w', pady=(0,5), padx=(20,0))
-        self.expiry_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
+        self.expiry_entry = DateEntry(frame, font=('Arial', 10), width=15)
         self.expiry_entry.grid(row=7, column=1, sticky='w', pady=(0,15), padx=(20,0))
 
         ttk.Label(frame, text="Reorder Level", font=('Arial', 10, 'bold')).grid(row=8, column=0, sticky='w', pady=(0,5))
@@ -804,7 +804,7 @@ class StockAdjustDialog(tk.Toplevel):
         self.batch_num_entry.pack(anchor='w', pady=(0,5))
         
         ttk.Label(self.batch_frame, text="Expiry (DD/MM/YYYY):", font=('Arial', 10)).pack(anchor='w')
-        self.expiry_entry = ttk.Entry(self.batch_frame, width=20)
+        self.expiry_entry = DateEntry(self.batch_frame, width=20)
         self.expiry_entry.pack(anchor='w')
 
         # Qty

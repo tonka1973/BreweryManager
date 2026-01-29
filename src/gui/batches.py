@@ -17,7 +17,8 @@ from ..utilities.date_utils import format_date_for_display, parse_display_date, 
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
 from ..utilities.calculations import calculate_abv_from_gravity
 from ..utilities.label_printer import print_labels_for_batch
-from .components import ScrollableFrame
+from ..utilities.label_printer import print_labels_for_batch
+from .components import ScrollableFrame, DateEntry
 
 
 class BatchesModule(ttk.Frame):
@@ -350,7 +351,7 @@ class BatchDialog(tk.Toplevel):
 
         # Brew Date
         ttk.Label(frame, text="Brew Date (DD/MM/YYYY) *", font=('Arial', 10, 'bold')).grid(row=2, column=1, sticky='w', pady=(0,5), padx=(20,0))
-        self.brew_date_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
+        self.brew_date_entry = DateEntry(frame, font=('Arial', 10), width=15)
         self.brew_date_entry.insert(0, get_today_display())
         self.brew_date_entry.grid(row=3, column=1, sticky='w', pady=(0,15), padx=(20,0))
 
@@ -806,7 +807,7 @@ O.G.: {og_text}"""
         date_frame = ttk.Frame(frame)
         date_frame.pack(fill=tk.X, pady=(0,15))
         ttk.Label(date_frame, text="Date Packaged (DD/MM/YYYY) *", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
-        self.package_date_entry = ttk.Entry(date_frame, font=('Arial', 10), width=15)
+        self.package_date_entry = DateEntry(date_frame, font=('Arial', 10), width=15)
         self.package_date_entry.insert(0, get_today_display())
         self.package_date_entry.pack(anchor='w')
 
@@ -1374,7 +1375,7 @@ Current Duty ABV: {duty_abv_text}"""
         date_frame = ttk.Frame(frame)
         date_frame.pack(fill=tk.X, pady=(0,15))
         ttk.Label(date_frame, text="Date Packaged (DD/MM/YYYY) *", font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
-        self.package_date_entry = ttk.Entry(date_frame, font=('Arial', 10), width=15)
+        self.package_date_entry = DateEntry(date_frame, font=('Arial', 10), width=15)
         current_date = format_date_for_display(self.batch.get('packaged_date', ''))
         self.package_date_entry.insert(0, current_date if current_date else get_today_display())
         self.package_date_entry.pack(anchor='w')

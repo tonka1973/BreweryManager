@@ -143,3 +143,86 @@ def get_next_weekday_date(day_name):
         
     from datetime import timedelta
     return today_dt + timedelta(days=days_ahead)
+
+
+def smart_parse_date(date_string):
+    """
+    Smartly parse a date string that might be in various short formats.
+    
+    Supported formats (variations of separators /, ., -, or none):
+    - D/M/YY or DD/MM/YY (e.g. 1/3/26 -> 01/03/2026)
+    - D/M/YYYY or DD/MM/YYYY
+    - DDMMYY (e.g. 010326 -> 01/03/2026)
+    - D/M (assumes current year)
+    - DDMM (assumes current year)
+    
+    Args:
+        date_string: The input date string
+        
+    Returns:
+        The formatted date string (DD/MM/YYYY) or the original string if parsing fails
+    """
+    if not date_string:
+        return ""
+        
+    s = str(date_string).strip()
+    
+    # If it's already in the correct format, validation will pass
+    try:
+        dt = datetime.strptime(s, DISPLAY_DATE_FORMAT)
+        return dt.strftime(DISPLAY_DATE_FORMAT)
+    except ValueError:
+        pass
+        
+    current_year = datetime.now().year
+    century = (current_year // 100) * 100
+    
+    import re
+    
+    # Normalize separators to /
+    s_norm = re.sub(r'[\.\-]', '/', s)
+    
+    parts = s_norm.split('/')
+    
+    try:
+        # Case 1: D/M/YY or D/M/YYYY
+        if len(parts) == 3:
+            d, m, y = map(int, parts)
+            if y < 100:
+                y += century
+            return datetime(y, m, d).strftime(DISPLAY_DATE_FORMAT)
+            
+        # Case 2: D/M (assume current year)
+        elif len(parts) == 2:
+            d, m = map(int, parts)
+            return datetime(current_year, m, d).strftime(DISPLAY_DATE_FORMAT)
+            
+        # Case 3: No separators (DDMMYY or DDMM)
+        elif len(parts) == 1 and s.isdigit():
+            if len(s) == 6: # DDMMYY
+                d = int(s[0:2])
+                m = int(s[2:4])
+                y = int(s[4:6]) + century
+                return datetime(y, m, d).strftime(DISPLAY_DATE_FORMAT)
+            elif len(s) == 8: # DDMMYYYY
+                d = int(s[0:2])
+                m = int(s[2:4])
+                y = int(s[4:8])
+                return datetime(y, m, d).strftime(DISPLAY_DATE_FORMAT)
+            elif len(s) == 4: # DDMM (current year) or DMYY
+                try:
+                    d = int(s[0:2])
+                    m = int(s[2:4])
+                    return datetime(current_year, m, d).strftime(DISPLAY_DATE_FORMAT)
+                except ValueError:
+                    # Fallback to DMYY if DDMM is invalid (e.g. 1326 -> 1st March 2026)
+                    d = int(s[0])
+                    m = int(s[1])
+                    y = int(s[2:4]) + century
+                    return datetime(y, m, d).strftime(DISPLAY_DATE_FORMAT)
+                
+    except (ValueError, IndexError):
+        pass
+        
+    # Return original if all parsing attempts fail
+    return s

@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from ..utilities.date_utils import format_date_for_display, parse_display_date, get_today_display, get_today_db
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
-from .components import ScrollableFrame
+from .components import ScrollableFrame, DateEntry
 
 
 class SalesModule(ttk.Frame):
@@ -287,13 +287,13 @@ class SaleDialog(tk.Toplevel):
 
         # Sale Date
         ttk.Label(frame, text="Sale Date (DD/MM/YYYY)", font=('Arial', 10, 'bold')).grid(row=8, column=1, sticky='w', pady=(0,5), padx=(20,0))
-        self.sale_date_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
+        self.sale_date_entry = DateEntry(frame, font=('Arial', 10), width=15)
         self.sale_date_entry.insert(0, get_today_display())
         self.sale_date_entry.grid(row=9, column=1, sticky='w', pady=(0,15), padx=(20,0))
 
         # Delivery Date
         ttk.Label(frame, text="Delivery Date (DD/MM/YYYY)", font=('Arial', 10, 'bold')).grid(row=10, column=0, sticky='w', pady=(0,5))
-        self.delivery_entry = ttk.Entry(frame, font=('Arial', 10), width=15)
+        self.delivery_entry = DateEntry(frame, font=('Arial', 10), width=15)
         self.delivery_entry.grid(row=11, column=0, sticky='w', pady=(0,15))
 
         # Status
