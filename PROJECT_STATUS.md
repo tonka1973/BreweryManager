@@ -1,0 +1,58 @@
+# Update Customer View Orders
+
+- [x] Locate "Recent Order Status" code in `src/gui/customers.py` <!-- id: 0 -->
+- [x] Analyze current order fetching and display logic <!-- id: 1 -->
+- [x] Create implementation plan to filter completed orders <!-- id: 2 -->
+- [x] Implement changes: Rename to "Current Orders" and update filter logic <!-- id: 3 -->
+- [x] Rebuild and Verify changes (Confirmed logic: Needs Delivered+Invoiced+Paid to hide) <!-- id: 4 -->
+- [x] Update "Current Orders" columns (Invoice No, Delivered Y/N, Invoiced Y/N, Paid Y/N) <!-- id: 5 -->
+- [x] Rebuild and Verify column changes <!-- id: 6 -->
+- [x] Fix Invoice Number missing & Left Align columns <!-- id: 7 -->
+- [x] Rebuild and Verify alignment fixes (Force closed app to rebuild) <!-- id: 8 -->
+- [x] Update Invoice Number column to show "Not Invoiced" if empty <!-- id: 9 -->
+- [x] Add "Create Invoice" option to order list (Context Menu) <!-- id: 10 -->
+- [x] Rebuild and Verify new invoice workflow <!-- id: 11 -->
+- [x] Add Scrollbar to "Current Orders" table <!-- id: 12 -->
+- [x] Allow Invoicing of Non-Delivered Orders (Reserved/Pending) <!-- id: 13 -->
+- [x] Pre-select order when creating invoice from context menu <!-- id: 14 -->
+- [x] Fix Invoice Creation list visibility (handle 'None' strings) <!-- id: 16 -->
+- [x] Rebuild and Verify fixes <!-- id: 15 -->
+- [x] Add 'Ordered Date' and 'Delivery Date' columns to "Current Orders" <!-- id: 17 -->
+- [x] Deep Debug Invoice Creation (Simulate Query) -> Solution: Removed status filter <!-- id: 18 -->
+    - [x] Create debug script to verify query logic
+    - [x] Add detailed logging to `invoicing.py`
+    - [x] Rebuild and check logs for root cause -> Log showed `AttributeError` due to initialization order.
+- [x] Fix `InvoiceCreateDialog` crash (move auto-select logic) <!-- id: 20 -->
+- [x] Implement `OrderDetailsDialog` (Proforma View) <!-- id: 21 -->
+- [x] Refactor `create_invoice` logic in `invoicing.py` <!-- id: 22 -->
+- [x] Update `customers.py` double-click handler and remove right-click <!-- id: 23 -->
+- [x] Rebuild and Verify <!-- id: 19 -->
+- [x] Align `SalesModule` with "Current Orders" view <!-- id: 24 -->
+    - [x] Update columns in `sales.py`
+    - [x] Implement `load_sales` with invoice mapping and filtering
+    - [x] Link double-click to `OrderDetailsDialog`
+- [x] Consolidate Sales and Invoicing <!-- id: 25 -->
+    - [x] Rename "Proforma" to "Order Details" & Add Payment button in `order_view.py`
+    - [x] Add Payment button to `sales.py` toolbar
+    - [x] Update `main_window.py` (Remove Invoicing, Rename Sales)
+- [x] Refactor Edit Sale to Edit Order <!-- id: 26 -->
+    - [x] Update `SalesModule.edit_sale` to fetch related sales
+    - [x] Update `SaleDialog` to handle list of sales
+    - [x] Implement Add/Remove logic in `SaleDialog`
+    - [x] Implement Save logic (Create/Delete/Update) and Invoice Recalculation
+- [ ] Debug "SaleDialog has no attribute create_header_section" Error
+    - [x] Rename `sales.py` to `sales_screen.py` to clear cache issues
+    - [x] Update imports in `main_window.py`, `customers.py`, `order_view.py`
+    - [x] Check `invoicing.py` for stale imports (None found)
+    - [x] Re-verify `order_view.py` and `customers.py` -> Fixed delayed imports
+- [x] Fix `SaleDialog` missing methods (`on_customer_selected`, etc.)
+- [x] Fix `SaleDialog` missing attributes (`existing_items_map`, `added_items_map`)
+- [x] Rebuild and Verify <!-- id: 19 -->
+- [ ] Implement Recipe Costing & Product Pricing <!-- id: 27 -->
+    - [x] Update Database Schema (`recipes`: costs, `products`: prices) <!-- id: 28 -->
+    - [x] Update `recipes.py` to calculate and save costs <!-- id: 29 -->
+    - [x] Update `products.py` to set Retail/Cost prices <!-- id: 30 -->
+    - [x] Update `sales_screen.py` to use Retail Price as default <!-- id: 31 -->
+    - [x] Rebuild and Verify <!-- id: 32 -->
+- [x] Fix Edit Order Bug: Adding items creates new order <!-- id: 33 -->
+- [x] Fix Order Details View: Only showing one item instead of group <!-- id: 34 -->
