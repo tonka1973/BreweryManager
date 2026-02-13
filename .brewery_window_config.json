@@ -1,8 +1,14 @@
 {
   "main_window": {
     "width": 1536,
-    "height": 882,
-    "x": 192,
+    "height": 852,
+    "x": 1,
     "y": 54
+  },
+  "order_details_dialog": {
+    "width": 1211,
+    "height": 826,
+    "x": 384,
+    "y": 162
   }
 }

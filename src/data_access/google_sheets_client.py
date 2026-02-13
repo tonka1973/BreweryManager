@@ -17,6 +17,7 @@ from ..config.constants import (
     CREDENTIALS_PATH,
     TABLES,
 )
+import socket
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +85,23 @@ class GoogleSheetsClient:
             logger.error(f"Silent auth failed: {e}")
             return False
 
+    def _is_internet_available(self, host="8.8.8.8", port=53, timeout=3):
+        """
+        Check if internet is available by trying to connect to a reliable host.
+        Default is Google DNS (8.8.8.8).
+        """
+        try:
+            # DO NOT use setdefaulttimeout as it affects the whole app!
+            socket.create_connection((host, port), timeout=timeout)
+            return True
+        except OSError:
+            # Try fallback to google.com via http (port 80) in case DNS port blocked
+            try:
+                socket.create_connection(("www.google.com", 80), timeout=timeout)
+                return True
+            except OSError:
+                return False
+
     def authenticate(self):
         """
         Authenticate with Google and get credentials.
@@ -94,6 +112,12 @@ class GoogleSheetsClient:
             if self.authenticate_silent():
                 return True
             
+            # If silent failed, check connection before trying interactive flow
+            if not self._is_internet_available():
+                logger.warning("No internet connection detected. Skipping interactive authentication.")
+                self.is_authenticated = False
+                return False
+
             # If silent failed, continue with full flow
             
             # If credentials are invalid or don't exist, get new ones

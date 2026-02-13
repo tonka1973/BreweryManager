@@ -136,6 +136,29 @@ class SQLiteCacheManager:
                 except Exception as e:
                     logger.error(f"Migration error (customers delivery_area): {e}")
 
+            # Check for costing columns (Schema Migration - Recipes Costing)
+            try:
+                self.cursor.execute("SELECT labor_cost FROM recipes LIMIT 1")
+            except sqlite3.OperationalError:
+                try:
+                    logger.info("Migrating recipes table (adding costing columns)...")
+                    self.cursor.execute("ALTER TABLE recipes ADD COLUMN labor_cost REAL DEFAULT 0.0")
+                    self.cursor.execute("ALTER TABLE recipes ADD COLUMN energy_cost REAL DEFAULT 0.0")
+                    self.cursor.execute("ALTER TABLE recipes ADD COLUMN misc_cost REAL DEFAULT 0.0")
+                except Exception as e:
+                    logger.error(f"Migration error (recipes costing): {e}")
+
+            # Check for pricing columns (Schema Migration - Products Pricing)
+            try:
+                self.cursor.execute("SELECT retail_price FROM products LIMIT 1")
+            except sqlite3.OperationalError:
+                try:
+                    logger.info("Migrating products table (adding pricing columns)...")
+                    self.cursor.execute("ALTER TABLE products ADD COLUMN retail_price REAL DEFAULT 0.0")
+                    self.cursor.execute("ALTER TABLE products ADD COLUMN cost_price REAL DEFAULT 0.0")
+                except Exception as e:
+                    logger.error(f"Migration error (products pricing): {e}")
+
             # Delivery Runs table
             self.cursor.execute('''
                 CREATE TABLE IF NOT EXISTS delivery_runs (

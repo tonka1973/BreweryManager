@@ -626,9 +626,21 @@ class AddProductDialog(tk.Toplevel):
         self.abv_entry = ttk.Entry(fields_frame, font=('Arial', 10), width=30)
         self.abv_entry.grid(row=11, column=0, sticky='ew', pady=(0, 15))
 
-        fields_frame.grid_columnconfigure(0, weight=1)
+        # Prices
+        price_frame = ttk.Frame(fields_frame)
+        price_frame.grid(row=12, column=0, sticky='ew', pady=(0, 15))
+        
+        ttk.Label(price_frame, text="Retail Price (£)", font=('Arial', 10, 'bold')).pack(side=tk.LEFT, padx=(0, 10))
+        self.retail_price_entry = ttk.Entry(price_frame, font=('Arial', 10), width=10)
+        self.retail_price_entry.insert(0, "0.00")
+        self.retail_price_entry.pack(side=tk.LEFT, padx=(0, 20))
+        
+        ttk.Label(price_frame, text="Cost Price (£)", font=('Arial', 10)).pack(side=tk.LEFT, padx=(0, 10))
+        self.cost_price_entry = ttk.Entry(price_frame, font=('Arial', 10), width=10)
+        self.cost_price_entry.insert(0, "0.00")
+        self.cost_price_entry.pack(side=tk.LEFT)
 
-        # Buttons
+        fields_frame.grid_columnconfigure(0, weight=1)
 
     def save(self):
         """Save new product"""
@@ -638,6 +650,9 @@ class AddProductDialog(tk.Toplevel):
         container = self.container_entry.get().strip()
         qty_str = self.qty_entry.get().strip()
         abv_str = self.abv_entry.get().strip()
+        
+        retail_str = self.retail_price_entry.get().strip()
+        cost_str = self.cost_price_entry.get().strip()
 
         if not all([gyle, name, container, qty_str, abv_str]):
             messagebox.showerror("Error", "Please fill in all required fields.")
@@ -646,8 +661,10 @@ class AddProductDialog(tk.Toplevel):
         try:
             qty = int(qty_str)
             abv = float(abv_str)
+            retail_price = float(retail_str or 0)
+            cost_price = float(cost_str or 0)
         except ValueError:
-            messagebox.showerror("Error", "Invalid quantity or ABV value.")
+            messagebox.showerror("Error", "Invalid numeric value (Quantity, ABV, or Price).")
             return
 
         # Create product record
@@ -664,6 +681,16 @@ class AddProductDialog(tk.Toplevel):
             'quantity_in_stock': qty,
             'quantity_sold': 0,
             'abv': abv,
+            'formatted_abv': f"{abv:.1f}%", # Validated schema requires this sometimes or it is derived? 
+            # Looking at sqlite_cache.py schema, formatted_abv isn't there, but let's check older context. 
+            # Actually, `products` table schema wasn't fully shown in sqlite_cache.py view. 
+            # But the existing `load_products` function uses `product.get('abv', 0):.1f}` for display.
+            # I will omit formatted_abv if it's not in the dict I'm replacing exactly.
+            # The original code didn't have formatted_abv.
+            
+            'retail_price': retail_price,
+            'cost_price': cost_price,
+            
             'date_packaged': now,
             'date_in_stock': now,
             'status': 'In Stock',

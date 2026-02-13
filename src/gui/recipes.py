@@ -677,6 +677,37 @@ class RecipeDialog(tk.Toplevel):
         main_frame.grid_columnconfigure(0, weight=1)
         main_frame.grid_columnconfigure(1, weight=1)
 
+        # Costing Section
+        cost_frame = ttk.LabelFrame(main_frame, text="Cost Estimation", padding=10)
+        cost_frame.grid(row=16, column=0, columnspan=2, sticky='ew', pady=(0, 20), padx=20)
+
+        # Cost Inputs
+        ttk.Label(cost_frame, text="Labor Cost (£)", font=('Arial', 9)).grid(row=0, column=0, sticky='w', padx=5, pady=5)
+        self.labor_cost_entry = ttk.Entry(cost_frame, font=('Arial', 9), width=10)
+        self.labor_cost_entry.insert(0, "0.00")
+        self.labor_cost_entry.grid(row=0, column=1, sticky='w', padx=5, pady=5)
+
+        ttk.Label(cost_frame, text="Energy Cost (£)", font=('Arial', 9)).grid(row=0, column=2, sticky='w', padx=5, pady=5)
+        self.energy_cost_entry = ttk.Entry(cost_frame, font=('Arial', 9), width=10)
+        self.energy_cost_entry.insert(0, "0.00")
+        self.energy_cost_entry.grid(row=0, column=3, sticky='w', padx=5, pady=5)
+
+        ttk.Label(cost_frame, text="Misc Cost (£)", font=('Arial', 9)).grid(row=0, column=4, sticky='w', padx=5, pady=5)
+        self.misc_cost_entry = ttk.Entry(cost_frame, font=('Arial', 9), width=10)
+        self.misc_cost_entry.insert(0, "0.00")
+        self.misc_cost_entry.grid(row=0, column=5, sticky='w', padx=5, pady=5)
+
+        # Calculate Button
+        calc_btn = ttk.Button(cost_frame, text="Calculate Cost", bootstyle="info-outline", command=self.calculate_cost)
+        calc_btn.grid(row=0, column=6, rowspan=2, padx=20, sticky='ns')
+
+        # Results
+        self.total_cost_label = ttk.Label(cost_frame, text="Total Batch Cost: £0.00", font=('Arial', 11, 'bold'))
+        self.total_cost_label.grid(row=1, column=0, columnspan=3, sticky='w', padx=5, pady=5)
+
+        self.cost_per_litre_label = ttk.Label(cost_frame, text="Cost Per Litre: £0.00", font=('Arial', 11, 'bold'))
+        self.cost_per_litre_label.grid(row=1, column=3, columnspan=3, sticky='w', padx=5, pady=5)
+
         # Add buttons to the button_frame created at the top
         cancel_btn = ttk.Button(
             button_frame,
@@ -706,6 +737,16 @@ class RecipeDialog(tk.Toplevel):
         self.version_entry.delete(0, tk.END)
         self.version_entry.insert(0, str(self.recipe.get('version', 1)))
         self.active_var.set(self.recipe.get('is_active', 1))
+        
+        # Populate costs
+        self.labor_cost_entry.delete(0, tk.END)
+        self.labor_cost_entry.insert(0, f"{self.recipe.get('labor_cost', 0.0):.2f}")
+        
+        self.energy_cost_entry.delete(0, tk.END)
+        self.energy_cost_entry.insert(0, f"{self.recipe.get('energy_cost', 0.0):.2f}")
+        
+        self.misc_cost_entry.delete(0, tk.END)
+        self.misc_cost_entry.insert(0, f"{self.recipe.get('misc_cost', 0.0):.2f}")
 
         notes = self.recipe.get('brewing_notes', '')
         if notes:
@@ -714,6 +755,71 @@ class RecipeDialog(tk.Toplevel):
         allergens = self.recipe.get('allergens', '')
         if allergens:
             self.allergens_text.insert('1.0', allergens)
+
+    def calculate_cost(self):
+        """Calculate estimated cost of recipe"""
+        try:
+            labor = float(self.labor_cost_entry.get() or 0)
+            energy = float(self.energy_cost_entry.get() or 0)
+            misc = float(self.misc_cost_entry.get() or 0)
+            batch_size = float(self.batch_size_entry.get() or 0)
+        except ValueError:
+            messagebox.showerror("Error", "Invalid cost or batch size values.")
+            return
+
+        ingredient_cost = 0.0
+        
+        self.cache.connect()
+        
+        for ing in self.ingredients:
+            # Check if linked to inventory
+            if ing.get('inventory_item_id'):
+                materials = self.cache.get_all_records('inventory_materials', f"material_id = '{ing['inventory_item_id']}'")
+                if materials:
+                    mat = materials[0]
+                    cost_per_unit = float(mat.get('cost_per_unit', 0) or 0)
+                    inv_unit = mat.get('unit', '').lower()
+                    
+                    recipe_qty = float(ing.get('quantity', 0) or 0)
+                    recipe_unit = ing.get('unit', '').lower()
+                    
+                    # Unit Conversion
+                    factor = 1.0
+                    
+                    # Same unit
+                    if recipe_unit == inv_unit:
+                        factor = 1.0
+                    # Mass
+                    elif recipe_unit == 'g' and inv_unit == 'kg':
+                        factor = 0.001
+                    elif recipe_unit == 'kg' and inv_unit == 'g':
+                        factor = 1000.0
+                    elif recipe_unit == 'oz' and inv_unit == 'kg': # Approx
+                        factor = 0.0283495
+                    elif recipe_unit == 'lb' and inv_unit == 'kg':
+                        factor = 0.453592
+                    # Volume
+                    elif recipe_unit == 'ml' and inv_unit == 'l':
+                        factor = 0.001
+                    elif recipe_unit == 'l' and inv_unit == 'ml':
+                        factor = 1000.0
+                    
+                    cost = recipe_qty * factor * cost_per_unit
+                    ingredient_cost += cost
+            else:
+                # Try to find by name if no ID (fallback for old data)
+                name = ing.get('name', '')
+                if name:
+                    # Logic to find by name could go here, but safest to rely on ID
+                    pass
+
+        self.cache.close()
+        
+        total = labor + energy + misc + ingredient_cost
+        cost_per_litre = total / batch_size if batch_size > 0 else 0
+
+        self.total_cost_label.config(text=f"Total Batch Cost: £{total:.2f}")
+        self.cost_per_litre_label.config(text=f"Cost Per Litre: £{cost_per_litre:.2f}")
 
     def load_ingredients(self):
         """Load ingredients for existing recipe"""
@@ -741,6 +847,8 @@ class RecipeDialog(tk.Toplevel):
             })
 
         self.refresh_ingredients_list()
+        # Auto-calculate cost significantly improves UX on load
+        self.after(500, self.calculate_cost)
 
     def refresh_ingredients_list(self):
         """Refresh the ingredients listbox"""
@@ -759,6 +867,7 @@ class RecipeDialog(tk.Toplevel):
         if hasattr(dialog, 'result') and dialog.result:
             self.ingredients.append(dialog.result)
             self.refresh_ingredients_list()
+            self.calculate_cost() 
 
     def edit_ingredient(self):
         """Edit selected ingredient"""
@@ -776,6 +885,7 @@ class RecipeDialog(tk.Toplevel):
         if hasattr(dialog, 'result') and dialog.result:
             self.ingredients[index] = dialog.result
             self.refresh_ingredients_list()
+            self.calculate_cost()
 
     def delete_ingredient(self):
         """Delete selected ingredient"""
@@ -793,6 +903,7 @@ class RecipeDialog(tk.Toplevel):
         if result:
             del self.ingredients[index]
             self.refresh_ingredients_list()
+            self.calculate_cost()
 
     def save_recipe(self):
         """Save recipe to database"""
@@ -825,6 +936,16 @@ class RecipeDialog(tk.Toplevel):
         version = int(self.version_entry.get() or 1)
         notes = self.notes_text.get('1.0', tk.END).strip()
         allergens = self.allergens_text.get('1.0', tk.END).strip()
+        
+        # Costing data
+        try:
+            labor_cost = float(self.labor_cost_entry.get() or 0)
+            energy_cost = float(self.energy_cost_entry.get() or 0)
+            misc_cost = float(self.misc_cost_entry.get() or 0)
+        except ValueError:
+            labor_cost = 0.0
+            energy_cost = 0.0
+            misc_cost = 0.0
 
         # Check if version is changing (only relevant in edit mode)
         version_changing = False
@@ -865,6 +986,9 @@ class RecipeDialog(tk.Toplevel):
                 'is_active': self.active_var.get(),
                 'brewing_notes': notes,
                 'allergens': allergens,
+                'labor_cost': labor_cost,
+                'energy_cost': energy_cost,
+                'misc_cost': misc_cost,
                 'sync_status': 'pending'
             }
 
@@ -901,6 +1025,9 @@ class RecipeDialog(tk.Toplevel):
                     'is_active': self.active_var.get(),
                     'brewing_notes': notes,
                     'allergens': allergens,
+                    'labor_cost': labor_cost,
+                    'energy_cost': energy_cost,
+                    'misc_cost': misc_cost,
                     'sync_status': 'pending'
                 }
 
@@ -928,6 +1055,9 @@ class RecipeDialog(tk.Toplevel):
                     'is_active': self.active_var.get(),
                     'brewing_notes': notes,
                     'allergens': allergens,
+                    'labor_cost': labor_cost,
+                    'energy_cost': energy_cost,
+                    'misc_cost': misc_cost,
                     'sync_status': 'pending'
                 }
 

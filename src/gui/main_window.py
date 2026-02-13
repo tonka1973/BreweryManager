@@ -34,7 +34,7 @@ from src.gui.recipes import RecipesModule
 from src.gui.inventory import InventoryModule
 from src.gui.batches import BatchesModule
 from src.gui.customers import CustomersModule
-from src.gui.sales import SalesModule
+from src.gui.sales_screen import SalesModule
 from src.gui.invoicing import InvoicingModule
 from src.gui.duty import DutyModule
 from src.gui.products import ProductsModule
@@ -383,9 +383,8 @@ class BreweryMainWindow:
             'Duty',
             'Products',
             'Customers',
-            'Sales',
+            'Sales / Invoicing',
             'Delivery',
-            'Invoicing',
             'Reports',
             'Settings'
         ]
@@ -506,8 +505,7 @@ class BreweryMainWindow:
             'Duty': DutyModule,
             'Products': ProductsModule,
             'Customers': CustomersModule,
-            'Sales': SalesModule,
-            'Invoicing': InvoicingModule,
+            'Sales / Invoicing': SalesModule,
             'Reports': ReportsModule,
             'Settings': SettingsModule
         }
@@ -548,7 +546,7 @@ class BreweryMainWindow:
                     current_user=self.current_user,
                     sync_callback=self.trigger_auto_save_sync
                 )
-            elif module_name in ['Recipes', 'Duty', 'Products', 'Customers', 'Sales', 'Invoicing', 'Delivery']:
+            elif module_name in ['Recipes', 'Duty', 'Products', 'Customers', 'Sales / Invoicing', 'Delivery']:
                 module = module_class(
                     parent=self.content_area,
                     cache_manager=self.cache_manager,
@@ -652,6 +650,12 @@ class BreweryMainWindow:
                 # Final UI update handled by monitor_connection
             else:
                 logger.info("Skipping startup sync (offline)")
+                # Notify user about offline mode
+                self.root.after(0, lambda: messagebox.showwarning(
+                    "Offline Mode",
+                    "System is offline.\n\n"
+                    "Changes will be saved locally but will not sync to the cloud until connection is restored."
+                ))
 
         threading.Thread(target=sync_task, daemon=True).start()
 
@@ -696,7 +700,20 @@ class BreweryMainWindow:
     def _check_connection_thread(self):
         """Worker thread checking connection."""
         try:
-            self.sync_manager.check_connection()
+            # Store previous state
+            was_online = self.sync_manager.is_online
+            
+            # check_connection updates self.sync_manager.is_online
+            is_now_online = self.sync_manager.check_connection()
+            
+            # Detect reconnection (False -> True)
+            if not was_online and is_now_online:
+                logger.info("Connection restored! Triggering auto-sync...")
+                # We can reuse the auto-save trigger which runs in background
+                # Use after to ensure thread safety if triggering from here, 
+                # though trigger_auto_save_sync spawns its own thread anyway.
+                self.root.after(0, self.trigger_auto_save_sync)
+            
             # Update UI on main thread
             self.root.after(0, self.update_status_bar)
         except Exception as e:

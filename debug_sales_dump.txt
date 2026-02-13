@@ -1,0 +1,38 @@
+DEBUGGING DB: C:\Users\darre\.brewerymanager\cache.db
+
+--- CUSTOMERS ---
+Customer: The Crossways (Active: 1) ID: 95925643-2949-4bd4-bbd3-0ab4fd69d979
+Customer: The Red Lion (Active: 1) ID: CUST_RED_LION
+Customer: The Kings Head (Active: 1) ID: CUST_KINGS_HEAD
+Customer: Craft Beer Co (Active: 1) ID: CUST_CRAFT_CO
+Customer: Dave Wilson (Active: 1) ID: CUST_PRIVATE_1
+
+--- ALL SALES (Raw Inspect) ---
+Sale SALE_TEST_001 | Cust: The Red Lion | Status: delivered | Inv: '5acce9d3-dcb9-4704-b663-cd4f35cf9dd7' | Show? False
+Sale a56e5fe3-a3be-4126-ae08-7b6b4ac089da | Cust: The Crossways | Status: reserved | Inv: '1026bd92-fdf6-43d2-a616-9649c785db89' | Show? False
+Sale 502c89bf-cf47-4918-b872-06068f9c33f5 | Cust: The Crossways | Status: reserved | Inv: '1026bd92-fdf6-43d2-a616-9649c785db89' | Show? False
+Sale 091965f0-b77b-45cc-b6e8-d904e28c6560 | Cust: The Crossways | Status: reserved | Inv: None | Show? True
+Sale 61ad9303-b843-4822-a4c5-6ce91848b294 | Cust: The Crossways | Status: reserved | Inv: 'b9fcb36c-c57a-402b-95c6-8ff77f3550b7' | Show? False
+Sale 0ba2aa85-ee65-457f-be8c-7c7e8d9b26a5 | Cust: The Crossways | Status: reserved | Inv: None | Show? True
+Sale 0116f8a6-77d9-429e-8a30-da272a821371 | Cust: The Crossways | Status: reserved | Inv: None | Show? True
+Sale 93cd4fdf-4e76-4cd0-83f5-412a1d85a42f | Cust: The Crossways | Status: reserved | Inv: None | Show? True
+Sale 63a7f298-7dc3-4e09-81e2-b62a529e631e | Cust: The Crossways | Status: reserved | Inv: None | Show? True
+Sale 2d4ccfa5-71de-4860-8272-cf62979c9b4e | Cust: The Crossways | Status: reserved | Inv: None | Show? True
+Sale 91d1590d-8b1b-4905-bed2-c0aa2c3df81e | Cust: The Crossways | Status: reserved | Inv: None | Show? True
+Sale 0eaec4cc-f902-4b27-b379-908697c2ddee | Cust: The Crossways | Status: reserved | Inv: None | Show? True
+
+--- SIMULATED QUERIES ---
+
+Checking Customer: The Red Lion (CUST_RED_LION)
+Query found 0 sales.
+
+Checking Customer: The Crossways (95925643-2949-4bd4-bbd3-0ab4fd69d979)
+Query found 8 sales.
+ -> Found: 091965f0-b77b-45cc-b6e8-d904e28c6560 (Inv: None)
+ -> Found: 0ba2aa85-ee65-457f-be8c-7c7e8d9b26a5 (Inv: None)
+ -> Found: 0116f8a6-77d9-429e-8a30-da272a821371 (Inv: None)
+ -> Found: 93cd4fdf-4e76-4cd0-83f5-412a1d85a42f (Inv: None)
+ -> Found: 63a7f298-7dc3-4e09-81e2-b62a529e631e (Inv: None)
+ -> Found: 2d4ccfa5-71de-4860-8272-cf62979c9b4e (Inv: None)
+ -> Found: 91d1590d-8b1b-4905-bed2-c0aa2c3df81e (Inv: None)
+ -> Found: 0eaec4cc-f902-4b27-b379-908697c2ddee (Inv: None)

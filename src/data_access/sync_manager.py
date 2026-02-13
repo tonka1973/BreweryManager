@@ -78,6 +78,7 @@ class SyncManager:
         self.is_online = False
         self.last_sync_time = None
         self.sync_in_progress = False
+        self.auth_in_progress = False
         
     def initialize(self):
         """
@@ -86,7 +87,7 @@ class SyncManager:
         """
         try:
             # 1. Try to load spreadsheet ID from local DB (works offline)
-            if self.sheets_client.is_authenticated and not self.sheets_client.spreadsheet_id:
+            if not self.sheets_client.spreadsheet_id:
                 self.cache.connect()
                 try:
                     setting = self.cache.get_record('system_settings', 'spreadsheet_id', 'setting_key')
@@ -168,6 +169,17 @@ class SyncManager:
                 timeout=CONNECTION_TIMEOUT_SECONDS
             )
             self.is_online = True
+            
+            # If we are online but not authenticated, try again
+            # Use a lock-flag to prevent multiple threads from triggering auth at once (Signin Loop Fix)
+            if not self.sheets_client.is_authenticated and not self.auth_in_progress:
+                try:
+                    self.auth_in_progress = True
+                    logger.info("Connection available but not authenticated. Attempting re-auth...")
+                    self.sheets_client.authenticate()
+                finally:
+                    self.auth_in_progress = False
+
             return True
         except OSError:
             # 2. Fallback to HTTP check (can be slower but more robust)
@@ -175,6 +187,15 @@ class SyncManager:
                 import urllib.request
                 urllib.request.urlopen('http://google.com', timeout=CONNECTION_TIMEOUT_SECONDS)
                 self.is_online = True
+                
+                # If we are online but not authenticated, try again
+                if not self.sheets_client.is_authenticated and not self.auth_in_progress:
+                   try:
+                       self.auth_in_progress = True
+                       self.sheets_client.authenticate()
+                   finally:
+                       self.auth_in_progress = False
+
                 return True
             except:
                 self.is_online = False

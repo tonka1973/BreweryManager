@@ -10,9 +10,103 @@ import uuid
 from datetime import datetime, timedelta
 from ..utilities.date_utils import format_date_for_display, parse_display_date, get_today_display, get_today_db
 from ..utilities.window_manager import get_window_manager, enable_mousewheel_scrolling, enable_treeview_keyboard_navigation
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+import os
+import subprocess
+import platform
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def create_invoice_for_sales(cache, user, customer_id, sale_ids, vat_rate=0.20):
+    """
+    Create an invoice for specific sales.
+    
+    Args:
+        cache: CacheManager instance
+        user: Current User instance
+        customer_id: ID of the customer
+        sale_ids: List of sale_ids to invoice
+        vat_rate: VAT rate as float (e.g. 0.20 for 20%)
+        
+    Returns:
+        tuple: (success (bool), message (str), invoice_id (str|None))
+    """
+    if not sale_ids:
+        return False, "No sales selected", None
+        
+    try:
+        cache.connect()
+        
+        # Calculate totals
+        subtotal = 0
+        sales_data = []
+        for sale_id in sale_ids:
+            sales = cache.get_all_records('sales', f"sale_id = '{sale_id}'")
+            if sales:
+                subtotal += sales[0].get('line_total', 0)
+                sales_data.append(sales[0])
+
+        vat_amount = subtotal * vat_rate
+        total = subtotal + vat_amount
+
+        # Generate invoice number
+        year = datetime.now().year
+        # Note: this might be slow if many invoices, but acceptable for now
+        invoices = cache.get_all_records('invoices', f"invoice_number LIKE 'INV-{year}-%'")
+        next_num = len(invoices) + 1
+        invoice_number = f"INV-{year}-{next_num:04d}"
+
+        # Create invoice
+        invoice_id = str(uuid.uuid4())
+        invoice_data = {
+            'invoice_id': invoice_id,
+            'invoice_number': invoice_number,
+            'invoice_date': get_today_db(),
+            'customer_id': customer_id,
+            'subtotal': subtotal,
+            'vat_rate': vat_rate,
+            'vat_amount': vat_amount,
+            'total': total,
+            'payment_status': 'unpaid',
+            'amount_paid': 0,
+            'amount_outstanding': total,
+            'due_date': parse_display_date((datetime.now() + timedelta(days=30)).strftime('%d/%m/%Y')),
+            'created_by': user.username,
+            'created_date': get_today_db(),
+            'sync_status': 'pending'
+        }
+        cache.insert_record('invoices', invoice_data)
+
+        # Create invoice lines
+        for sale in sales_data:
+             line_data = {
+                'line_id': str(uuid.uuid4()),
+                'invoice_id': invoice_id,
+                'sale_id': sale['sale_id'],
+                'description': f"{sale.get('beer_name', '')} - {sale.get('container_type', '')}",
+                'quantity': sale.get('quantity', 0),
+                'unit_price': sale.get('unit_price', 0),
+                'line_total': sale.get('line_total', 0),
+                'gyle_number': sale.get('gyle_number', ''),
+                'sync_status': 'pending'
+            }
+             cache.insert_record('invoice_lines', line_data)
+
+             # Update sale with invoice_id
+             cache.update_record('sales', sale['sale_id'], {'invoice_id': invoice_id}, 'sale_id')
+
+        cache.close()
+        return True, f"Invoice {invoice_number} created!\n\nTotal: £{total:.2f}", invoice_id
+        
+    except Exception as e:
+        logger.error(f"Error creating invoice: {e}")
+        if cache and cache.connection:
+             cache.close()
+        return False, f"Error creating invoice: {e}", None
+
 
 
 class InvoicingModule(ttk.Frame):
@@ -182,10 +276,13 @@ class InvoicingModule(ttk.Frame):
 class InvoiceCreateDialog(tk.Toplevel):
     """Dialog for creating invoice from sales"""
 
-    def __init__(self, parent, cache_manager, current_user):
+    def __init__(self, parent, cache_manager, current_user, customer_id=None, selected_sale_ids=None):
         super().__init__(parent)
+        logger.info(f"Initializing InvoiceCreateDialog. customer_id={customer_id}, selected_sale_ids={selected_sale_ids}")
         self.cache = cache_manager
         self.current_user = current_user
+        self.initial_customer_id = customer_id
+        self.selected_sale_ids = selected_sale_ids or []
 
         self.title("Create Invoice")
         self.transient(parent)
@@ -219,7 +316,7 @@ class InvoiceCreateDialog(tk.Toplevel):
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
-        ttk.Label(frame, text="Create Invoice from Delivered Sales",
+        ttk.Label(frame, text="Create Invoice from Orders",
                  font=('Arial', 14, 'bold')).pack(pady=(0,20))
 
         # Customer selection
@@ -235,8 +332,12 @@ class InvoiceCreateDialog(tk.Toplevel):
         customer_combo.pack(anchor='w', pady=(0,15))
         customer_combo.bind('<<ComboboxSelected>>', self.load_sales)
 
+        # Auto-select customer if provided
+        # Auto-select customer logic moved to end of method
+
+
         # Sales list
-        ttk.Label(frame, text="Delivered Sales (not yet invoiced):",
+        ttk.Label(frame, text="Select Orders to Invoice:",
                  font=('Arial', 10, 'bold')).pack(anchor='w', pady=(0,5))
 
         sales_frame = ttk.Frame(frame)
@@ -285,29 +386,58 @@ class InvoiceCreateDialog(tk.Toplevel):
                  width=10).pack(side=tk.LEFT)
         ttk.Label(vat_frame, text="%", font=('Arial', 10)).pack(side=tk.LEFT, padx=(5,0))
 
+        # Auto-select customer if provided (now safe to call load_sales)
+        if self.initial_customer_id:
+            for name, cid in self.customer_list.items():
+                if cid == self.initial_customer_id:
+                    customer_combo.set(name)
+                    self.load_sales()
+                    break
+
 
     def load_sales(self, event=None):
         """Load uninvoiced sales for customer"""
+        logger.info(f"Loading sales for invoice creation. Customer: {self.customer_var.get()}")
         for item in self.sales_tree.get_children():
             self.sales_tree.delete(item)
 
         customer_name = self.customer_var.get()
         if not customer_name or customer_name not in self.customer_list:
+            logger.warning(f"Customer {customer_name} not found in customer list")
             return
 
         customer_id = self.customer_list[customer_name]
+        logger.info(f"Resolved customer_id: {customer_id}")
 
-        self.cache.connect()
-        sales = self.cache.get_all_records('sales',
-                                          f"customer_id = '{customer_id}' AND status = 'delivered' AND (invoice_id IS NULL OR invoice_id = '')",
-                                          'delivery_date DESC')
-        self.cache.close()
+        # Fetch all uninvoiced sales for this customer, regardless of status
+        # Using 3-arg get_all_records signature
+        where_clause = f"customer_id = '{customer_id}' AND (invoice_id IS NULL OR invoice_id = '' OR invoice_id = 'None' OR invoice_id = 'NULL')"
+        logger.info(f"Querying sales with where_clause: {where_clause}")
+        
+        try:
+            sales = self.cache.get_all_records('sales', where_clause, 'delivery_date DESC')
+            logger.info(f"Found {len(sales)} sales")
+        except Exception as e:
+            logger.error(f"Error querying sales: {e}")
+            sales = []
 
         for sale in sales:
-            values = ('☐', format_date_for_display(sale.get('delivery_date', '')), sale.get('beer_name', ''),
-                     sale.get('quantity', 0), f"£{sale.get('unit_price', 0):.2f}",
-                     f"£{sale.get('line_total', 0):.2f}")
-            self.sales_tree.insert('', 'end', text='', values=values, tags=(sale['sale_id'],))
+            try:
+                # Log the first sale for debugging
+                if sales.index(sale) == 0:
+                    logger.debug(f"Sample sale data: {sale}")
+                
+                is_selected = '☑' if sale['sale_id'] in self.selected_sale_ids else '☐'
+                
+                s = dict(sale) 
+                
+                values = (is_selected, format_date_for_display(s.get('delivery_date', '')), s.get('beer_name', ''),
+                         s.get('quantity', 0), f"£{s.get('unit_price', 0):.2f}",
+                         f"£{s.get('line_total', 0):.2f}")
+                
+                self.sales_tree.insert('', 'end', text='', values=values, tags=(sale['sale_id'],))
+            except Exception as e:
+                logger.error(f"Error processing sale {sale.get('sale_id')}: {e}")
 
         self.sales_tree.bind('<Button-1>', self.toggle_select)
 
@@ -340,70 +470,27 @@ class InvoiceCreateDialog(tk.Toplevel):
             messagebox.showerror("Error", "Please select at least one sale.")
             return
 
-        # Calculate totals
-        self.cache.connect()
-        subtotal = 0
-        for sale_id in selected_sales:
-            sales = self.cache.get_all_records('sales', f"sale_id = '{sale_id}'")
-            if sales:
-                subtotal += sales[0].get('line_total', 0)
+        vat_rate_str = self.vat_var.get()
+        try:
+             vat_rate = float(vat_rate_str) / 100
+        except ValueError:
+             messagebox.showerror("Error", "Invalid VAT Rate")
+             return
 
-        vat_rate = float(self.vat_var.get()) / 100
-        vat_amount = subtotal * vat_rate
-        total = subtotal + vat_amount
+        # Use helper function
+        success, message, invoice_id = create_invoice_for_sales(
+            self.cache, 
+            self.current_user, 
+            self.customer_list[customer_name], 
+            selected_sales, 
+            vat_rate
+        )
 
-        # Generate invoice number
-        year = datetime.now().year
-        invoices = self.cache.get_all_records('invoices', f"invoice_number LIKE 'INV-{year}-%'")
-        next_num = len(invoices) + 1
-        invoice_number = f"INV-{year}-{next_num:04d}"
-
-        # Create invoice
-        invoice_id = str(uuid.uuid4())
-        invoice_data = {
-            'invoice_id': invoice_id,
-            'invoice_number': invoice_number,
-            'invoice_date': get_today_db(),
-            'customer_id': self.customer_list[customer_name],
-            'subtotal': subtotal,
-            'vat_rate': vat_rate,
-            'vat_amount': vat_amount,
-            'total': total,
-            'payment_status': 'unpaid',
-            'amount_paid': 0,
-            'amount_outstanding': total,
-            'due_date': parse_display_date((datetime.now() + timedelta(days=30)).strftime('%d/%m/%Y')),
-            'created_by': self.current_user.username,
-            'created_date': get_today_db(),
-            'sync_status': 'pending'
-        }
-        self.cache.insert_record('invoices', invoice_data)
-
-        # Create invoice lines
-        for sale_id in selected_sales:
-            sales = self.cache.get_all_records('sales', f"sale_id = '{sale_id}'")
-            if sales:
-                sale = sales[0]
-                line_data = {
-                    'line_id': str(uuid.uuid4()),
-                    'invoice_id': invoice_id,
-                    'sale_id': sale_id,
-                    'description': f"{sale.get('beer_name', '')} - {sale.get('container_type', '')}",
-                    'quantity': sale.get('quantity', 0),
-                    'unit_price': sale.get('unit_price', 0),
-                    'line_total': sale.get('line_total', 0),
-                    'gyle_number': sale.get('gyle_number', ''),
-                    'sync_status': 'pending'
-                }
-                self.cache.insert_record('invoice_lines', line_data)
-
-                # Update sale with invoice_id
-                self.cache.update_record('sales', sale_id, {'invoice_id': invoice_id}, 'sale_id')
-
-        self.cache.close()
-
-        messagebox.showinfo("Success", f"Invoice {invoice_number} created!\n\nTotal: £{total:.2f}")
-        self.destroy()
+        if success:
+            messagebox.showinfo("Success", message)
+            self.destroy()
+        else:
+            messagebox.showerror("Error", message)
 
 
 class PaymentDialog(tk.Toplevel):
@@ -574,6 +661,10 @@ class InvoiceViewDialog(tk.Toplevel):
                   bootstyle="secondary",
                   command=self.destroy).pack(side=tk.RIGHT)
 
+        ttk.Button(button_frame, text="🖨️ Print PDF",
+                  bootstyle="info",
+                  command=self.generate_pdf).pack(side=tk.RIGHT, padx=(0, 10))
+
         frame = ttk.Frame(self, padding=20)
         frame.pack(fill=tk.BOTH, expand=True)
 
@@ -630,4 +721,109 @@ Outstanding: £{self.invoice.get('amount_outstanding', 0):.2f}
 
         tk.Label(totals_frame, text=totals.strip(), font=('Arial', 10, 'bold'),
                 bg='#fff3e0', justify=tk.RIGHT).pack(padx=10, pady=10, anchor='e')
+
+
+    def generate_pdf(self):
+        """Generate PDF invoice"""
+        try:
+            # Create reports directory if it doesn't exist
+            reports_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'reports')
+            if not os.path.exists(reports_dir):
+                os.makedirs(reports_dir)
+
+            filename = f"{self.invoice.get('invoice_number', 'invoice')}.pdf"
+            filepath = os.path.join(reports_dir, filename)
+
+            c = canvas.Canvas(filepath, pagesize=A4)
+            width, height = A4
+
+            # Header
+            c.setFont("Helvetica-Bold", 24)
+            c.drawString(50, height - 50, "INVOICE")
+
+            c.setFont("Helvetica", 10)
+            c.drawRightString(width - 50, height - 50, "My Brewery Name") # Placeholder
+            c.drawRightString(width - 50, height - 65, "123 Brewery Lane")
+            c.drawRightString(width - 50, height - 80, "Beer Town, BT1 1AA")
+            c.drawRightString(width - 50, height - 95, "VAT Date: " + get_today_display())
+
+            # Invoice Details
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(50, height - 130, f"Invoice #: {self.invoice.get('invoice_number', '')}")
+            
+            c.setFont("Helvetica", 12)
+            c.drawString(50, height - 150, f"Date: {format_date_for_display(self.invoice.get('invoice_date'))}")
+            c.drawString(50, height - 170, f"Due Date: {format_date_for_display(self.invoice.get('due_date'))}")
+
+            # Customer Details
+            customer_name = "Unknown"
+            if self.invoice.get('customer_id'):
+                self.cache.connect()
+                customers = self.cache.get_all_records('customers', f"customer_id = '{self.invoice.get('customer_id')}'")
+                self.cache.close()
+                if customers:
+                    customer_name = customers[0]['customer_name']
+                    # Could add address here too
+
+            c.drawString(300, height - 130, "Bill To:")
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(300, height - 150, customer_name)
+
+            # Table Header
+            y = height - 220
+            c.line(50, y + 15, width - 50, y + 15)
+            c.setFont("Helvetica-Bold", 10)
+            c.drawString(50, y, "Description")
+            c.drawString(300, y, "Qty")
+            c.drawString(350, y, "Unit Price")
+            c.drawString(450, y, "Total")
+            c.line(50, y - 10, width - 50, y - 10)
+
+            # Items
+            y -= 30
+            c.setFont("Helvetica", 10)
+            for line in self.lines:
+                desc = line.get('description', '')
+                if line.get('gyle_number'):
+                    desc += f" ({line.get('gyle_number')})"
+                
+                c.drawString(50, y, desc)
+                c.drawString(300, y, str(line.get('quantity', 0)))
+                c.drawString(350, y, f"£{line.get('unit_price', 0):.2f}")
+                c.drawString(450, y, f"£{line.get('line_total', 0):.2f}")
+                y -= 20
+                
+                if y < 100: # New page if running out of space
+                    c.showPage()
+                    y = height - 50
+
+            # Totals
+            y -= 20
+            c.line(50, y + 10, width - 50, y + 10)
+            c.setFont("Helvetica-Bold", 10)
+            
+            c.drawRightString(450, y, "Subtotal:")
+            c.drawRightString(520, y, f"£{self.invoice.get('subtotal', 0):.2f}")
+            y -= 20
+            
+            c.drawRightString(450, y, f"VAT ({self.invoice.get('vat_rate', 0)*100:.0f}%):")
+            c.drawRightString(520, y, f"£{self.invoice.get('vat_amount', 0):.2f}")
+            y -= 20
+            
+            c.setFont("Helvetica-Bold", 12)
+            c.drawRightString(450, y, "Total:")
+            c.drawRightString(520, y, f"£{self.invoice.get('total', 0):.2f}")
+            
+            c.save()
+            
+            # Open PDF
+            if platform.system() == 'Windows':
+                os.startfile(filepath)
+            elif platform.system() == 'Darwin':  # macOS
+                subprocess.call(('open', filepath))
+            else:  # linux variants
+                subprocess.call(('xdg-open', filepath))
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to generate PDF: {e}")
 
